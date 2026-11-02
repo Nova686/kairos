@@ -12,7 +12,18 @@ describe('parseEbayItemSummaries', () => {
   const observations = parseEbayItemSummaries(ebaySearchFixture)
 
   it('keeps euro listings once each', () => {
-    expect(observations.map((observation) => observation.priceCents)).toEqual([6490, 7200])
+    expect(observations.map((observation) => observation.priceCents)).toEqual([6490, 7200, 5500])
+  })
+
+  it('drops listings with variations, whose single price is not the product price', () => {
+    expect(observations.some((observation) => observation.url === 'https://www.ebay.fr/itm/100000000004')).toBe(false)
+  })
+
+  it('keeps a listing without condition with a null condition', () => {
+    expect(observations.find((observation) => observation.url === 'https://www.ebay.fr/itm/100000000005')).toMatchObject({
+      sourceCondition: null,
+      priceCents: 5500,
+    })
   })
 
   it('reads the condition, shipping and image', () => {

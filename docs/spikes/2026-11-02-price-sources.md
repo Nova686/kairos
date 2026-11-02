@@ -23,3 +23,18 @@ Les quatre sites refusent un navigateur automatisé dès l'IP de particulier. Un
 | **eBay** | API Browse officielle, gratuite avec un compte développeur eBay, place de marché `EBAY_FR` | annonces **en cours**, avec prix, état (`condition`), image et lien ; filtre par état ; Pokémon, jouets, maquillage, cartes gradées | les ventes conclues ne sont pas accessibles (API Marketplace Insights réservée) ; quota quotidien gratuit largement suffisant pour ~1 000 produits |
 | **Vinted** | aucune API publique | — | aucune voie officielle |
 | **Leboncoin** | aucune API publique | — | aucune voie officielle |
+
+## Sonde des voies officielles (`npm run probe`)
+
+| Source | Référence | Local (réseau avec Sophos) | GitHub Actions (IP datacenter) |
+|---|---|---|---|
+| Cardmarket | price guide 798930, 798931 | ok, 2 agrégats | ok, 2 agrégats |
+| TCGdex | recherche « Dracaufeu » | ok, 113 cartes | ok, 113 cartes |
+| TCGdex | carte sv08.5-161 | ok, 1 agrégat | ok, 1 agrégat |
+| pokemontcg.io | « Charizard » | erreur, certificat intercepté par Sophos | ok, 1 agrégat |
+| UPCitemdb | 0820650853715 | ok | ok |
+| Open Beauty Facts | 8005610625645 | ok | ok |
+| eBay | 5 recherches | désactivé, clés absentes | désactivé, clés absentes |
+| PSA | certificat | désactivé, jeton absent | désactivé, jeton absent |
+
+Conclusion : toutes les voies sans clé répondent depuis une IP de datacenter, donc l'hébergement sur une VM Oracle ne pose pas de problème. eBay et PSA restent à mesurer quand les clés seront fournies, via `npm run probe` en local ou en lançant le workflow « Probe price and identification sources » à la main.

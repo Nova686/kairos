@@ -13,7 +13,12 @@ interface EbayItemSummary {
   itemWebUrl: string
   image?: { imageUrl?: string }
   shippingOptions?: { shippingCost?: EbayAmount }[]
+  itemGroupType?: string
+  itemGroupHref?: string
 }
+
+const hasVariations = (itemSummary: EbayItemSummary): boolean =>
+  Boolean(itemSummary.itemGroupType || itemSummary.itemGroupHref)
 
 const euroAmountToCents = (amount: EbayAmount | undefined): number | null => {
   if (!amount || amount.currency !== 'EUR') {
@@ -28,7 +33,7 @@ export const parseEbayItemSummaries = (rawSearch: unknown): ListingObservation[]
   const observations: ListingObservation[] = []
   for (const itemSummary of itemSummaries) {
     const priceCents = euroAmountToCents(itemSummary.price)
-    if (priceCents === null || priceCents === 0) {
+    if (priceCents === null || priceCents === 0 || hasVariations(itemSummary)) {
       continue
     }
     observations.push({
