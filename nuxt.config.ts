@@ -2,7 +2,7 @@ import vuetify from 'vite-plugin-vuetify'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-02',
-  modules: ['@nuxt/eslint'],
+  modules: ['@nuxt/eslint', 'nuxt-auth-utils'],
   components: [{ path: '~/components', pathPrefix: false }],
   css: ['@mdi/font/css/materialdesignicons.css', 'vuetify/styles'],
   build: { transpile: ['vuetify'] },
