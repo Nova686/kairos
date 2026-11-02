@@ -24,6 +24,7 @@ interface RequestFailure {
 }
 
 const tooManyRequestsStatus = 429
+const notFoundStatus = 404
 
 const describeFailure = (failure: unknown): string => {
   const requestFailure = failure as RequestFailure
@@ -46,12 +47,21 @@ export const useProductPrices = async (productId: string, preferredCondition: st
   const sendRequest = $fetch as (path: string, options: { method: string, body?: unknown }) => Promise<unknown>
   const runExclusively = createExclusiveRunner()
 
-  const { data: screen, refresh: refreshScreen } = await useAsyncData<PriceScreen>(
+  const { data: screen, refresh: refreshScreen } = await useAsyncData<PriceScreen | null>(
     `product-prices-${productId}`,
     async () => {
-      const product = await requestFetch<PricedProductView>(`/api/products/${productId}`)
-      const overview = await requestFetch<ProductPriceOverviewView>(`/api/products/${productId}/prices`)
-      return { product, overview }
+      try {
+        const product = await requestFetch<PricedProductView>(`/api/products/${productId}`)
+        const overview = await requestFetch<ProductPriceOverviewView>(`/api/products/${productId}/prices`)
+        return { product, overview }
+      }
+      catch (failure) {
+        const requestFailure = failure as RequestFailure
+        if ((requestFailure.statusCode ?? requestFailure.status) === notFoundStatus) {
+          return null
+        }
+        throw failure
+      }
     },
   )
 
@@ -77,8 +87,9 @@ export const useProductPrices = async (productId: string, preferredCondition: st
   const errorMessage = ref('')
   const refreshMessage = ref('')
   const isRefreshing = ref(false)
-  const openedCell = ref<PriceOverviewCellView | null>(null)
-  const excludedListingUrls = ref<string[]>([])
+  const openedSnapshotId = ref<string | null>(null)
+  const openedCell = computed(() => cells.value.find(priceCell => priceCell.snapshotId === openedSnapshotId.value) ?? null)
+  const isRefreshPending = computed(() => overview.value?.isRefreshPending ?? false)
 
   const keepSelectedColumnValid = () => {
     if (selectedColumn.value === null) {
@@ -119,25 +130,31 @@ export const useProductPrices = async (productId: string, preferredCondition: st
     })
 
   const openListings = (priceCell: PriceOverviewCellView) => {
-    openedCell.value = priceCell
+    openedSnapshotId.value = priceCell.snapshotId
   }
 
   const closeListings = () => {
-    openedCell.value = null
+    openedSnapshotId.value = null
   }
 
-  const excludeListing = (listingUrl: string) =>
+  const changeListingExclusion = (listingUrl: string, method: 'POST' | 'DELETE', message: string) =>
     runExclusively(async () => {
       errorMessage.value = ''
       try {
-        await sendRequest(`/api/products/${productId}/excluded-listings`, { method: 'POST', body: { url: listingUrl } })
-        excludedListingUrls.value = [...excludedListingUrls.value, listingUrl]
-        refreshMessage.value = 'Annonce exclue : un nouveau relevé est programmé.'
+        await sendRequest(`/api/products/${productId}/excluded-listings`, { method, body: { url: listingUrl } })
+        refreshMessage.value = message
+        await reloadScreen()
       }
       catch (failure) {
         errorMessage.value = describeFailure(failure)
       }
     })
+
+  const excludeListing = (listingUrl: string) =>
+    changeListingExclusion(listingUrl, 'POST', 'Annonce exclue : un nouveau relevé est programmé.')
+
+  const restoreListing = (listingUrl: string) =>
+    changeListingExclusion(listingUrl, 'DELETE', 'Annonce rétablie : un nouveau relevé est programmé.')
 
   const saveManualPrice = async (body: Record<string, unknown>): Promise<boolean> => {
     const outcome = await runExclusively(async () => {
@@ -186,11 +203,12 @@ export const useProductPrices = async (productId: string, preferredCondition: st
     refreshMessage,
     isRefreshing,
     openedCell,
-    excludedListingUrls,
+    isRefreshPending,
     refreshNow,
     openListings,
     closeListings,
     excludeListing,
+    restoreListing,
     saveManualPrice,
     saveEbaySettings,
   }

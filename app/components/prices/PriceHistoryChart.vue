@@ -17,7 +17,6 @@
 
 <script setup lang="ts">
 import {
-  CategoryScale,
   Chart as ChartJs,
   Legend,
   LinearScale,
@@ -29,7 +28,7 @@ import {
 import { Line } from 'vue-chartjs'
 import type { PriceChartData } from '~/utils/price-overview-view'
 
-ChartJs.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
+ChartJs.register(LinearScale, PointElement, LineElement, Tooltip, Legend)
 
 defineProps({
   chartData: { type: Object as PropType<PriceChartData>, required: true },
@@ -41,6 +40,10 @@ const chartOptions: ChartOptions<'line'> = {
   responsive: true,
   maintainAspectRatio: false,
   scales: {
+    x: {
+      type: 'linear',
+      ticks: { maxTicksLimit: 8, precision: 0, callback: tickValue => formatDayNumber(Number(tickValue)) },
+    },
     y: {
       ticks: { callback: tickValue => euroAmountFormatter.format(Number(tickValue)) },
     },
@@ -48,6 +51,7 @@ const chartOptions: ChartOptions<'line'> = {
   plugins: {
     tooltip: {
       callbacks: {
+        title: tooltipItems => tooltipItems.map(tooltipItem => formatDayNumber(Number(tooltipItem.parsed.x))).join(', '),
         label: tooltipItem => `${tooltipItem.dataset.label} : ${euroAmountFormatter.format(Number(tooltipItem.parsed.y))}`,
       },
     },

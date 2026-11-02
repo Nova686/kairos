@@ -6,8 +6,11 @@ export interface RetainedListingView {
   priceCents: number
   shippingCents: number | null
   sourceCondition: string | null
-  url: string
+  url: string | null
   imageUrl: string | null
+  observedAt: string | null
+  authorName: string | null
+  isExcluded: boolean
 }
 
 export interface PriceOverviewCellView {
@@ -46,6 +49,8 @@ export interface ProductPriceOverviewView {
   history: PriceHistoryPointView[]
   cardReferences: CardReferenceRowView[]
   lastRefreshedAt: string | null
+  excludedListingUrls: string[]
+  isRefreshPending: boolean
 }
 
 export interface PriceColumn {
@@ -62,16 +67,20 @@ export interface PriceRow {
   cells: (PriceOverviewCellView | null)[]
 }
 
+export interface PriceChartPoint {
+  x: number
+  y: number
+}
+
 export interface PriceChartDataset {
   label: string
-  data: (number | null)[]
+  data: PriceChartPoint[]
   borderColor: string
   backgroundColor: string
   spanGaps: boolean
 }
 
 export interface PriceChartData {
-  labels: string[]
   datasets: PriceChartDataset[]
 }
 
@@ -95,7 +104,7 @@ const parisDateFormatter = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/
 
 export const formatParisDate = (isoTimestamp: string): string => parisDateFormatter.format(new Date(isoTimestamp))
 
-const gradedColumnKey =(gradingCompany: string, grade: string): string => `${gradedConditionCode}|${gradingCompany}|${grade}`
+const gradedColumnKey = (gradingCompany: string, grade: string): string => `${gradedConditionCode}|${gradingCompany}|${grade}`
 
 const columnKeyOfCell = (priceCell: { condition: ConditionCode, gradingCompany: string | null, grade: string | null }): string =>
   priceCell.condition === gradedConditionCode
@@ -138,32 +147,38 @@ export const buildPriceRows = (cells: PriceOverviewCellView[], columns: PriceCol
       cells.find(priceCell => priceCell.source === source && columnKeyOfCell(priceCell) === column.key) ?? null),
   }))
 
+const millisecondsPerDay = 24 * 60 * 60 * 1000
+
+export const dayNumberOf = (calendarDate: string): number => Date.parse(`${calendarDate}T00:00:00Z`) / millisecondsPerDay
+
+const dayNumberFormatter = new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' })
+
+export const formatDayNumber = (dayNumber: number): string => dayNumberFormatter.format(new Date(dayNumber * millisecondsPerDay))
+
 export const buildHistoryChartData = (
   history: PriceHistoryPointView[],
   selectedColumn: PriceColumn | null,
 ): PriceChartData => {
   if (selectedColumn === null) {
-    return { labels: [], datasets: [] }
+    return { datasets: [] }
   }
   const selectedPoints = history.filter(historyPoint => columnKeyOfCell(historyPoint) === selectedColumn.key)
-  const labels = [...new Set(selectedPoints.map(historyPoint => historyPoint.observedOn))].sort()
   const datasets: PriceChartDataset[] = []
   for (const { source, label, color } of priceSourceRows) {
-    const sourcePoints = selectedPoints.filter(historyPoint => historyPoint.source === source)
+    const sourcePoints = selectedPoints
+      .filter(historyPoint => historyPoint.source === source)
+      .sort((left, right) => left.observedOn.localeCompare(right.observedOn))
     if (sourcePoints.length > 0) {
       datasets.push({
         label,
-        data: labels.map((observedOn) => {
-          const matchingPoint = sourcePoints.find(historyPoint => historyPoint.observedOn === observedOn)
-          return matchingPoint ? matchingPoint.figureCents / 100 : null
-        }),
+        data: sourcePoints.map(historyPoint => ({ x: dayNumberOf(historyPoint.observedOn), y: historyPoint.figureCents / 100 })),
         borderColor: color,
         backgroundColor: color,
-        spanGaps: true,
+        spanGaps: false,
       })
     }
   }
-  return { labels, datasets }
+  return { datasets }
 }
 
 export const chooseDefaultColumnKey = (columns: PriceColumn[], preferredCondition: string | null): string | null => {

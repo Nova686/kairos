@@ -21,11 +21,11 @@ export const useManualPriceForm = (
   const gradingCompany = ref('')
   const grade = ref('')
   const priceText = ref('')
-  const observedOn = ref(todayAsLocalCalendarDate())
+  const observedOn = ref(todayAsParisCalendarDate())
   const url = ref('')
   const errorMessage = ref('')
 
-  const maximumObservedOn = computed(() => todayAsLocalCalendarDate())
+  const maximumObservedOn = computed(() => todayAsParisCalendarDate())
 
   const submitManualPrice = async () => {
     const outcome = buildManualPriceBody({
@@ -37,7 +37,7 @@ export const useManualPriceForm = (
       priceText: priceText.value,
       observedOn: observedOn.value,
       url: url.value,
-    }, todayAsLocalCalendarDate())
+    }, todayAsParisCalendarDate())
     if ('errorMessage' in outcome) {
       errorMessage.value = outcome.errorMessage
       return false

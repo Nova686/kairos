@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildHistoryChartData,
+  dayNumberOf,
+  formatDayNumber,
   buildPriceColumns,
   buildPriceRows,
   chooseDefaultColumnKey,
@@ -90,15 +92,28 @@ describe('buildHistoryChartData', () => {
       point({ condition: 'opened-complete', observedOn: '2026-11-01', figureCents: 500 }),
     ], columns[0]!)
 
-    expect(chartData.labels).toEqual(['2026-11-01', '2026-11-02'])
     expect(chartData.datasets.map(dataset => [dataset.label, dataset.data])).toEqual([
-      ['eBay', [90, 95]],
-      ['Cardmarket', [null, 120]],
+      ['eBay', [{ x: dayNumberOf('2026-11-01'), y: 90 }, { x: dayNumberOf('2026-11-02'), y: 95 }]],
+      ['Cardmarket', [{ x: dayNumberOf('2026-11-02'), y: 120 }]],
     ])
+    expect(chartData.datasets.every(dataset => !dataset.spanGaps)).toBe(true)
+  })
+
+  it('places points proportionally to the real days, leaving gaps where days are missing', () => {
+    const columns = buildPriceColumns('pokemon-sealed', [])
+
+    const chartData = buildHistoryChartData([
+      point({ observedOn: '2026-10-01' }),
+      point({ observedOn: '2026-11-01' }),
+    ], columns[0]!)
+
+    const dayNumbers = chartData.datasets[0]!.data.map(chartPoint => chartPoint.x)
+    expect(dayNumbers[1]! - dayNumbers[0]!).toBe(31)
+    expect(formatDayNumber(dayNumbers[0]!)).toBe('01/10/2026')
   })
 
   it('has no dataset without a selected column', () => {
-    expect(buildHistoryChartData([point({})], null)).toEqual({ labels: [], datasets: [] })
+    expect(buildHistoryChartData([point({})], null)).toEqual({ datasets: [] })
   })
 })
 

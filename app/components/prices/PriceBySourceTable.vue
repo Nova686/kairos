@@ -36,6 +36,13 @@
             >
               <span class="price-table__figure">{{ formatEuros(priceCell.figureCents) }}</span>
               <span class="price-table__date">{{ formatParisDate(priceCell.observedAt) }}</span>
+              <v-chip
+                v-if="priceCell.isStale"
+                size="x-small"
+                class="ml-2"
+              >
+                ancien
+              </v-chip>
             </v-btn>
             <span v-else>—</span>
           </td>
@@ -89,6 +96,13 @@
               >
                 <span class="price-table__figure">{{ formatEuros(priceCell.figureCents) }}</span>
                 <span class="price-table__date">{{ formatParisDate(priceCell.observedAt) }}</span>
+                <v-chip
+                  v-if="priceCell.isStale"
+                  size="x-small"
+                  class="ml-2"
+                >
+                  ancien
+                </v-chip>
               </v-btn>
             </div>
           </template>

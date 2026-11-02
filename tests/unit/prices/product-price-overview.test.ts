@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { priceRefreshRequests, priceSnapshotListings, priceSnapshots, products, users } from '../../../server/database/schema/index.ts'
+import { excludedListings, priceRefreshRequests, priceSnapshotListings, priceSnapshots, products, users } from '../../../server/database/schema/index.ts'
 import type { KairosDatabase } from '../../../server/database/open-database.ts'
 import { productPriceOverview } from '../../../server/domain/prices/product-price-overview.ts'
 import { createTestDatabase } from '../../support/create-test-database.ts'
@@ -78,7 +78,17 @@ describe('productPriceOverview', () => {
 
     expect(overview.bySourceAndCondition[0]).toMatchObject({ isStale: false, listingCount: 1 })
     expect(overview.bySourceAndCondition[0]!.listings).toEqual([
-      { title: 'Display scellé', priceCents: 9900, shippingCents: null, sourceCondition: null, url: 'https://ebay.fr/itm/1', imageUrl: null },
+      {
+        title: 'Display scellé',
+        priceCents: 9900,
+        shippingCents: null,
+        sourceCondition: null,
+        url: 'https://ebay.fr/itm/1',
+        imageUrl: null,
+        observedAt: null,
+        authorName: null,
+        isExcluded: false,
+      },
     ])
   })
 
@@ -157,6 +167,56 @@ describe('productPriceOverview', () => {
 
     expect(overview.history).toEqual([])
     expect(overview.lastRefreshedAt).toEqual(daysBefore(0, 2))
+  })
+
+  it('lists every fresh manual entry of a cell with its price, date, author and link or the manual placeholder', async () => {
+    const database = await createTestDatabase()
+    const product = await insertProduct(database)
+    const [member] = await database.select().from(users)
+    const manual = { source: 'vinted', kind: 'manual' as const, listingCount: 1, createdByUserId: member!.id }
+    const linked = await insertSnapshot(database, product.id, { ...manual, observedAt: daysBefore(1), medianCents: 10000 })
+    await insertSnapshot(database, product.id, { ...manual, observedAt: daysBefore(2), medianCents: 14000 })
+    await insertSnapshot(database, product.id, { ...manual, observedAt: daysBefore(20), medianCents: 30000 })
+    await database.insert(priceSnapshotListings).values({ snapshotId: linked.id, title: 'Relevé manuel', priceCents: 10000, url: 'https://www.vinted.fr/items/1' })
+
+    const overview = await productPriceOverview(database, product.id, now)
+
+    const manualCell = overview.bySourceAndCondition[0]!
+    expect(manualCell.figureCents).toBe(12000)
+    expect(manualCell.listings).toEqual([
+      expect.objectContaining({ title: 'Prix saisi manuellement', priceCents: 10000, url: 'https://www.vinted.fr/items/1', authorName: 'A', observedAt: daysBefore(1) }),
+      expect.objectContaining({ title: 'Prix saisi manuellement', priceCents: 14000, url: null, authorName: 'A', observedAt: daysBefore(2) }),
+    ])
+  })
+
+  it('exposes the excluded listing urls, flags excluded retained listings and reports a pending refresh', async () => {
+    const database = await createTestDatabase()
+    const product = await insertProduct(database)
+    const [member] = await database.select().from(users)
+    const snapshot = await insertSnapshot(database, product.id, { observedAt: daysBefore(1), listingCount: 2 })
+    await database.insert(priceSnapshotListings).values([
+      { snapshotId: snapshot.id, title: 'A', priceCents: 9000, url: 'https://ebay.fr/itm/1?hash=x' },
+      { snapshotId: snapshot.id, title: 'B', priceCents: 9500, url: 'https://ebay.fr/itm/2' },
+    ])
+    await database.insert(excludedListings).values({ productId: product.id, url: 'https://ebay.fr/itm/1', excludedByUserId: member!.id })
+    await database.insert(priceRefreshRequests).values({ productId: product.id, requestedAt: now })
+
+    const overview = await productPriceOverview(database, product.id, now)
+
+    expect(overview.excludedListingUrls).toEqual(['https://ebay.fr/itm/1'])
+    expect(overview.isRefreshPending).toBe(true)
+    expect(overview.bySourceAndCondition[0]!.listings.map(listing => [listing.title, listing.isExcluded])).toEqual([['A', true], ['B', false]])
+  })
+
+  it('reports no pending refresh when nothing is queued', async () => {
+    const database = await createTestDatabase()
+    const product = await insertProduct(database)
+    await database.insert(priceRefreshRequests).values({ productId: product.id, requestedAt: null })
+
+    const overview = await productPriceOverview(database, product.id, now)
+
+    expect(overview.isRefreshPending).toBe(false)
+    expect(overview.excludedListingUrls).toEqual([])
   })
 
   it('answers 404 for an unknown product', async () => {

@@ -38,6 +38,14 @@
     <h2 class="text-h6 mb-2">
       Prix par source
     </h2>
+    <v-chip
+      v-if="isRefreshPending"
+      class="mb-2"
+      prepend-icon="mdi-clock-outline"
+      role="status"
+    >
+      Relevé en attente
+    </v-chip>
     <PriceBySourceTable
       :columns="columns"
       :rows="rows"
@@ -73,9 +81,9 @@
 
     <RetainedListingsDialog
       :price-cell="openedCell"
-      :excluded-listing-urls="excludedListingUrls"
       @close="closeListings"
       @exclude-listing="excludeListing"
+      @restore-listing="restoreListing"
     />
     <v-dialog
       v-model="isManualPriceOpen"
@@ -118,12 +126,13 @@ const {
   errorMessage,
   refreshMessage,
   isRefreshing,
+  isRefreshPending,
   openedCell,
-  excludedListingUrls,
   refreshNow,
   openListings,
   closeListings,
   excludeListing,
+  restoreListing,
   saveManualPrice,
   saveEbaySettings,
 } = await useProductPrices(String(route.params.id), preferredCondition)
