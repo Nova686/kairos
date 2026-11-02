@@ -1,7 +1,7 @@
 const euroAmountPattern = /(\d{1,3}(?:[ .]\d{3})+|\d+)(?:,(\d{1,2}))?/
 
 export const parseEuroPrice = (displayedPrice: string): number | null => {
-  const normalizedPrice = displayedPrice.replace(/[  ]/g, ' ')
+  const normalizedPrice = displayedPrice.replace(/[\u00A0\u202F]/g, ' ')
   if (!/€|\bEUR\b/.test(normalizedPrice)) {
     return null
   }

@@ -2,3 +2,7 @@ node_modules/
 probe-reports/
 .env
 .superpowers/
+.nuxt/
+.output/
+.data/
+*.tsbuildinfo

@@ -1,15 +1,10 @@
 {
-  "compilerOptions": {
-    "strict": true,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "target": "ES2023",
-    "lib": ["ES2023", "DOM"],
-    "types": ["node", "vitest/globals"],
-    "skipLibCheck": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "resolveJsonModule": true
-  },
-  "include": ["src", "tests", "scripts", "vitest.config.ts"]
+  "files": [],
+  "references": [
+    { "path": "./.nuxt/tsconfig.app.json" },
+    { "path": "./.nuxt/tsconfig.server.json" },
+    { "path": "./.nuxt/tsconfig.shared.json" },
+    { "path": "./.nuxt/tsconfig.node.json" },
+    { "path": "./tsconfig.sources.json" }
+  ]
 }

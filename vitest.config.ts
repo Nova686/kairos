@@ -2,7 +2,31 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['tests/**/*.test.ts'],
-    globals: true,
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          globals: true,
+          environment: 'node',
+          include: [
+            'tests/unit/**/*.test.ts',
+            'tests/price-sources/**/*.test.ts',
+            'tests/identification-sources/**/*.test.ts',
+            'tests/source-http/**/*.test.ts',
+            'tests/probe/**/*.test.ts',
+          ],
+        },
+      },
+      {
+        test: {
+          name: 'e2e',
+          globals: true,
+          environment: 'node',
+          include: ['tests/e2e/**/*.test.ts'],
+          testTimeout: 120000,
+          hookTimeout: 300000,
+        },
+      },
+    ],
   },
 })
