@@ -23,7 +23,14 @@ const parisWallClockAsUtcMilliseconds = (moment: Date): number => {
   )
 }
 
-export const startOfParisDay = (moment: Date): Date => {
+export const parisNoonOf = (calendarDate: string): Date => {
+  const [year, month, day] = calendarDate.split('-').map(Number)
+  const utcNoon = new Date(Date.UTC(year!, month! - 1, day!, 12))
+  const offsetMilliseconds = parisWallClockAsUtcMilliseconds(utcNoon) - utcNoon.getTime()
+  return new Date(utcNoon.getTime() - offsetMilliseconds)
+}
+
+export const startOfParisDay =(moment: Date): Date => {
   const wallClockMilliseconds = parisWallClockAsUtcMilliseconds(moment)
   const wallClockDay = new Date(wallClockMilliseconds)
   const midnightWallClockMilliseconds = Date.UTC(
