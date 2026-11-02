@@ -3,11 +3,20 @@ import { createPriceSourceGateway } from '../../../domain/prices/refresh-product
 
 export default defineEventHandler(async (event) => {
   const sessionUser = await requireSessionUser(event)
-  return refreshProductNow(
-    await useDatabase(),
-    createPriceSourceGateway(),
-    getRouterParam(event, 'id') ?? '',
-    sessionUser.id,
-    new Date(),
-  )
+  try {
+    return await refreshProductNow(
+      await useDatabase(),
+      createPriceSourceGateway(),
+      getRouterParam(event, 'id') ?? '',
+      sessionUser.id,
+      new Date(),
+    )
+  }
+  catch (error) {
+    const retryAfterSeconds = (error as { data?: { retryAfterSeconds?: number } }).data?.retryAfterSeconds
+    if (retryAfterSeconds !== undefined) {
+      setResponseHeader(event, 'Retry-After', retryAfterSeconds)
+    }
+    throw error
+  }
 })

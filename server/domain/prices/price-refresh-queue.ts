@@ -3,13 +3,14 @@ import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { priceRefreshRequests, stockItems } from '../../database/schema/index.ts'
 import { findProductOr404 } from '../catalogue/catalogue-service.ts'
-import { refreshProductPrices } from './refresh-product-prices.ts'
-import type { PriceSourceGateway, RefreshOutcome } from './refresh-product-prices.ts'
+import { loadRefreshRulesContext, refreshProductPrices } from './refresh-product-prices.ts'
+import type { PriceSourceGateway, RefreshOutcome, RefreshRulesContext } from './refresh-product-prices.ts'
 import { startOfParisDay } from './start-of-paris-day.ts'
 
 const heldStatuses = ['in-transit', 'in-stock']
 const manualRefreshMinimumIntervalMilliseconds = 10 * 60_000
 const defaultBatchSize = 20
+const maximumDailyAttempts = 3
 
 export const enqueueProducts = async (
   database: KairosDatabase,
@@ -46,6 +47,12 @@ export const enqueueHeldProducts = async (database: KairosDatabase, now: Date): 
     .where(and(inArray(stockItems.status, heldStatuses), notExists(refreshedToday)))
   const productIds = heldProducts.map(heldProduct => heldProduct.productId)
   await enqueueProducts(database, productIds, null, now)
+  if (productIds.length > 0) {
+    await database
+      .update(priceRefreshRequests)
+      .set({ attempts: 0 })
+      .where(inArray(priceRefreshRequests.productId, productIds))
+  }
   return productIds.length
 }
 
@@ -85,6 +92,18 @@ export const takeNextRefreshBatch = (
     return productIds
   })
 
+const releaseManualRefreshClaim = async (
+  database: KairosDatabase,
+  productId: string,
+  claimedAt: Date,
+  previousRefreshAt: Date | null,
+): Promise<void> => {
+  await database
+    .update(priceRefreshRequests)
+    .set({ lastRefreshedAt: previousRefreshAt })
+    .where(and(eq(priceRefreshRequests.productId, productId), eq(priceRefreshRequests.lastRefreshedAt, claimedAt)))
+}
+
 export const refreshProductNow = async (
   database: KairosDatabase,
   gateway: PriceSourceGateway,
@@ -93,6 +112,11 @@ export const refreshProductNow = async (
   now: Date,
 ): Promise<RefreshOutcome> => {
   await findProductOr404(database, productId)
+  const [previousRequest] = await database
+    .select({ lastRefreshedAt: priceRefreshRequests.lastRefreshedAt })
+    .from(priceRefreshRequests)
+    .where(eq(priceRefreshRequests.productId, productId))
+  const previousRefreshAt = previousRequest?.lastRefreshedAt ?? null
   const oldestAllowedRefresh = new Date(now.getTime() - manualRefreshMinimumIntervalMilliseconds)
   const claimedRows = await database
     .insert(priceRefreshRequests)
@@ -104,7 +128,74 @@ export const refreshProductNow = async (
     })
     .returning({ productId: priceRefreshRequests.productId })
   if (claimedRows.length === 0) {
-    throw createError({ statusCode: 429, statusMessage: 'déjà relevé il y a moins de 10 minutes' })
+    const [currentRequest] = await database
+      .select({ lastRefreshedAt: priceRefreshRequests.lastRefreshedAt })
+      .from(priceRefreshRequests)
+      .where(eq(priceRefreshRequests.productId, productId))
+    const lastRefreshedAt = currentRequest?.lastRefreshedAt ?? now
+    const retryAfterSeconds = Math.max(
+      1,
+      Math.ceil((lastRefreshedAt.getTime() + manualRefreshMinimumIntervalMilliseconds - now.getTime()) / 1000),
+    )
+    throw createError({
+      statusCode: 429,
+      statusMessage: 'déjà relevé il y a moins de 10 minutes',
+      data: { retryAfterSeconds, remainingMinutes: Math.ceil(retryAfterSeconds / 60) },
+    })
   }
-  return refreshProductPrices(database, gateway, productId, now)
+  try {
+    return await refreshProductPrices(database, gateway, productId, now)
+  }
+  catch (error) {
+    await releaseManualRefreshClaim(database, productId, now, previousRefreshAt)
+    throw error
+  }
+}
+
+export type ProcessQueueOutcome = { refreshedProductCount: number; failedProductCount: number }
+
+type RefreshProduct = (
+  database: KairosDatabase,
+  gateway: PriceSourceGateway,
+  productId: string,
+  now: Date,
+  rulesContext?: RefreshRulesContext,
+) => Promise<RefreshOutcome>
+
+const recordFailedRefresh = async (database: KairosDatabase, productId: string, now: Date): Promise<void> => {
+  await database
+    .update(priceRefreshRequests)
+    .set({
+      attempts: sql`${priceRefreshRequests.attempts} + 1`,
+      requestedAt: sql`case when ${priceRefreshRequests.attempts} + 1 < ${maximumDailyAttempts} then ${now.toISOString()}::timestamptz else null end`,
+    })
+    .where(eq(priceRefreshRequests.productId, productId))
+}
+
+export const processRefreshQueue = async (
+  database: KairosDatabase,
+  gateway: PriceSourceGateway,
+  now: Date,
+  refreshProduct: RefreshProduct = refreshProductPrices,
+  logFailure: (...details: unknown[]) => void = console.error,
+): Promise<ProcessQueueOutcome> => {
+  const productIds = await takeNextRefreshBatch(database)
+  if (productIds.length === 0) {
+    return { refreshedProductCount: 0, failedProductCount: 0 }
+  }
+  const rulesContext = await loadRefreshRulesContext(database)
+  let refreshedProductCount = 0
+  let failedProductCount = 0
+  for (const productId of productIds) {
+    try {
+      await refreshProduct(database, gateway, productId, now, rulesContext)
+      refreshedProductCount += 1
+    }
+    catch (error) {
+      failedProductCount += 1
+      logFailure('Price refresh failed', productId, error)
+      await recordFailedRefresh(database, productId, now)
+    }
+  }
+  return { refreshedProductCount, failedProductCount }
 }

@@ -65,6 +65,7 @@ export const priceRefreshRequests = pgTable('price_refresh_requests', {
   requestedAt: timestamp('requested_at', { withTimezone: true }),
   requestedByUserId: uuid('requested_by_user_id').references(() => users.id, { onDelete: 'restrict' }),
   lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }),
+  attempts: integer('attempts').notNull().default(0),
 })
 
 export const stockValueSnapshots = pgTable('stock_value_snapshots', {

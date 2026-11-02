@@ -12,6 +12,7 @@ import {
   enqueueHeldProducts,
   enqueueProducts,
   enqueueUserHeldProducts,
+  processRefreshQueue,
   refreshProductNow,
   takeNextRefreshBatch,
 } from '../../../server/domain/prices/price-refresh-queue.ts'
@@ -236,5 +237,119 @@ describe('refreshProductNow', () => {
     const refusal = await refreshProductNow(database, gateway, '00000000-0000-4000-8000-000000000000', member.id, now)
       .catch((error: unknown) => error)
     expect(refusal).toMatchObject({ statusCode: 404 })
+  })
+})
+
+const failingRefresh = async (): Promise<never> => {
+  throw new Error('boom')
+}
+
+describe('refreshProductNow failure', () => {
+  it('releases the claim when the refresh throws and rethrows', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await insertProduct(database, member.id)
+    const previousRefresh = new Date('2026-11-02T08:00:00Z')
+    await database.insert(priceRefreshRequests).values({ productId: product.id, requestedAt: null, lastRefreshedAt: previousRefresh })
+    const failingDatabase = Object.assign(Object.create(database), {
+      transaction: failingRefresh,
+    }) as KairosDatabase
+    const { gateway, calls } = countingGateway()
+
+    await expect(refreshProductNow(failingDatabase, gateway, product.id, member.id, now)).rejects.toThrow('boom')
+
+    const [row] = await database.select().from(priceRefreshRequests)
+    expect(row!.lastRefreshedAt).toEqual(previousRefresh)
+    await refreshProductNow(database, gateway, product.id, member.id, new Date(now.getTime() + 1000))
+    expect(calls.ebay).toBe(2)
+  })
+
+  it('clears the claim of a never-refreshed product when the refresh throws', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await insertProduct(database, member.id)
+    const failingDatabase = Object.assign(Object.create(database), {
+      transaction: failingRefresh,
+    }) as KairosDatabase
+    const { gateway } = countingGateway()
+
+    await expect(refreshProductNow(failingDatabase, gateway, product.id, member.id, now)).rejects.toThrow('boom')
+
+    const [row] = await database.select().from(priceRefreshRequests)
+    expect(row!.lastRefreshedAt).toBeNull()
+  })
+})
+
+describe('refreshProductNow refusal details', () => {
+  it('carries the remaining time for the interface', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await insertProduct(database, member.id)
+    const { gateway } = countingGateway()
+
+    await refreshProductNow(database, gateway, product.id, member.id, now)
+    const refusal = await refreshProductNow(database, gateway, product.id, member.id, new Date(now.getTime() + 4 * 60_000 + 30_000))
+      .catch((error: unknown) => error)
+
+    expect(refusal).toMatchObject({
+      statusCode: 429,
+      data: { retryAfterSeconds: 330, remainingMinutes: 6 },
+    })
+  })
+})
+
+describe('processRefreshQueue', () => {
+  const queuedProduct = async (database: KairosDatabase, memberId: string, name: string) => {
+    const product = await insertProduct(database, memberId, name)
+    await enqueueProducts(database, [product.id], memberId, now)
+    return product
+  }
+
+  it('refreshes the batch and reports the counts', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    await queuedProduct(database, member.id, 'One')
+    await queuedProduct(database, member.id, 'Two')
+    const { gateway, calls } = countingGateway()
+
+    const outcome = await processRefreshQueue(database, gateway, now)
+
+    expect(outcome).toEqual({ refreshedProductCount: 2, failedProductCount: 0 })
+    expect(calls.ebay).toBe(2)
+  })
+
+  it('re-enqueues a failed product, up to 3 attempts, and logs the failure', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await queuedProduct(database, member.id, 'Flaky')
+    const { gateway } = countingGateway()
+    const logged: unknown[][] = []
+    const logFailure = (...details: unknown[]) => { logged.push(details) }
+
+    for (const expectedQueued of [true, true, false]) {
+      await processRefreshQueue(database, gateway, now, failingRefresh, logFailure)
+      const [row] = await database.select().from(priceRefreshRequests).where(eq(priceRefreshRequests.productId, product.id))
+      expect(row!.requestedAt !== null).toBe(expectedQueued)
+    }
+
+    expect(logged).toHaveLength(3)
+    expect(logged[0]).toContain(product.id)
+    const [row] = await database.select().from(priceRefreshRequests)
+    expect(row!.attempts).toBe(3)
+    expect(await takeNextRefreshBatch(database)).toEqual([])
+  })
+
+  it('lets the daily enqueue reset the attempts', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await insertProduct(database, member.id)
+    await insertStockItem(database, member.id, product.id, 'in-stock')
+    await database.insert(priceRefreshRequests).values({ productId: product.id, requestedAt: null, attempts: 3 })
+
+    await enqueueHeldProducts(database, now)
+
+    const [row] = await database.select().from(priceRefreshRequests)
+    expect(row!.attempts).toBe(0)
+    expect(row!.requestedAt).toEqual(now)
   })
 })
