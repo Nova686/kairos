@@ -12,5 +12,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     databaseUrl: 'pglite://.data/kairos',
   },
+  nitro: {
+    experimental: { tasks: true },
+    scheduledTasks: { '0 4 * * *': ['catalogue:refresh-cardmarket-products'] },
+  },
   typescript: { strict: true },
 })
