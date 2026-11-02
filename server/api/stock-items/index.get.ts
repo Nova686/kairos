@@ -9,7 +9,7 @@ const stockItemFiltersSchema = z.object({
     z.array(z.enum(stockItemStatuses as [string, ...string[]])).optional(),
   ),
   category: z.enum(productCategories as [string, ...string[]]).optional(),
-  locationId: z.string().min(1).optional(),
+  locationId: z.uuid().optional(),
   search: z.string().optional(),
 })
 

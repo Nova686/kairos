@@ -1,8 +1,4 @@
-import { openDatabase, type KairosDatabase } from '../database/open-database'
+import { createCachedDatabaseProvider } from '../database/cached-database-provider'
+import { openDatabase } from '../database/open-database'
 
-let databasePromise: Promise<KairosDatabase> | undefined
-
-export const useDatabase = (): Promise<KairosDatabase> => {
-  databasePromise ??= openDatabase(useRuntimeConfig().databaseUrl)
-  return databasePromise
-}
+export const useDatabase = createCachedDatabaseProvider(() => openDatabase(useRuntimeConfig().databaseUrl))

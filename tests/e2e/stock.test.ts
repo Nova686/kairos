@@ -89,4 +89,55 @@ describe('purchases and stock items API', async () => {
     expect(ownStockItems).toHaveLength(1)
     expect(foreignStockItems).toEqual([])
   })
+
+  it('keeps the purchase listed when another user tries to delete it', async () => {
+    const firstCookie = await logIn('first@example.com', firstPassword)
+    const secondCookie = await logIn('second@example.com', secondPassword)
+    const product = await $fetch<{ id: string }>('/api/products', {
+      method: 'POST',
+      body: { name: 'Display Cross', category: 'pokemon-sealed' },
+      headers: { cookie: firstCookie },
+    })
+    const created = await $fetch<{ purchase: { id: string } }>('/api/purchases', {
+      method: 'POST',
+      body: {
+        purchasedOn: '2026-11-02',
+        totalPriceCents: 5000,
+        lines: [{ productId: product.id, condition: 'sealed-new' }],
+      },
+      headers: { cookie: firstCookie },
+    })
+
+    const foreignDelete = await sendJson(`/api/purchases/${created.purchase.id}`, 'DELETE', secondCookie)
+
+    const firstUserPurchases = await $fetch<{ id: string }[]>('/api/purchases', { headers: { cookie: firstCookie } })
+    expect(foreignDelete.status).toBe(404)
+    expect(firstUserPurchases.map(purchase => purchase.id)).toContain(created.purchase.id)
+  })
+
+  it('answers 422 on an impossible calendar date, an oversized amount and a malformed location filter', async () => {
+    const firstCookie = await logIn('first@example.com', firstPassword)
+    const product = await $fetch<{ id: string }>('/api/products', {
+      method: 'POST',
+      body: { name: 'Display Validation', category: 'pokemon-sealed' },
+      headers: { cookie: firstCookie },
+    })
+    const line = { productId: product.id, condition: 'sealed-new' }
+
+    const impossibleDate = await sendJson('/api/purchases', 'POST', firstCookie, {
+      purchasedOn: '2026-02-30',
+      totalPriceCents: 1000,
+      lines: [line],
+    })
+    const oversizedAmount = await sendJson('/api/purchases', 'POST', firstCookie, {
+      purchasedOn: '2026-11-02',
+      totalPriceCents: 2_147_483_648,
+      lines: [line],
+    })
+    const malformedLocation = await sendJson('/api/stock-items?locationId=not-a-uuid', 'GET', firstCookie)
+
+    expect(impossibleDate.status).toBe(422)
+    expect(oversizedAmount.status).toBe(422)
+    expect(malformedLocation.status).toBe(422)
+  })
 })

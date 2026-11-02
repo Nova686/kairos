@@ -36,6 +36,26 @@ describe('authentication', async () => {
     expect(response.status).toBe(401)
   })
 
+  it('answers 422 on a malformed login body', async () => {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: administratorEmail }),
+      headers: { 'content-type': 'application/json' },
+    })
+
+    expect(response.status).toBe(422)
+  })
+
+  it('answers 422 on a malformed invitation acceptance body', async () => {
+    const response = await fetch('/api/invitations/any-code/accept', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'not-an-email' }),
+      headers: { 'content-type': 'application/json' },
+    })
+
+    expect(response.status).toBe(422)
+  })
+
   it('logs in then returns the user on the current user endpoint', async () => {
     const loginResponse = await fetch('/api/auth/login', {
       method: 'POST',

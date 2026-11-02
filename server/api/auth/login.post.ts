@@ -7,7 +7,7 @@ const loginBodySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const { email, password } = await readValidatedBody(event, loginBodySchema.parse)
+  const { email, password } = await readBodyOr422(event, loginBodySchema)
   const sessionUser = await verifyCredentials(await useDatabase(), email, password, nitroPasswordHasher)
   if (!sessionUser) {
     throw createError({ statusCode: 401, statusMessage: 'Email ou mot de passe incorrect' })

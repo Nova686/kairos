@@ -14,7 +14,7 @@ const acceptInvitationBodySchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const code = getRouterParam(event, 'code') ?? ''
-  const newAccount = await readValidatedBody(event, acceptInvitationBodySchema.parse)
+  const newAccount = await readBodyOr422(event, acceptInvitationBodySchema)
   const invitedUser = await acceptInvitation(await useDatabase(), code, newAccount, nitroPasswordHasher)
     .catch((failure: unknown) => {
       if (failure instanceof InvitationUnavailableError) {
