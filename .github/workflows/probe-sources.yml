@@ -1,0 +1,31 @@
+name: Probe price and identification sources
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run probe -- --label github-actions
+        env:
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          POKEMONTCG_API_KEY: ${{ secrets.POKEMONTCG_API_KEY }}
+          PSA_API_TOKEN: ${{ secrets.PSA_API_TOKEN }}
+          PSA_PROBE_CERTIFICATE: ${{ secrets.PSA_PROBE_CERTIFICATE }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: probe-reports
+          path: probe-reports/
+          retention-days: 14
