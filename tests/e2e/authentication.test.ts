@@ -1,32 +1,14 @@
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
-import { openDatabase } from '../../server/database/open-database.ts'
-import { createUser } from '../../server/domain/accounts/accounts-service.ts'
-import { scryptPasswordHasher } from '../../server/domain/accounts/scrypt-password-hasher.ts'
+import { extractSessionCookie, seedAccounts } from '../support/end-to-end-accounts.ts'
 
 const administratorEmail = 'admin@example.com'
 const administratorPassword = 'administrator-password'
 
-const seedAdministrator = async (): Promise<string> => {
-  const databaseUrl = `pglite://${join(mkdtempSync(join(tmpdir(), 'kairos-e2e-')), 'database')}`
-  const database = await openDatabase(databaseUrl)
-  await createUser(
-    database,
-    { email: administratorEmail, displayName: 'Admin', password: administratorPassword, isAdmin: true },
-    scryptPasswordHasher,
-  )
-  await (database as unknown as { $client: { close: () => Promise<void> } }).$client.close()
-  return databaseUrl
-}
-
-const extractSessionCookie = (response: Response): string =>
-  (response.headers.getSetCookie()[0] ?? '').split(';')[0] ?? ''
-
 describe('authentication', async () => {
-  const databaseUrl = await seedAdministrator()
+  const databaseUrl = await seedAccounts([
+    { email: administratorEmail, displayName: 'Admin', password: administratorPassword, isAdmin: true },
+  ])
   await setup({
     rootDir: fileURLToPath(new URL('../..', import.meta.url)),
     server: true,
