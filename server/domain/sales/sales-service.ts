@@ -1,8 +1,9 @@
 import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
-import { debts, persons, saleItems, sales, stockItems } from '../../database/schema/index.ts'
+import { debts, persons, products, saleItems, sales, stockItems } from '../../database/schema/index.ts'
 import { allocateSaleNetCents, computeSaleNetCents } from '../../../shared/money/sale-profit.ts'
+import { estimateItemValues } from '../valuation/value-stock.ts'
 import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
 
 export type Sale = typeof sales.$inferSelect
@@ -34,10 +35,33 @@ const unprocessable = (message: string) => createError({ statusCode: 422, status
 
 const conflict = (message: string) => createError({ statusCode: 409, statusMessage: message })
 
+const resolveSaleWeights = async (database: KairosDatabase, soldStockItems: StockItem[], now: Date): Promise<number[]> => {
+  const productRows = await database
+    .select({ id: products.id, category: products.category })
+    .from(products)
+    .where(inArray(products.id, soldStockItems.map(stockItem => stockItem.productId)))
+  const categoryByProductId = new Map(productRows.map(productRow => [productRow.id, productRow.category]))
+  const valuations = await estimateItemValues(
+    database,
+    soldStockItems.map(stockItem => ({
+      productId: stockItem.productId,
+      category: categoryByProductId.get(stockItem.productId)!,
+      condition: stockItem.condition,
+      gradingCompany: stockItem.gradingCompany,
+      grade: stockItem.grade,
+    })),
+    now,
+  )
+  return valuations.every(valuation => valuation.valueCents !== null)
+    ? valuations.map(valuation => valuation.valueCents!)
+    : soldStockItems.map(stockItem => stockItem.allocatedPurchaseCents)
+}
+
 export const createSale = async (
   database: KairosDatabase,
   ownerId: string,
   draft: SaleDraft,
+  now: Date = new Date(),
 ): Promise<{ sale: Sale, saleItems: SaleItem[] }> => {
   if (draft.stockItemIds.length === 0) {
     throw unprocessable('Une vente contient au moins un exemplaire')
@@ -56,6 +80,8 @@ export const createSale = async (
     soldStockItems.push(await findOwnedOr404(database, stockItems, stockItemId, ownerId))
   }
 
+  const saleWeights = await resolveSaleWeights(database, soldStockItems, now)
+
   return database.transaction(async (transaction) => {
     const currentStatuses = await transaction
       .select({ id: stockItems.id, status: stockItems.status })
@@ -66,7 +92,7 @@ export const createSale = async (
     }
     const allocations = allocateSaleNetCents(
       computeSaleNetCents(draft),
-      soldStockItems.map(stockItem => stockItem.allocatedPurchaseCents),
+      saleWeights,
     )
     const [sale] = await transaction
       .insert(sales)

@@ -5,6 +5,7 @@ import { debts, locations, purchases, saleItems, stockItems } from '../../databa
 import { isProductCategory, type ProductCategory } from '../../../shared/catalogue/product-category.ts'
 import { isConditionAllowed, type ConditionCode } from '../../../shared/catalogue/condition-scale.ts'
 import { allocateCents } from '../../../shared/money/allocate-cents.ts'
+import { estimateItemValues } from '../valuation/value-stock.ts'
 import { findProductOr404 } from '../catalogue/catalogue-service.ts'
 import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
 
@@ -35,12 +36,35 @@ const unprocessable = (message: string) => createError({ statusCode: 422, status
 
 const isBlank = (text: string | null): boolean => text === null || text.trim() === ''
 
-const resolveAllocations = (draft: PurchaseDraft): number[] => {
+const valueWeightsOf = async (
+  database: KairosDatabase,
+  draft: PurchaseDraft,
+  now: Date,
+): Promise<number[] | null> => {
+  const lineProducts = await Promise.all(draft.lines.map(line => findProductOr404(database, line.productId)))
+  const valuations = await estimateItemValues(
+    database,
+    draft.lines.map((line, position) => ({
+      productId: line.productId,
+      category: lineProducts[position]!.category,
+      condition: line.condition,
+      gradingCompany: line.gradingCompany,
+      grade: line.grade,
+    })),
+    now,
+  )
+  return valuations.every(valuation => valuation.valueCents !== null)
+    ? valuations.map(valuation => valuation.valueCents!)
+    : null
+}
+
+const resolveAllocations = async (database: KairosDatabase, draft: PurchaseDraft, now: Date): Promise<number[]> => {
   const totalCostCents = draft.totalPriceCents + draft.feesCents
   const givenAllocations = draft.lines.map(line => line.allocatedPurchaseCents)
   const givenCount = givenAllocations.filter(allocation => allocation !== null).length
   if (givenCount === 0) {
-    return allocateCents(totalCostCents, draft.lines.map(() => 1))
+    const valueWeights = await valueWeightsOf(database, draft, now)
+    return allocateCents(totalCostCents, valueWeights ?? draft.lines.map(() => 1))
   }
   if (givenCount !== draft.lines.length) {
     throw unprocessable('Les répartitions doivent être renseignées sur toutes les lignes ou aucune')
@@ -81,6 +105,7 @@ export const createPurchase = async (
   database: KairosDatabase,
   ownerId: string,
   draft: PurchaseDraft,
+  now: Date = new Date(),
 ): Promise<{ purchase: Purchase, stockItems: StockItem[] }> => {
   if (draft.lines.length === 0) {
     throw unprocessable('Un achat contient au moins une ligne')
@@ -88,10 +113,10 @@ export const createPurchase = async (
   if (draft.totalPriceCents < 0 || draft.feesCents < 0) {
     throw unprocessable('Montants négatifs refusés')
   }
-  const allocations = resolveAllocations(draft)
   for (const line of draft.lines) {
     await validateLine(database, ownerId, line)
   }
+  const allocations = await resolveAllocations(database, draft, now)
 
   return database.transaction(async (transaction) => {
     const [purchase] = await transaction
