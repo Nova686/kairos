@@ -1,0 +1,23 @@
+import { z } from 'zod'
+import { productCategories } from '../../../shared/catalogue/product-category'
+import { stockItemStatuses } from '../../../shared/stock/stock-item-status'
+import { listStockItems, type StockItemFilters } from '../../domain/stock/stock-items-service'
+
+const stockItemFiltersSchema = z.object({
+  status: z.preprocess(
+    statusQuery => (typeof statusQuery === 'string' ? statusQuery.split(',') : statusQuery),
+    z.array(z.enum(stockItemStatuses as [string, ...string[]])).optional(),
+  ),
+  category: z.enum(productCategories as [string, ...string[]]).optional(),
+  locationId: z.string().min(1).optional(),
+  search: z.string().optional(),
+})
+
+export default defineEventHandler(async (event) => {
+  const sessionUser = await requireSessionUser(event)
+  const parsedFilters = stockItemFiltersSchema.safeParse(getQuery(event))
+  if (!parsedFilters.success) {
+    throw createError({ statusCode: 422, statusMessage: 'Filtres invalides' })
+  }
+  return listStockItems(await useDatabase(), sessionUser.id, parsedFilters.data as StockItemFilters)
+})

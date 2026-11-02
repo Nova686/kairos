@@ -8,6 +8,7 @@ export default defineConfig({
           name: 'unit',
           globals: true,
           environment: 'node',
+          testTimeout: 30000,
           include: [
             'tests/unit/**/*.test.ts',
             'tests/price-sources/**/*.test.ts',

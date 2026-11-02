@@ -15,6 +15,8 @@ const conditionLabels = {
 
 export type ConditionCode = keyof typeof conditionLabels
 
+export const conditionCodes = Object.keys(conditionLabels) as [ConditionCode, ...ConditionCode[]]
+
 const sealedConditionCodes: ConditionCode[] = ['sealed-new', 'sealed-damaged-box', 'opened-complete', 'opened-incomplete']
 const generalConditionCodes: ConditionCode[] = ['new-with-tags', 'new-without-tags', 'very-good', 'good', 'satisfactory']
 const gradedConditionCodes: ConditionCode[] = ['graded']
