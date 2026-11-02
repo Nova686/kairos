@@ -20,7 +20,7 @@ import { insertPriceSnapshotDrafts } from './price-snapshot-drafts.ts'
 import type { PriceSnapshotDraft } from './price-snapshot-drafts.ts'
 import { buildCardReferenceSnapshotDrafts } from './record-card-reference-snapshots.ts'
 import { buildCardmarketSnapshotDrafts } from './record-cardmarket-snapshots.ts'
-import { buildEbaySnapshotDrafts } from './record-ebay-snapshots.ts'
+import { buildEbaySnapshotDrafts, normalizeListingUrl } from './record-ebay-snapshots.ts'
 
 export type PriceSourceGateway = {
   searchEbay(query: string): Promise<ListingObservation[]>
@@ -87,7 +87,11 @@ const collectFromSource = async (
       unavailableSources.push({ source: sourceName, reason: describeUnavailability(error) })
       return []
     }
-    throw error
+    unavailableSources.push({
+      source: sourceName,
+      reason: `error: ${error instanceof Error ? error.message : String(error)}`,
+    })
+    return []
   }
 }
 
@@ -104,7 +108,7 @@ export const refreshProductPrices = async (
   }
   const { mappings, compiledRules } = rulesContext ?? await loadRefreshRulesContext(database)
   const excludedRows = await database.select().from(excludedListings).where(eq(excludedListings.productId, productId))
-  const excludedUrls = new Set(excludedRows.map(row => row.url))
+  const excludedUrls = new Set(excludedRows.map(row => normalizeListingUrl(row.url)))
   const unavailableSources: UnavailableSource[] = []
   const { cardmarketProductId, tcgdexCardId, pokemontcgCardId } = product
 

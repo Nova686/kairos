@@ -28,6 +28,16 @@ const gradedCondition = 'graded'
 const foldForComparison = (text: string): string =>
   text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
+export const normalizeListingUrl = (url: string): string => {
+  try {
+    const parsedUrl = new URL(url)
+    return `${parsedUrl.origin}${parsedUrl.pathname}`
+  }
+  catch {
+    return url
+  }
+}
+
 const containsExcludedKeyword = (title: string, foldedKeywords: string[]): boolean => {
   const foldedTitle = foldForComparison(title)
   return foldedKeywords.some(keyword => foldedTitle.includes(keyword))
@@ -81,7 +91,7 @@ export const buildEbaySnapshotDrafts = (
 ): PriceSnapshotDraft[] => {
   const foldedKeywords = context.excludedKeywords.map(foldForComparison).filter(keyword => keyword.length > 0)
   const candidateListings = listings.filter(listing =>
-    !context.excludedUrls.has(listing.url) && !containsExcludedKeyword(listing.title, foldedKeywords))
+    !context.excludedUrls.has(normalizeListingUrl(listing.url)) && !containsExcludedKeyword(listing.title, foldedKeywords))
   const drafts: PriceSnapshotDraft[] = []
   for (const group of groupByCondition(candidateListings, context)) {
     const retained = retainWithoutOutliers(group.listings)

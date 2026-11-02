@@ -198,6 +198,36 @@ describe('refreshProductPrices', () => {
     expect(request!.lastRefreshedAt).toEqual(now)
   })
 
+  it('keeps the other sources when one fails with an unexpected error', async () => {
+    const database = await createTestDatabase()
+    const { product } = await insertProduct(database, { tcgdexCardId: 'sv1-1', pokemontcgCardId: 'sv1-1' })
+    const gateway = fakeGateway({
+      tcgdexAggregate: async () => { throw new Error('HTTP 500') },
+      pokemontcgAggregate: async () => aggregate('pokemontcg'),
+    })
+    const outcome = await refreshProductPrices(database, gateway, product.id, now)
+    expect(outcome.unavailableSources).toEqual([{ source: 'tcgdex', reason: 'error: HTTP 500' }])
+    const snapshots = await database.select().from(priceSnapshots)
+    expect(snapshots.map(snapshot => snapshot.source)).toEqual(['pokemontcg'])
+  })
+
+  it('matches exclusions ignoring query string and hash', async () => {
+    const database = await createTestDatabase()
+    const { memberId, product } = await insertProduct(database)
+    await database.insert(excludedListings).values({
+      productId: product.id, url: 'https://ebay.test/itm/1?hash=abc', excludedByUserId: memberId,
+    })
+    const gateway = fakeGateway({
+      searchEbay: async () => [
+        listing('Display exclue', 9000, { url: 'https://ebay.test/itm/1?_trkparms=zzz#top' }),
+        listing('Display gardée', 6000, { url: 'https://ebay.test/itm/2' }),
+      ],
+    })
+    await refreshProductPrices(database, gateway, product.id, now)
+    const retained = await database.select().from(priceSnapshotListings)
+    expect(retained.map(row => row.priceCents)).toEqual([6000])
+  })
+
   it('skips a title rule whose pattern cannot be compiled', async () => {
     const database = await createTestDatabase()
     const { product } = await insertProduct(database)
