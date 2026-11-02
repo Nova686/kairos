@@ -1,7 +1,7 @@
-import { desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, or, type SQL } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
-import { locations, purchases, saleItems, stockItems } from '../../database/schema/index.ts'
+import { debts, locations, purchases, saleItems, stockItems } from '../../database/schema/index.ts'
 import { isProductCategory, type ProductCategory } from '../../../shared/catalogue/product-category.ts'
 import { isConditionAllowed, type ConditionCode } from '../../../shared/catalogue/condition-scale.ts'
 import { allocateCents } from '../../../shared/money/allocate-cents.ts'
@@ -152,6 +152,17 @@ export const deletePurchase = async (database: KairosDatabase, ownerId: string, 
     if (hasSoldStockItem || soldInSale.length > 0) {
       throw createError({ statusCode: 409, statusMessage: 'Un exemplaire de cet achat est vendu' })
     }
+    const linkedDebtsCondition: SQL | undefined = stockItemIds.length === 0
+      ? eq(debts.purchaseId, purchaseId)
+      : or(eq(debts.purchaseId, purchaseId), inArray(debts.stockItemId, stockItemIds))
+    const settledLinkedDebts = await transaction
+      .select({ id: debts.id })
+      .from(debts)
+      .where(and(linkedDebtsCondition, isNotNull(debts.settledOn)))
+    if (settledLinkedDebts.length > 0) {
+      throw createError({ statusCode: 409, statusMessage: 'Une dette liée à cet achat est soldée' })
+    }
+    await transaction.delete(debts).where(linkedDebtsCondition)
     await transaction.delete(stockItems).where(eq(stockItems.purchaseId, purchaseId))
     await transaction.delete(purchases).where(eq(purchases.id, purchaseId))
   })

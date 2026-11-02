@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import type { KairosDatabase } from '../../../server/database/open-database.ts'
-import { locations, products, purchases, saleItems, sales, stockItems, users } from '../../../server/database/schema/index.ts'
+import { debts, locations, persons, products, purchases, saleItems, sales, stockItems, users } from '../../../server/database/schema/index.ts'
 import {
   createPurchase,
   deletePurchase,
@@ -285,6 +285,42 @@ describe('deletePurchase', () => {
     })
 
     await expectStatus(deletePurchase(database, ownerId, purchase.id), 409)
+  })
+
+  it('deletes the unsettled debts linked to the purchase or to its items', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'pokemon-sealed')
+    const { purchase, stockItems: createdStockItems } = await createPurchase(database, ownerId, buildDraft(productId, 1))
+    const [person] = await database.insert(persons).values({ ownerId, name: 'Camille' }).returning()
+    await database.insert(debts).values([
+      { ownerId, personId: person!.id, amountCents: 500, direction: 'i-owe', reason: 'Avancé', purchaseId: purchase.id, createdOn: '2026-11-02' },
+      { ownerId, personId: person!.id, amountCents: 700, direction: 'i-owe', reason: 'Avancé', stockItemId: createdStockItems[0]!.id, createdOn: '2026-11-02' },
+    ])
+
+    await deletePurchase(database, ownerId, purchase.id)
+
+    expect(await database.select().from(debts)).toEqual([])
+    expect(await database.select().from(purchases)).toEqual([])
+    expect(await database.select().from(stockItems)).toEqual([])
+  })
+
+  it('answers 409 and deletes nothing when a linked debt is settled', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'pokemon-sealed')
+    const { purchase } = await createPurchase(database, ownerId, buildDraft(productId, 1))
+    const [person] = await database.insert(persons).values({ ownerId, name: 'Camille' }).returning()
+    await database.insert(debts).values([
+      { ownerId, personId: person!.id, amountCents: 500, direction: 'i-owe', reason: 'Avancé', purchaseId: purchase.id, createdOn: '2026-11-02', settledOn: '2026-11-03' },
+      { ownerId, personId: person!.id, amountCents: 700, direction: 'i-owe', reason: 'Avancé', purchaseId: purchase.id, createdOn: '2026-11-02' },
+    ])
+
+    await expectStatus(deletePurchase(database, ownerId, purchase.id), 409)
+
+    expect(await database.select().from(debts)).toHaveLength(2)
+    expect(await database.select().from(purchases)).toHaveLength(1)
+    expect(await database.select().from(stockItems)).toHaveLength(1)
   })
 
   it('answers 404 for the purchase of another user', async () => {
