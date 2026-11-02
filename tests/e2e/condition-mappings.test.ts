@@ -39,7 +39,7 @@ describe('condition mappings API', async () => {
     expect(response.rules).toHaveLength(3)
   })
 
-  it('edits a mapping, rejects a condition outside the scale and an invalid pattern', async () => {
+  it('edits a mapping, rejects a condition outside the scale and a rule without keywords', async () => {
     const cookie = await logIn('member@example.com', memberPassword)
     const edit = await sendJson('/api/condition-mappings', 'PUT', cookie, {
       category: 'toy', source: 'ebay', sourceCondition: 'Occasion', kairosCondition: 'satisfactory',
@@ -47,19 +47,19 @@ describe('condition mappings API', async () => {
     const outsideScale = await sendJson('/api/condition-mappings', 'PUT', cookie, {
       category: 'toy', source: 'ebay', sourceCondition: 'Occasion', kairosCondition: 'sealed-new',
     })
-    const invalidPattern = await sendJson('/api/condition-mappings/title-rules', 'POST', cookie, {
-      category: 'toy', pattern: '(', kairosCondition: 'good', priority: 1,
+    const ruleWithoutKeywords = await sendJson('/api/condition-mappings/title-rules', 'POST', cookie, {
+      category: 'toy', keywords: [], kairosCondition: 'good', priority: 1,
     })
     expect(edit.status).toBe(200)
     expect(outsideScale.status).toBe(422)
-    expect(invalidPattern.status).toBe(422)
+    expect(ruleWithoutKeywords.status).toBe(422)
   })
 
   it('deletes a title rule and answers 404 for an unknown one', async () => {
     const cookie = await logIn('member@example.com', memberPassword)
     const createdRule = await $fetch<{ id: string }>('/api/condition-mappings/title-rules', {
       method: 'POST',
-      body: { category: 'toy', pattern: 'neuf', kairosCondition: 'new-with-tags', priority: 1 },
+      body: { category: 'toy', keywords: ['neuf'], kairosCondition: 'new-with-tags', priority: 1 },
       headers: { cookie },
     })
     expect((await sendJson(`/api/condition-mappings/title-rules/${createdRule.id}`, 'DELETE', cookie)).status).toBe(204)

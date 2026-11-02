@@ -2,7 +2,6 @@ import { and, asc, desc, eq } from 'drizzle-orm'
 import { createError } from 'h3'
 import { isConditionAllowed, type ConditionCode } from '../../../shared/catalogue/condition-scale.ts'
 import { isProductCategory } from '../../../shared/catalogue/product-category.ts'
-import { isValidTitleRulePattern } from '../../../shared/prices/resolve-kairos-condition.ts'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { conditionMappings, titleConditionRules } from '../../database/schema/index.ts'
 import { appendCatalogueChanges } from '../catalogue/catalogue-journal.ts'
@@ -22,13 +21,6 @@ export class ConditionMappingConditionNotAllowedError extends Error {
   }
 }
 
-export class TitleRulePatternInvalidError extends Error {
-  constructor() {
-    super('Title rule pattern is not a valid regular expression')
-    this.name = 'TitleRulePatternInvalidError'
-  }
-}
-
 export interface ConditionMappingKey {
   category: string
   source: string
@@ -41,7 +33,7 @@ export interface ConditionMappingDraft extends ConditionMappingKey {
 
 export interface TitleRuleDraft {
   category: string
-  pattern: string
+  keywords: string[]
   kairosCondition: ConditionCode
   priority: number
 }
@@ -126,9 +118,6 @@ export const deleteConditionMapping = async (
 
 const assertRuleDraftValid = (draft: Omit<TitleConditionRule, 'id'>): void => {
   assertConditionAllowed(draft.category, draft.kairosCondition)
-  if (!isValidTitleRulePattern(draft.pattern)) {
-    throw new TitleRulePatternInvalidError()
-  }
 }
 
 const findTitleRuleOr404 = async (database: KairosDatabase, ruleId: string): Promise<TitleConditionRule> => {
@@ -143,7 +132,7 @@ const findTitleRuleOr404 = async (database: KairosDatabase, ruleId: string): Pro
 
 const describeRule = (rule: Omit<TitleConditionRule, 'id'>) => ({
   category: rule.category,
-  pattern: rule.pattern,
+  keywords: rule.keywords,
   kairosCondition: rule.kairosCondition,
   priority: rule.priority,
 })

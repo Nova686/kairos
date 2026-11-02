@@ -20,14 +20,15 @@ export const conditionMappingSeeds: ConditionMappingEntry[] = [
 ]
 
 export const titleConditionRuleSeeds: Omit<TitleConditionRuleEntry, 'id'>[] = [
-  { category: 'pokemon-sealed', pattern: '\\b(vide|empty|sans cartes|incompl)', kairosCondition: 'opened-incomplete', priority: 30 },
-  { category: 'pokemon-sealed', pattern: '\\b(ouvert|opened|open)\\b', kairosCondition: 'opened-complete', priority: 20 },
-  { category: 'pokemon-sealed', pattern: '(ab[iî]m|cabossé|dented|damaged|enfonc)', kairosCondition: 'sealed-damaged-box', priority: 10 },
+  { category: 'pokemon-sealed', keywords: ['vide', 'empty', 'sans cartes', 'incompl'], kairosCondition: 'opened-incomplete', priority: 30 },
+  { category: 'pokemon-sealed', keywords: ['ouvert', 'opened', 'open'], kairosCondition: 'opened-complete', priority: 20 },
+  { category: 'pokemon-sealed', keywords: ['abîm', 'abim', 'cabossé', 'dented', 'damaged', 'enfonc'], kairosCondition: 'sealed-damaged-box', priority: 10 },
 ]
 
 export const seedConditionMappings = async (database: KairosDatabase): Promise<void> => {
   await database.insert(conditionMappings).values(conditionMappingSeeds).onConflictDoNothing()
-  await database.insert(titleConditionRules).values(titleConditionRuleSeeds).onConflictDoNothing({
-    target: [titleConditionRules.category, titleConditionRules.pattern],
-  })
+  const [existingRule] = await database.select({ id: titleConditionRules.id }).from(titleConditionRules).limit(1)
+  if (!existingRule) {
+    await database.insert(titleConditionRules).values(titleConditionRuleSeeds)
+  }
 }

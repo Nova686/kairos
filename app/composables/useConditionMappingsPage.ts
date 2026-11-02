@@ -11,7 +11,7 @@ interface ConditionMappingRow {
 interface TitleRuleRow {
   id: string
   category: ProductCategory
-  pattern: string
+  keywords: string[]
   kairosCondition: ConditionCode
   priority: number
 }
@@ -43,7 +43,7 @@ export const useConditionMappingsPage = () => {
   })
   const newRule = reactive({
     category: 'pokemon-sealed' as ProductCategory,
-    pattern: '',
+    keywords: [] as string[],
     kairosCondition: 'opened-incomplete' as ConditionCode,
     priority: 10,
   })
@@ -94,7 +94,7 @@ export const useConditionMappingsPage = () => {
     const wasCreated = await runMutation(() =>
       sendRequest('/api/condition-mappings/title-rules', { method: 'POST', body: { ...newRule } }))
     if (wasCreated) {
-      newRule.pattern = ''
+      newRule.keywords = []
     }
   }
 

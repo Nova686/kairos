@@ -4,7 +4,6 @@ import { catalogueChanges, conditionMappings, titleConditionRules, users } from 
 import { seedConditionMappings } from '../../../server/database/seeds/condition-mappings.ts'
 import {
   ConditionMappingConditionNotAllowedError,
-  TitleRulePatternInvalidError,
   createTitleRule,
   deleteConditionMapping,
   deleteTitleRule,
@@ -90,7 +89,7 @@ describe('condition mappings store', () => {
     const database = await createTestDatabase()
     const memberId = await insertMember(database)
     const createdRule = await createTitleRule(database, memberId, {
-      category: 'pokemon-sealed', pattern: 'scell', kairosCondition: 'sealed-new', priority: 5,
+      category: 'pokemon-sealed', keywords: ['scell'], kairosCondition: 'sealed-new', priority: 5,
     })
     const updatedRule = await updateTitleRule(database, memberId, createdRule.id, { priority: 6 })
     expect(updatedRule.priority).toBe(6)
@@ -98,13 +97,5 @@ describe('condition mappings store', () => {
     const journal = await database.select().from(catalogueChanges)
     expect(journal.map(change => change.subject)).toEqual(['title-rule', 'title-rule', 'title-rule'])
     expect((await listConditionMappings(database)).rules).toHaveLength(3)
-  })
-
-  it('rejects an invalid pattern', async () => {
-    const database = await createTestDatabase()
-    const memberId = await insertMember(database)
-    await expect(createTitleRule(database, memberId, {
-      category: 'toy', pattern: '(', kairosCondition: 'good', priority: 1,
-    })).rejects.toBeInstanceOf(TitleRulePatternInvalidError)
   })
 })

@@ -228,12 +228,14 @@ describe('refreshProductPrices', () => {
     expect(retained.map(row => row.priceCents)).toEqual([6000])
   })
 
-  it('skips a title rule whose pattern cannot be compiled', async () => {
+  it('applies a stored keyword rule to the listing titles', async () => {
     const database = await createTestDatabase()
     const { product } = await insertProduct(database)
-    await database.insert(titleConditionRules).values({ category: 'pokemon-sealed', pattern: '(', kairosCondition: 'opened-complete', priority: 99 })
+    await database.insert(titleConditionRules).values({ category: 'pokemon-sealed', keywords: ['display'], kairosCondition: 'opened-complete', priority: 99 })
     const gateway = fakeGateway({ searchEbay: async () => [listing('Display EV1', 5000)] })
     const outcome = await refreshProductPrices(database, gateway, product.id, now)
     expect(outcome.snapshotIds).toHaveLength(1)
+    const [snapshot] = await database.select().from(priceSnapshots)
+    expect(snapshot!.kairosCondition).toBe('opened-complete')
   })
 })

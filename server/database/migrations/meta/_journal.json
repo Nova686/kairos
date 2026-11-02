@@ -15,6 +15,13 @@
       "when": 1793622399085,
       "tag": "0001_prices_and_condition_mappings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793623876963,
+      "tag": "0002_title_rule_keywords",
+      "breakpoints": true
     }
   ]
 }

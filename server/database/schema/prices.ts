@@ -1,4 +1,4 @@
-import { date, index, integer, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
+import { date, index, integer, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { users } from './accounts.ts'
 import { products } from './catalogue.ts'
 
@@ -55,12 +55,10 @@ export const conditionMappings = pgTable('condition_mappings', {
 export const titleConditionRules = pgTable('title_condition_rules', {
   id: uuid('id').primaryKey().defaultRandom(),
   category: text('category').notNull(),
-  pattern: text('pattern').notNull(),
+  keywords: text('keywords').array().notNull(),
   kairosCondition: text('kairos_condition').notNull(),
   priority: integer('priority').notNull(),
-}, table => [
-  uniqueIndex('title_condition_rules_category_pattern_idx').on(table.category, table.pattern),
-])
+})
 
 export const priceRefreshRequests = pgTable('price_refresh_requests', {
   productId: uuid('product_id').primaryKey().references(() => products.id, { onDelete: 'restrict' }),

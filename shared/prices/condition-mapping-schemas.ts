@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { conditionCodes, isConditionAllowed } from '../catalogue/condition-scale.ts'
 import { isProductCategory, productCategories } from '../catalogue/product-category.ts'
-import { isValidTitleRulePattern, maximumTitleRulePatternLength } from './resolve-kairos-condition.ts'
 
 const categorySchema = z.enum(productCategories)
 const conditionSchema = z.enum(conditionCodes)
@@ -22,7 +21,7 @@ export const conditionMappingDraftSchema = conditionMappingKeySchema
 
 const titleRuleFieldsSchema = z.object({
   category: categorySchema,
-  pattern: nonEmptyText.max(maximumTitleRulePatternLength, { message: 'Expression trop longue' }).refine(isValidTitleRulePattern, { message: 'Expression régulière invalide' }),
+  keywords: z.array(z.string().trim().min(2).max(40)).min(1).max(20),
   kairosCondition: conditionSchema,
   priority: z.number().int().min(0).max(1000),
 })

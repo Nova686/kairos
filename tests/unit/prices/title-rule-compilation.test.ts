@@ -1,65 +1,73 @@
 import { describe, expect, it } from 'vitest'
 import { titleRuleDraftSchema } from '../../../shared/prices/condition-mapping-schemas.ts'
-import {
-  compileTitleRules,
-  isValidTitleRulePattern,
-  resolveKairosConditionWithCompiledRules,
-} from '../../../shared/prices/resolve-kairos-condition.ts'
+import { compileTitleRules, resolveKairosConditionWithCompiledRules } from '../../../shared/prices/resolve-kairos-condition.ts'
 
-const rule = (pattern: string, priority = 1) => ({
-  id: pattern, category: 'pokemon-sealed', pattern, kairosCondition: 'opened-complete' as const, priority,
+const rule = (keywords: string[], priority = 1) => ({
+  id: keywords.join('-'), category: 'pokemon-sealed', keywords, kairosCondition: 'opened-complete' as const, priority,
 })
 
-describe('title rule compilation', () => {
-  it('rejects patterns longer than 200 characters', () => {
-    expect(isValidTitleRulePattern('a'.repeat(200))).toBe(true)
-    expect(isValidTitleRulePattern('a'.repeat(201))).toBe(false)
+const resolveTitle = (keywords: string[], title: string) =>
+  resolveKairosConditionWithCompiledRules([], compileTitleRules([rule(keywords)]), {
+    category: 'pokemon-sealed', source: 'ebay', sourceCondition: null, title,
   })
 
-  it('rejects an over-long pattern in the shared draft schema', () => {
-    const verdict = titleRuleDraftSchema.safeParse({
-      category: 'pokemon-sealed', pattern: 'a'.repeat(201), kairosCondition: 'opened-complete', priority: 1,
+describe('keyword title rules', () => {
+  it('matches at the start of a word, ignoring case and accents', () => {
+    expect(resolveTitle(['abîm'], 'ETB boîte ABIMEE')).toBe('opened-complete')
+    expect(resolveTitle(['abim'], 'ETB boîte abîmée')).toBe('opened-complete')
+    expect(resolveTitle(['ouvert'], 'Display ouverture')).toBe('opened-complete')
+  })
+
+  it('does not match in the middle of a word', () => {
+    expect(resolveTitle(['vide'], 'Display invidement')).toBeNull()
+    expect(resolveTitle(['open'], 'Display reopened')).toBeNull()
+  })
+
+  it('matches a phrase as consecutive word starts', () => {
+    expect(resolveTitle(['sans cartes'], 'ETB Sans cartes promo')).toBe('opened-complete')
+    expect(resolveTitle(['sans cartes'], 'ETB sans les cartes')).toBeNull()
+    expect(resolveTitle(['sans cartes'], 'ETB cartes sans')).toBeNull()
+  })
+
+  it('treats regular expression syntax as plain text', () => {
+    expect(resolveTitle(['(a+)+$'], `${'a'.repeat(60)}!`)).toBe('opened-complete')
+    expect(resolveTitle(['(a+)+$'], 'bbbb')).toBeNull()
+    expect(resolveTitle(['.*'], 'Display')).toBeNull()
+  })
+
+  it('stays fast on an adversarial 120-character title against many keywords', () => {
+    const keywords = Array.from({ length: 20 }, (_, index) => `${'a'.repeat(30)} ${'a'.repeat(9)}${index}`)
+    const compiled = compileTitleRules([rule(keywords, 9)])
+    const title = 'a '.repeat(60)
+    const startedAt = performance.now()
+    const resolved = resolveKairosConditionWithCompiledRules([], compiled, {
+      category: 'pokemon-sealed', source: 'ebay', sourceCondition: null, title,
     })
-    expect(verdict.success).toBe(false)
+    expect(resolved).toBeNull()
+    expect(performance.now() - startedAt).toBeLessThan(50)
   })
 
-  it('skips invalid and over-long rules and orders the rest by priority', () => {
-    const compiled = compileTitleRules([rule('(', 5), rule('a'.repeat(201), 9), rule('low', 1), rule('high', 8)])
-    expect(compiled.skippedPatterns).toEqual(['(', 'a'.repeat(201)])
+  it('orders compiled rules by priority', () => {
+    const compiled = compileTitleRules([rule(['low'], 1), rule(['high'], 8)])
     expect(compiled.rules.map(compiledRule => compiledRule.priority)).toEqual([8, 1])
   })
 })
 
-describe('structural safety of title rule patterns', () => {
-  it.each(['(a+)+$', '^(\\w+\\s?)*$', '(a|aa)+$', '(x)\\1', '(?<n>x)\\k<n>', '(?=a)b', '(?!a)b', '(?<=a)b', '(?<!a)b', '((a+))*', '(a*){2,}'])(
-    'rejects %s',
-    (pattern) => {
-      expect(isValidTitleRulePattern(pattern)).toBe(false)
-    },
-  )
+describe('title rule draft schema', () => {
+  const draft = (keywords: string[]) => ({ category: 'pokemon-sealed', keywords, kairosCondition: 'opened-complete', priority: 1 })
 
-  it.each(['\\b(vide|empty|sans cartes|incompl)', '(ab[iî]m|cabossé|dented|damaged|enfonc)', '\\b(ouvert|opened|open)\\b', '(?:ab)+', 'a+b*', '[(+]+', '\\(a+\\)+'])(
-    'accepts %s',
-    (pattern) => {
-      expect(isValidTitleRulePattern(pattern)).toBe(true)
-    },
-  )
-
-  it('skips a stored dangerous rule so resolution does not hang', () => {
-    const compiled = compileTitleRules([rule('(a+)+$', 9)])
-    expect(compiled.rules).toEqual([])
-    const startedAt = Date.now()
-    const resolved = resolveKairosConditionWithCompiledRules([], compiled, {
-      category: 'pokemon-sealed', source: 'ebay', sourceCondition: null, title: `${'a'.repeat(60)}!`,
-    })
-    expect(resolved).toBeNull()
-    expect(Date.now() - startedAt).toBeLessThan(500)
+  it('accepts 1 to 20 keywords of 2 to 40 characters after trimming', () => {
+    expect(titleRuleDraftSchema.safeParse(draft([' vide ', 'a'.repeat(40)])).success).toBe(true)
+    expect(titleRuleDraftSchema.safeParse(draft(Array.from({ length: 20 }, () => 'ab'))).success).toBe(true)
   })
 
-  it('tests only the first 120 characters of a title', () => {
-    const compiled = compileTitleRules([rule('needle', 1)])
-    const input = (title: string) => ({ category: 'pokemon-sealed', source: 'ebay', sourceCondition: null, title })
-    expect(resolveKairosConditionWithCompiledRules([], compiled, input(`${'x'.repeat(100)} needle`))).toBe('opened-complete')
-    expect(resolveKairosConditionWithCompiledRules([], compiled, input(`${'x'.repeat(130)} needle`))).toBeNull()
+  it.each([
+    [[]],
+    [['a']],
+    [[' a ']],
+    [['a'.repeat(41)]],
+    [Array.from({ length: 21 }, () => 'ab')],
+  ])('rejects %j', (keywords) => {
+    expect(titleRuleDraftSchema.safeParse(draft(keywords)).success).toBe(false)
   })
 })

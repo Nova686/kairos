@@ -67,9 +67,9 @@ describe('resolveKairosCondition', () => {
     })).toBe('good')
   })
 
-  it('ignores a rule whose pattern is not a valid expression', () => {
-    const brokenRule = { id: 'x', category: 'toy', pattern: '(', kairosCondition: 'good' as const, priority: 1 }
-    expect(resolveKairosCondition(mappings, [brokenRule], {
+  it('ignores a rule whose keywords hold no word', () => {
+    const emptyRule = { id: 'x', category: 'toy', keywords: ['(('], kairosCondition: 'good' as const, priority: 1 }
+    expect(resolveKairosCondition(mappings, [emptyRule], {
       category: 'toy',
       source: 'ebay',
       sourceCondition: 'Neuf',

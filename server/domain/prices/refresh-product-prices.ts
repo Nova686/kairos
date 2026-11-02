@@ -65,9 +65,6 @@ export const loadRefreshRulesContext = async (database: KairosDatabase): Promise
   const mappings = await database.select().from(conditionMappings)
   const rules = await database.select().from(titleConditionRules)
   const compiledRules = compileTitleRules(rules as TitleConditionRuleEntry[])
-  if (compiledRules.skippedPatterns.length > 0) {
-    console.warn(`Skipped ${compiledRules.skippedPatterns.length} title rule(s) with an invalid or too long pattern`)
-  }
   return { mappings: mappings as ConditionMappingEntry[], compiledRules }
 }
 

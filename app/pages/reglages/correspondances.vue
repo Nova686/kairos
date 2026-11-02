@@ -94,9 +94,12 @@
         label="Catégorie"
         hide-details
       />
-      <v-text-field
-        v-model="newRule.pattern"
-        label="Expression régulière"
+      <v-combobox
+        v-model="newRule.keywords"
+        label="Mots-clés (début de mot)"
+        multiple
+        chips
+        closable-chips
         hide-details
       />
       <v-select
@@ -132,9 +135,12 @@
           class="d-flex flex-wrap ga-2"
           @submit.prevent="saveEditedRule"
         >
-          <v-text-field
-            v-model="editedRule.pattern"
-            label="Expression régulière"
+          <v-combobox
+            v-model="editedRule.keywords"
+            label="Mots-clés (début de mot)"
+            multiple
+            chips
+            closable-chips
             density="compact"
             hide-details
           />
@@ -166,7 +172,7 @@
           </v-btn>
         </v-form>
         <template v-else>
-          <v-list-item-title>{{ categoryLabel(rule.category) }} · /{{ rule.pattern }}/i</v-list-item-title>
+          <v-list-item-title>{{ categoryLabel(rule.category) }} · {{ rule.keywords.join(', ') }}</v-list-item-title>
           <v-list-item-subtitle>{{ rule.kairosCondition }} · priorité {{ rule.priority }}</v-list-item-subtitle>
         </template>
         <template
@@ -176,13 +182,13 @@
           <v-btn
             icon="mdi-pencil"
             variant="text"
-            :aria-label="`Modifier la règle ${rule.pattern}`"
+            :aria-label="`Modifier la règle ${rule.keywords.join(', ')}`"
             @click="startEditingRule(rule)"
           />
           <v-btn
             icon="mdi-delete"
             variant="text"
-            :aria-label="`Supprimer la règle ${rule.pattern}`"
+            :aria-label="`Supprimer la règle ${rule.keywords.join(', ')}`"
             @click="deleteRule(rule)"
           />
         </template>
