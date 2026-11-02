@@ -7,7 +7,8 @@ export type CatalogueChange = typeof catalogueChanges.$inferSelect
 export const creationFieldName = '*'
 
 interface CatalogueChangeEntry {
-  productId: string
+  productId: string | null
+  subject?: string
   userId: string
   fieldName: string
   previousValue: unknown

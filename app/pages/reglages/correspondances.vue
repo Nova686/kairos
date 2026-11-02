@@ -1,0 +1,215 @@
+<template>
+  <div>
+    <h1 class="text-h5 mb-4">
+      Correspondances d'états
+    </h1>
+    <v-alert
+      v-if="errorMessage"
+      type="error"
+      class="mb-4"
+      role="alert"
+    >
+      {{ errorMessage }}
+    </v-alert>
+    <v-progress-linear
+      v-if="pending"
+      indeterminate
+    />
+
+    <h2 class="text-h6 mb-2">
+      États des sources
+    </h2>
+    <v-form
+      class="d-flex flex-wrap ga-2 mb-4"
+      @submit.prevent="addMapping"
+    >
+      <v-select
+        v-model="newMapping.category"
+        :items="categoryOptions"
+        label="Catégorie"
+        hide-details
+      />
+      <v-text-field
+        v-model="newMapping.source"
+        label="Source"
+        hide-details
+      />
+      <v-text-field
+        v-model="newMapping.sourceCondition"
+        label="État de la source"
+        hide-details
+      />
+      <v-select
+        v-model="newMapping.kairosCondition"
+        :items="conditionOptionsFor(newMapping.category)"
+        label="État Kairos"
+        hide-details
+      />
+      <v-btn
+        type="submit"
+        color="primary"
+        height="56"
+      >
+        Ajouter
+      </v-btn>
+    </v-form>
+    <p v-if="!pending && mappings.length === 0">
+      Aucune correspondance.
+    </p>
+    <v-list v-else>
+      <v-list-item
+        v-for="mapping in mappings"
+        :key="`${mapping.category}/${mapping.source}/${mapping.sourceCondition}`"
+        :title="`${categoryLabel(mapping.category)} · ${mapping.source} · ${mapping.sourceCondition}`"
+      >
+        <template #append>
+          <v-select
+            :model-value="mapping.kairosCondition"
+            :items="conditionOptionsFor(mapping.category)"
+            :aria-label="`État Kairos de ${mapping.sourceCondition}`"
+            density="compact"
+            hide-details
+            @update:model-value="changeMappingCondition(mapping, $event)"
+          />
+          <v-btn
+            icon="mdi-delete"
+            variant="text"
+            :aria-label="`Supprimer la correspondance ${mapping.sourceCondition}`"
+            @click="deleteMapping(mapping)"
+          />
+        </template>
+      </v-list-item>
+    </v-list>
+
+    <h2 class="text-h6 mt-6 mb-2">
+      Règles sur le titre
+    </h2>
+    <v-form
+      class="d-flex flex-wrap ga-2 mb-4"
+      @submit.prevent="addRule"
+    >
+      <v-select
+        v-model="newRule.category"
+        :items="categoryOptions"
+        label="Catégorie"
+        hide-details
+      />
+      <v-text-field
+        v-model="newRule.pattern"
+        label="Expression régulière"
+        hide-details
+      />
+      <v-select
+        v-model="newRule.kairosCondition"
+        :items="conditionOptionsFor(newRule.category)"
+        label="État Kairos"
+        hide-details
+      />
+      <v-text-field
+        v-model.number="newRule.priority"
+        label="Priorité"
+        type="number"
+        hide-details
+      />
+      <v-btn
+        type="submit"
+        color="primary"
+        height="56"
+      >
+        Ajouter
+      </v-btn>
+    </v-form>
+    <p v-if="!pending && rules.length === 0">
+      Aucune règle.
+    </p>
+    <v-list v-else>
+      <v-list-item
+        v-for="rule in rules"
+        :key="rule.id"
+      >
+        <v-form
+          v-if="editedRule && editedRule.id === rule.id"
+          class="d-flex flex-wrap ga-2"
+          @submit.prevent="saveEditedRule"
+        >
+          <v-text-field
+            v-model="editedRule.pattern"
+            label="Expression régulière"
+            density="compact"
+            hide-details
+          />
+          <v-select
+            v-model="editedRule.kairosCondition"
+            :items="conditionOptionsFor(editedRule.category)"
+            label="État Kairos"
+            density="compact"
+            hide-details
+          />
+          <v-text-field
+            v-model.number="editedRule.priority"
+            label="Priorité"
+            type="number"
+            density="compact"
+            hide-details
+          />
+          <v-btn
+            type="submit"
+            color="primary"
+          >
+            Enregistrer
+          </v-btn>
+          <v-btn
+            variant="text"
+            @click="cancelEditingRule"
+          >
+            Annuler
+          </v-btn>
+        </v-form>
+        <template v-else>
+          <v-list-item-title>{{ categoryLabel(rule.category) }} · /{{ rule.pattern }}/i</v-list-item-title>
+          <v-list-item-subtitle>{{ rule.kairosCondition }} · priorité {{ rule.priority }}</v-list-item-subtitle>
+        </template>
+        <template
+          v-if="!editedRule || editedRule.id !== rule.id"
+          #append
+        >
+          <v-btn
+            icon="mdi-pencil"
+            variant="text"
+            :aria-label="`Modifier la règle ${rule.pattern}`"
+            @click="startEditingRule(rule)"
+          />
+          <v-btn
+            icon="mdi-delete"
+            variant="text"
+            :aria-label="`Supprimer la règle ${rule.pattern}`"
+            @click="deleteRule(rule)"
+          />
+        </template>
+      </v-list-item>
+    </v-list>
+  </div>
+</template>
+
+<script setup lang="ts">
+const {
+  mappings,
+  rules,
+  pending,
+  errorMessage,
+  newMapping,
+  newRule,
+  editedRule,
+  categoryOptions,
+  conditionOptionsFor,
+  categoryLabel,
+  addMapping,
+  changeMappingCondition,
+  deleteMapping,
+  addRule,
+  startEditingRule,
+  cancelEditingRule,
+  saveEditedRule,
+  deleteRule,
+} = useConditionMappingsPage()
+</script>

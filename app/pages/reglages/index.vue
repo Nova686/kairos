@@ -49,6 +49,13 @@
     </v-card>
     <v-btn
       variant="outlined"
+      class="mr-2"
+      to="/reglages/correspondances"
+    >
+      Correspondances d'états
+    </v-btn>
+    <v-btn
+      variant="outlined"
       @click="signOut"
     >
       Se déconnecter

@@ -7,6 +7,7 @@ import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator'
 import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js'
 import { migrate as migratePostgres } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
+import { seedConditionMappings } from './seeds/condition-mappings.ts'
 import * as schema from './schema/index.ts'
 
 export type KairosDatabase = PgDatabase<PgQueryResultHKT, typeof schema>
@@ -23,12 +24,14 @@ const openPgliteDatabase = async (target: string): Promise<KairosDatabase> => {
   const pglite = new PGlite(isInMemory ? undefined : target)
   const database = drizzlePglite(pglite, { schema })
   await migratePglite(database, { migrationsFolder })
+  await seedConditionMappings(database as unknown as KairosDatabase)
   return database as unknown as KairosDatabase
 }
 
 const openPostgresDatabase = async (databaseUrl: string): Promise<KairosDatabase> => {
   const database = drizzlePostgres(postgres(databaseUrl), { schema })
   await migratePostgres(database, { migrationsFolder })
+  await seedConditionMappings(database as unknown as KairosDatabase)
   return database as unknown as KairosDatabase
 }
 

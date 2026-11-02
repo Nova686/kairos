@@ -91,7 +91,7 @@ export const revertCatalogueChange = async (
   const [change] = uuidPattern.test(changeId)
     ? await database.select().from(catalogueChanges).where(eq(catalogueChanges.id, changeId))
     : []
-  if (!change) {
+  if (!change || change.productId === null) {
     throw notFound()
   }
   const revertableFieldName = productDraftFieldNames.find(fieldName => fieldName === change.fieldName)
@@ -105,16 +105,17 @@ export const revertCatalogueChange = async (
   if (existingRevert) {
     throw createError({ statusCode: 409, statusMessage: 'Cette modification a déjà été annulée' })
   }
-  const currentProduct = await findProductOr404(database, change.productId)
+  const changedProductId = change.productId
+  const currentProduct = await findProductOr404(database, changedProductId)
   return database.transaction(async (transaction) => {
     const [revertedProduct] = await transaction
       .update(products)
       .set({ [revertableFieldName]: change.previousValue, updatedAt: new Date() })
-      .where(eq(products.id, change.productId))
+      .where(eq(products.id, changedProductId))
       .returning()
     await appendCatalogueChanges(transaction, [
       {
-        productId: change.productId,
+        productId: changedProductId,
         userId,
         fieldName: revertableFieldName,
         previousValue: currentProduct[revertableFieldName],

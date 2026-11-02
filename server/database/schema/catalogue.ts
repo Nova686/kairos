@@ -28,7 +28,8 @@ export const productBarcodes = pgTable('product_barcodes', {
 
 export const catalogueChanges = pgTable('catalogue_changes', {
   id: uuid('id').primaryKey().defaultRandom(),
-  productId: uuid('product_id').notNull().references(() => products.id, { onDelete: 'restrict' }),
+  productId: uuid('product_id').references(() => products.id, { onDelete: 'restrict' }),
+  subject: text('subject').notNull().default('product'),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   fieldName: text('field_name').notNull(),
   previousValue: jsonb('previous_value'),
