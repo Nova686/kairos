@@ -15,6 +15,20 @@ export interface ListingObservation {
   imageUrl: string | null
 }
 
+export interface SourceAggregate {
+  source: PriceSourceId
+  sourceProductId: string
+  averageCents: number | null
+  lowCents: number | null
+  trendCents: number | null
+  average7DaysCents: number | null
+  average30DaysCents: number | null
+  observedAt: string
+}
+
+export const euroFigureToCents = (euroFigure: unknown): number | null =>
+  typeof euroFigure === 'number' && euroFigure > 0 ? Math.round(euroFigure * 100) : null
+
 export interface PriceSourceAdapter {
   id: PriceSourceId
   supportedKinds: ListingKind[]
