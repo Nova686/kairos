@@ -11,3 +11,21 @@ La conception (`docs/superpowers/specs/2026-11-02-kairos-design.md`) couvre cinq
 | 5 | Hébergement | VM Oracle Always Free, Docker Compose, Caddy + DuckDNS, PWA, sauvegardes, repli selon le rapport du plan 1 | 1, 2 |
 
 Le plan 1 passe en premier. Révision 2 du 2026-11-02 : le relevé par navigateur automatisé est abandonné, car tous les sites le bloquent et le contournement est exclu. Seules restent les voies officielles, et l'application n'a plus besoin de navigateur automatisé sur le serveur.
+
+## Fichiers des plans
+
+| # | Plan | Fichier | État |
+|---|------|---------|------|
+| 1 | Adaptateurs de sources | `2026-11-02-price-source-probe.md` | construit (PR #1) |
+| 2 | Socle de l'application | `2026-11-02-application-foundation.md` | écrit, 10 tâches |
+| 3 | Relevés et valeur | `2026-11-02-prices-and-valuation.md` | écrit, 8 tâches |
+| 4 | Scan | `2026-11-02-scan.md` | écrit, 6 tâches |
+| 5 | Hébergement | `2026-11-02-hosting.md` | écrit, 6 tâches |
+
+Ordre de construction : 2, puis 3 et 4 (indépendants l'un de l'autre), puis 5. Le plan 5 peut démarrer dès la fin du plan 2 si l'on veut l'application en ligne plus tôt.
+
+## À faire par l'auteur
+
+- Compte développeur eBay : clés de production dans `.env` (`EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`).
+- Facultatif : `POKEMONTCG_API_KEY`, `PSA_API_TOKEN` (+ `PSA_PROBE_CERTIFICATE` pour la sonde).
+- Avant le plan 5 : compte Oracle Cloud « Always Free » et sous-domaine DuckDNS.

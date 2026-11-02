@@ -98,7 +98,7 @@ L'usage type : **chez soi**, au retour d'achats, on scanne les produits (code-ba
 
 ## 7. Choix techniques (choix de Claude, modifiables)
 
-- **Framework** : Nuxt 3 (TypeScript) en application complète — pages + serveur Nitro (routes API, tâches planifiées). L'auteur connaît bien Nuxt. UI avec **Vuetify 3**, PWA via `@vite-pwa/nuxt`.
+- **Framework** : Nuxt 4 (TypeScript) en application complète — pages + serveur Nitro (routes API, tâches planifiées). L'auteur connaît bien Nuxt. UI avec **Vuetify 4**, PWA via `@vite-pwa/nuxt`. Ce sont les versions stables au 2026-11-02 ; la première rédaction disait Nuxt 3 et Vuetify 3.
 - **Base de données** : PostgreSQL avec l'extension **pgvector** (recherche visuelle). ORM laissé au constructeur (Drizzle suggéré).
 - **Hébergement** : une VM **Oracle Cloud « Always Free »** (Ampere ARM, jusqu'à 4 cœurs / 24 Go) avec Docker Compose : app Nuxt, PostgreSQL, worker de relevés (appels d'API), reverse proxy **Caddy** pour le HTTPS automatique. Nom de domaine gratuit via un sous-domaine DuckDNS (ou équivalent gratuit). L'inscription Oracle demande une carte bancaire non débitée. Le dépôt fournit les scripts d'installation et un guide pas à pas.
 - **Authentification** : email + mot de passe, **sur invitation** uniquement (pas d'inscription ouverte). Sessions par cookie.
