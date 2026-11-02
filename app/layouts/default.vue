@@ -7,7 +7,7 @@
     >
       <v-app-bar-nav-icon
         aria-label="Ouvrir la navigation"
-        @click="isDrawerOpen = !isDrawerOpen"
+        @click="isDrawerOpen = toggleDrawerState(isDrawerOpen, isMobile)"
       />
       <v-app-bar-title>Kairos</v-app-bar-title>
     </v-app-bar>
@@ -20,5 +20,6 @@
 </template>
 
 <script setup lang="ts">
-const isDrawerOpen = ref(true)
+const isDrawerOpen = ref<boolean | undefined>(undefined)
+const { isMobile } = useMainNavigation()
 </script>

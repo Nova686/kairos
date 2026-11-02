@@ -17,6 +17,6 @@
 </template>
 
 <script setup lang="ts">
-const isDrawerOpen = defineModel<boolean>({ default: true })
+const isDrawerOpen = defineModel<boolean | undefined>()
 const { navigationEntries, isMobile } = useMainNavigation()
 </script>
