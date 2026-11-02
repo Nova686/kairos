@@ -1,10 +1,10 @@
 import { z } from 'zod'
-
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+import { positiveCentsSchema } from '../validation/cents.ts'
+import { isoCalendarDateSchema as isoDate } from '../validation/iso-calendar-date.ts'
 
 export const debtDraftSchema = z.object({
   personId: z.string().min(1),
-  amountCents: z.number().int().positive(),
+  amountCents: positiveCentsSchema,
   direction: z.enum(['owed-to-me', 'i-owe']),
   reason: z.string().trim().min(1),
   purchaseId: z.string().min(1).nullable().default(null),

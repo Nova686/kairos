@@ -1,7 +1,6 @@
 import { z } from 'zod'
-
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-const nonNegativeCents = z.number().int().min(0)
+import { isoCalendarDateSchema as isoDate } from '../validation/iso-calendar-date.ts'
+import { nonNegativeCentsSchema as nonNegativeCents } from '../validation/cents.ts'
 
 export const saleDraftSchema = z.object({
   soldOn: isoDate,

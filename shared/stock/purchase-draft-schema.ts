@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import { conditionCodes } from '../catalogue/condition-scale.ts'
+import { isoCalendarDateSchema as isoDate } from '../validation/iso-calendar-date.ts'
+import { nonNegativeCentsSchema as nonNegativeCents } from '../validation/cents.ts'
 
 const optionalText = z.string().trim().min(1).nullable()
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-const nonNegativeCents = z.number().int().min(0)
 
 export const purchaseLineDraftSchema = z.object({
   productId: z.string().min(1),
