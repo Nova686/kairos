@@ -1,6 +1,8 @@
-export type PriceSourceId = 'ebay' | 'vinted' | 'leboncoin' | 'cardmarket'
+export type PriceSourceId = 'ebay' | 'cardmarket' | 'tcgdex' | 'pokemontcg' | 'vinted' | 'leboncoin'
 
-export type ListingKind = 'active' | 'sold'
+export type SourceId = PriceSourceId | 'psa' | 'openbeautyfacts' | 'upcitemdb'
+
+export type ListingKind = 'active' | 'sold' | 'source-aggregate' | 'manual'
 
 export interface ListingObservation {
   source: PriceSourceId
@@ -20,14 +22,26 @@ export interface PriceSourceAdapter {
 }
 
 export class SourceBlockedError extends Error {
-  readonly source: PriceSourceId
+  readonly source: SourceId
   readonly reason: string
 
-  constructor(source: PriceSourceId, reason: string) {
+  constructor(source: SourceId, reason: string) {
     super(`${source} blocked the request: ${reason}`)
     this.name = 'SourceBlockedError'
     this.source = source
     this.reason = reason
+  }
+}
+
+export class SourceDisabledError extends Error {
+  readonly source: SourceId
+  readonly missingSetting: string
+
+  constructor(source: SourceId, missingSetting: string) {
+    super(`${source} is disabled: ${missingSetting} is not set`)
+    this.name = 'SourceDisabledError'
+    this.source = source
+    this.missingSetting = missingSetting
   }
 }
 
