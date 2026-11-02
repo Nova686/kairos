@@ -51,11 +51,11 @@ describe('excludeListing and restoreListing', () => {
     const { memberId, product } = await insertProduct(database)
     const gateway = gatewayWith([keptListing, otherListing])
 
-    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2?hash=abc#top')
+    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2?hash=abc#top', now)
     const afterExclusion = await refreshProductPrices(database, gateway, product.id, now)
     expect(await retainedUrlsOf(database, afterExclusion.snapshotIds)).toEqual(['https://ebay.test/itm/1'])
 
-    await restoreListing(database, memberId, product.id, 'https://ebay.test/itm/2')
+    await restoreListing(database, memberId, product.id, 'https://ebay.test/itm/2', now)
     const afterRestore = await refreshProductPrices(database, gateway, product.id, now)
     expect(await retainedUrlsOf(database, afterRestore.snapshotIds)).toEqual(['https://ebay.test/itm/1', 'https://ebay.test/itm/2'])
   })
@@ -64,11 +64,11 @@ describe('excludeListing and restoreListing', () => {
     const database = await createTestDatabase()
     const { memberId, product } = await insertProduct(database)
 
-    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2?hash=abc')
+    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2?hash=abc', now)
     const [stored] = await database.select().from(excludedListings)
     expect(stored).toMatchObject({ productId: product.id, url: 'https://ebay.test/itm/2', excludedByUserId: memberId })
 
-    await restoreListing(database, memberId, product.id, 'https://ebay.test/itm/2?other=1')
+    await restoreListing(database, memberId, product.id, 'https://ebay.test/itm/2?other=1', now)
     expect(await database.select().from(excludedListings)).toHaveLength(0)
 
     const changes = await listProductChanges(database, product.id)
@@ -81,12 +81,12 @@ describe('excludeListing and restoreListing', () => {
     const database = await createTestDatabase()
     const { memberId, product } = await insertProduct(database)
 
-    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2')
+    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2', now)
     const [afterExclusion] = await database.select().from(priceRefreshRequests).where(eq(priceRefreshRequests.productId, product.id))
     expect(afterExclusion!.requestedAt).not.toBeNull()
 
     await database.update(priceRefreshRequests).set({ requestedAt: null })
-    await restoreListing(database, memberId, product.id, 'https://ebay.test/itm/2')
+    await restoreListing(database, memberId, product.id, 'https://ebay.test/itm/2', now)
     const [afterRestore] = await database.select().from(priceRefreshRequests).where(eq(priceRefreshRequests.productId, product.id))
     expect(afterRestore!.requestedAt).not.toBeNull()
   })
@@ -95,20 +95,35 @@ describe('excludeListing and restoreListing', () => {
     const database = await createTestDatabase()
     const { memberId, product } = await insertProduct(database)
 
-    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2')
-    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2?x=1')
+    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2', now)
+    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2?x=1', now)
 
     expect(await database.select().from(excludedListings)).toHaveLength(1)
     expect(await listProductChanges(database, product.id)).toHaveLength(1)
+  })
+
+  it('queues nothing for a duplicate exclusion or a restore that removed nothing', async () => {
+    const database = await createTestDatabase()
+    const { memberId, product } = await insertProduct(database)
+
+    await restoreListing(database, memberId, product.id, 'https://ebay.test/itm/9', now)
+    expect(await database.select().from(priceRefreshRequests)).toHaveLength(0)
+
+    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2', now)
+    await database.update(priceRefreshRequests).set({ requestedAt: null })
+    await excludeListing(database, memberId, product.id, 'https://ebay.test/itm/2?x=1', now)
+
+    const [request] = await database.select().from(priceRefreshRequests)
+    expect(request!.requestedAt).toBeNull()
   })
 
   it('answers 404 for an unknown product', async () => {
     const database = await createTestDatabase()
     const { memberId } = await insertProduct(database)
 
-    await expect(excludeListing(database, memberId, '00000000-0000-4000-8000-000000000000', 'https://ebay.test/itm/2'))
+    await expect(excludeListing(database, memberId, '00000000-0000-4000-8000-000000000000', 'https://ebay.test/itm/2', now))
       .rejects.toMatchObject({ statusCode: 404 })
-    await expect(restoreListing(database, memberId, 'not-a-uuid', 'https://ebay.test/itm/2'))
+    await expect(restoreListing(database, memberId, 'not-a-uuid', 'https://ebay.test/itm/2', now))
       .rejects.toMatchObject({ statusCode: 404 })
   })
 })

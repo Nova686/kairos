@@ -5,6 +5,8 @@ import { positiveCentsSchema } from '../validation/cents.ts'
 
 export const manualPriceSources = ['vinted', 'leboncoin', 'other'] as const
 
+const gradePattern = /^(10|[1-9](\.5)?)$/
+
 const isWebUrl = (candidate: string): boolean => {
   try {
     return ['http:', 'https:'].includes(new URL(candidate).protocol)
@@ -18,7 +20,7 @@ export const manualPriceDraftSchema = z.object({
   source: z.enum(manualPriceSources),
   kairosCondition: z.enum(conditionCodes),
   gradingCompany: z.string().trim().min(1).nullish(),
-  grade: z.string().trim().min(1).nullish(),
+  grade: z.string().trim().regex(gradePattern, { message: 'Note de 1 à 10, demi-point possible' }).nullish(),
   priceCents: positiveCentsSchema,
   observedOn: isoCalendarDateSchema,
   url: z.string().trim().refine(isWebUrl, { message: 'Lien http ou https attendu' }).nullish(),

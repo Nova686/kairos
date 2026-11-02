@@ -122,6 +122,29 @@ describe('recordManualPrice', () => {
   })
 })
 
+describe('manual price validation', () => {
+  it('rejects a future observation day in Paris but accepts today', async () => {
+    const database = await createTestDatabase()
+    const { memberId, product } = await insertProduct(database, 'toy')
+    const lateEvening = new Date('2026-11-02T23:30:00Z')
+
+    await expect(recordManualPrice(database, memberId, product.id, draft({ observedOn: '2026-11-04' }), lateEvening))
+      .rejects.toMatchObject({ statusCode: 422 })
+    await expect(recordManualPrice(database, memberId, product.id, draft({ observedOn: '2026-11-03' }), lateEvening))
+      .resolves.toEqual(expect.any(String))
+    await expect(recordManualPrice(database, memberId, product.id, draft({ observedOn: '2026-11-03' }), now))
+      .rejects.toMatchObject({ statusCode: 422 })
+  })
+
+  it('accepts only numeric grades from 1 to 10 with an optional half point', () => {
+    const parseGrade = (grade: string) => manualPriceDraftSchema.safeParse({
+      source: 'other', kairosCondition: 'graded', gradingCompany: 'PSA', grade, priceCents: 100, observedOn: '2026-11-01',
+    }).success
+    expect(['10', '9.5', '1'].map(parseGrade)).toEqual([true, true, true])
+    expect(['0', '11', 'Mint', '9,5', '9.25', '10.5'].map(parseGrade)).toEqual([false, false, false, false, false, false])
+  })
+})
+
 describe('manualPriceDraftSchema', () => {
   it('rejects non-positive prices, unknown sources, impossible dates and non-http links', () => {
     expect(manualPriceDraftSchema.safeParse({ source: 'vinted', kairosCondition: 'good', priceCents: 0, observedOn: '2026-11-01' }).success).toBe(false)

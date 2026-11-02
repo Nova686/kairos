@@ -5,7 +5,7 @@ import type { ManualPriceDraft } from '../../../shared/prices/manual-price-draft
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { priceSnapshotListings, priceSnapshots } from '../../database/schema/index.ts'
 import { findProductOr404 } from '../catalogue/catalogue-service.ts'
-import { parisNoonOf } from './start-of-paris-day.ts'
+import { parisCalendarDateOf, parisNoonOf } from './start-of-paris-day.ts'
 
 const manualListingTitle = 'Relevé manuel'
 
@@ -16,10 +16,14 @@ export const recordManualPrice = async (
   userId: string,
   productId: string,
   draft: ManualPriceDraft,
+  now: Date = new Date(),
 ): Promise<string> => {
   const product = await findProductOr404(database, productId)
   if (!isProductCategory(product.category) || !isConditionAllowed(product.category, draft.kairosCondition)) {
     throw unprocessable('État non autorisé pour cette catégorie')
+  }
+  if (draft.observedOn > parisCalendarDateOf(now)) {
+    throw unprocessable('Date d\'observation dans le futur')
   }
   const isGradedCard = product.category === 'graded-card'
   if (isGradedCard && (!draft.gradingCompany || !draft.grade)) {

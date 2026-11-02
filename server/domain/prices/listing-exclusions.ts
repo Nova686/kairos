@@ -13,6 +13,7 @@ export const excludeListing = async (
   userId: string,
   productId: string,
   url: string,
+  now: Date,
 ): Promise<void> => {
   await findProductOr404(database, productId)
   const normalizedUrl = normalizeListingUrl(url)
@@ -26,9 +27,9 @@ export const excludeListing = async (
       await appendCatalogueChanges(transaction as unknown as KairosDatabase, [
         { productId, userId, fieldName: excludedListingFieldName, previousValue: null, newValue: normalizedUrl },
       ])
+      await enqueueProducts(transaction as unknown as KairosDatabase, [productId], userId, now)
     }
   })
-  await enqueueProducts(database, [productId], userId, new Date())
 }
 
 export const restoreListing = async (
@@ -36,6 +37,7 @@ export const restoreListing = async (
   userId: string,
   productId: string,
   url: string,
+  now: Date,
 ): Promise<void> => {
   await findProductOr404(database, productId)
   const normalizedUrl = normalizeListingUrl(url)
@@ -48,7 +50,7 @@ export const restoreListing = async (
       await appendCatalogueChanges(transaction as unknown as KairosDatabase, [
         { productId, userId, fieldName: excludedListingFieldName, previousValue: normalizedUrl, newValue: null },
       ])
+      await enqueueProducts(transaction as unknown as KairosDatabase, [productId], userId, now)
     }
   })
-  await enqueueProducts(database, [productId], userId, new Date())
 }

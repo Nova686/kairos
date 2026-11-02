@@ -30,7 +30,7 @@ export const parisNoonOf = (calendarDate: string): Date => {
   return new Date(utcNoon.getTime() - offsetMilliseconds)
 }
 
-export const startOfParisDay =(moment: Date): Date => {
+export const startOfParisDay = (moment: Date): Date => {
   const wallClockMilliseconds = parisWallClockAsUtcMilliseconds(moment)
   const wallClockDay = new Date(wallClockMilliseconds)
   const midnightWallClockMilliseconds = Date.UTC(
@@ -43,3 +43,6 @@ export const startOfParisDay =(moment: Date): Date => {
   const candidateOffset = parisWallClockAsUtcMilliseconds(candidate) - candidate.getTime()
   return new Date(midnightWallClockMilliseconds - candidateOffset)
 }
+
+export const parisCalendarDateOf = (moment: Date): string =>
+  new Date(parisWallClockAsUtcMilliseconds(moment)).toISOString().slice(0, 10)
