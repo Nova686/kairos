@@ -70,6 +70,31 @@ describe('authentication', async () => {
     expect(currentUser).toMatchObject({ email: administratorEmail, isAdmin: true })
   })
 
+  it('answers 401 on the current user after signing out through the library session route', async () => {
+    const loginResponse = await fetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: administratorEmail, password: administratorPassword }),
+      headers: { 'content-type': 'application/json' },
+    })
+    const signOutResponse = await fetch('/api/_auth/session', {
+      method: 'DELETE',
+      headers: { cookie: extractSessionCookie(loginResponse) },
+    })
+
+    const currentUserResponse = await fetch('/api/auth/me', {
+      headers: { cookie: extractSessionCookie(signOutResponse) },
+    })
+
+    expect(signOutResponse.status).toBe(200)
+    expect(currentUserResponse.status).toBe(401)
+  })
+
+  it('does not answer 401 on the library session route for an anonymous visitor', async () => {
+    const response = await fetch('/api/_auth/session')
+
+    expect(response.status).not.toBe(401)
+  })
+
   it('lets an administrator invite someone who then accepts and signs in', async () => {
     const loginResponse = await fetch('/api/auth/login', {
       method: 'POST',
