@@ -15,7 +15,13 @@ L'usage type : **chez soi**, au retour d'achats, on scanne les produits (code-ba
    - **code-barres** (EAN) scanné à l'appareil photo ;
    - **photo** du produit → l'application propose le produit si elle est sûre, sinon **plusieurs candidats** parmi lesquels on choisit ;
    - **texte libre** → l'application cherche le produit et une image (catalogue partagé, puis sources en ligne) et on choisit la bonne fiche.
-3. **Relevé des prix** sur plusieurs sources, **automatique à intervalle régulier** (quotidien) **et à la demande** via un bouton (un produit ou tout le stock). Les annonces **en cours** comptent autant que les ventes conclues ; chaque source garde son propre prix.
+3. **Relevé des prix** sur plusieurs sources, **automatique à intervalle régulier** (quotidien) **et à la demande** via un bouton (un produit ou tout le stock). Les annonces **en cours** comptent autant que les ventes conclues ; chaque source garde son propre prix. Sources retenues après le sondage du 2026-11-02 (`docs/spikes/2026-11-02-price-sources.md`), toutes **officielles et gratuites** :
+   - **eBay** : API Browse officielle, place de marché `EBAY_FR`. Elle donne les annonces en cours avec leur état, pour toutes les catégories. C'est la source principale du prix par état. Les ventes conclues ne sont pas accessibles.
+   - **Cardmarket** : fichiers publics quotidiens (`price_guide_<jeu>.json`, `products_singles_<jeu>.json`, `products_nonsingles_<jeu>.json`). Ils donnent, par produit, la moyenne, le minimum, la tendance et les moyennes sur 1, 7 et 30 jours, sans ventilation par état. Couvre Pokémon, scellé et cartes, et les autres jeux pour plus tard (One Piece, Lorcana, Magic, Yu-Gi-Oh…).
+   - **TCGdex** : API gratuite sans clé. Elle donne les cartes Pokémon sous leur **nom français** avec leur prix Cardmarket.
+   - **pokemontcg.io** : API gratuite, avec une clé gratuite. Elle donne les prix Cardmarket et TCGplayer par carte, en second avis.
+   - **Vinted et Leboncoin** : aucune voie officielle. On y passe par une **saisie manuelle** : l'utilisateur note un prix vu, avec l'état, la date et éventuellement le lien de l'annonce. Ce relevé manuel compte comme un relevé de la source.
+   - **Aucun relevé par navigateur automatisé** : les quatre sites bloquent ce type d'accès, et le contourner est exclu.
 4. **Historique conservé** de chaque relevé → courbe de valeur par produit et courbe de valeur du stock entier dans le temps.
 5. **Valeur du stock** = deux montants côte à côte : somme des prix d'achat et somme des prix moyens actuels (plus-value latente par exemplaire et globale). Règle de calcul validée par l'auteur :
    - l'**état de l'exemplaire est toujours pris en compte** : on ne retient que les annonces dont l'état correspond au sien ;
@@ -23,6 +29,7 @@ L'usage type : **chez soi**, au retour d'achats, on scanne les produits (code-ba
    - la valeur de l'exemplaire est la **médiane de ces chiffres toutes sources confondues**, en ignorant les relevés de plus de 7 jours ;
    - deux exemplaires du même produit dans des états différents ont donc des valeurs différentes ;
    - *(choix de Claude)* quand aucune annonce récente ne correspond à cet état, on prend l'état le plus proche disponible, et la valeur est affichée comme **approximative**, avec l'état réellement utilisé.
+   - *(choix de Claude)* les chiffres Cardmarket, TCGdex et pokemontcg.io n'ont pas d'état. Ils comptent comme `neuf scellé` pour le scellé, et comme `NM` pour une carte non gradée. Ils sont ignorés pour les autres états et pour les cartes gradées.
 6. **Détail par source et par état** : la fiche produit montre, pour chaque source, les prix ventilés **par état** tels que la source les expose. Exemples : sur Vinted, « neuf avec étiquette », « neuf sans étiquette », « très bon état », etc. ; sur eBay, « neuf » ou « occasion » ; sur Leboncoin, l'état de l'annonce ; sur Cardmarket, l'état de la carte (NM, EX…), le scellé n'ayant qu'un état. Les annonces relevées sont donc classées par état.
    - *(choix de Claude)* **Échelle d'états de Kairos**, propre à chaque catégorie. Chaque état de Kairos est mis en correspondance avec le vocabulaire de chaque source. Proposition :
      - **Scellé** (ETB, display, coffret) : `neuf scellé`, `neuf boîte abîmée`, `ouvert complet`, `ouvert incomplet` ;
@@ -58,10 +65,10 @@ L'usage type : **chez soi**, au retour d'achats, on scanne les produits (code-ba
 
 - **Gratuit de bout en bout.**
 - **iPhone / Safari** : l'accès caméra exige HTTPS ; Safari n'a pas l'API native `BarcodeDetector`, le décodage doit se faire via une bibliothèque JS.
-- Le navigateur ne peut pas lire Vinted/eBay/Cardmarket directement : **les relevés se font côté serveur**. Ces sites bloquent souvent les requêtes simples et les IP d'hébergeurs « sans serveur » ; un **navigateur automatisé** (Playwright) côté serveur est nécessaire.
-- Aucune des sources n'offre d'API ouverte et gratuite exploitable pour ce besoin (eBay : ventes conclues lisibles seulement sur les pages ; Vinted : annonces en cours seulement ; Cardmarket : API réservée aux vendeurs pro, tendances lisibles sur les pages produit).
+- **Uniquement des voies officielles** : les relevés passent par des API et des fichiers publiés pour cet usage, côté serveur. Mesuré le 2026-11-02 : eBay, Vinted, Leboncoin et Cardmarket bloquent un navigateur automatisé, même depuis une IP de particulier. Le contournement est exclu.
+- **Clés à fournir par l'auteur** dans `.env`, jamais versionné : `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `POKEMONTCG_API_KEY`, `PSA_API_TOKEN`. Une source dont la clé manque est désactivée, et l'interface le signale.
 - Interface en **français**, montants en **euros**. Sources **françaises** uniquement : ebay.fr, vinted.fr, leboncoin.fr, Cardmarket (FR). *(Choix de Claude)*
-- **Volume** : jusqu'à 5 utilisateurs au départ, 150 à 200 exemplaires chacun, soit au plus ~1 000 produits distincts à relever par jour sur 4 sources.
+- **Volume** : jusqu'à 5 utilisateurs au départ, 150 à 200 exemplaires chacun, soit au plus ~1 000 produits distincts à relever par jour. Un appel eBay par produit et par jour reste dans le quota gratuit. Les fichiers Cardmarket se téléchargent une fois par jour pour tous les produits.
 - **Aucune donnée existante** à importer : pas d'import dans la première version.
 - Code source sur un dépôt GitHub privé `Nova686/kairos` ; projet personnel, sans lien avec un employeur.
 
@@ -86,40 +93,42 @@ L'usage type : **chez soi**, au retour d'achats, on scanne les produits (code-ba
 | Détail des prix | Par source **et par état** |
 | Lots, frais | Vente en lot, achat en lot réparti, frais notés, bénéfice net ; port inclus ou non précisé à la vente |
 | Machine à domicile | Aucune ; si Oracle est bloqué, trouver une alternative gratuite |
+| Sources de prix | eBay (API officielle), Cardmarket (fichiers publics), TCGdex, pokemontcg.io ; Vinted et Leboncoin en saisie manuelle |
+| Sources d'identification | PSA (certificat → carte + note), Open Beauty Facts (cosmétiques), UPCitemdb (codes-barres, 100 par jour) ; Brickset écarté |
 
 ## 7. Choix techniques (choix de Claude, modifiables)
 
 - **Framework** : Nuxt 3 (TypeScript) en application complète — pages + serveur Nitro (routes API, tâches planifiées). L'auteur connaît bien Nuxt. UI avec **Vuetify 3**, PWA via `@vite-pwa/nuxt`.
 - **Base de données** : PostgreSQL avec l'extension **pgvector** (recherche visuelle). ORM laissé au constructeur (Drizzle suggéré).
-- **Hébergement** : une VM **Oracle Cloud « Always Free »** (Ampere ARM, jusqu'à 4 cœurs / 24 Go) avec Docker Compose : app Nuxt, PostgreSQL, worker de relevés (Playwright), reverse proxy **Caddy** pour le HTTPS automatique. Nom de domaine gratuit via un sous-domaine DuckDNS (ou équivalent gratuit). L'inscription Oracle demande une carte bancaire non débitée. Le dépôt fournit les scripts d'installation et un guide pas à pas.
+- **Hébergement** : une VM **Oracle Cloud « Always Free »** (Ampere ARM, jusqu'à 4 cœurs / 24 Go) avec Docker Compose : app Nuxt, PostgreSQL, worker de relevés (appels d'API), reverse proxy **Caddy** pour le HTTPS automatique. Nom de domaine gratuit via un sous-domaine DuckDNS (ou équivalent gratuit). L'inscription Oracle demande une carte bancaire non débitée. Le dépôt fournit les scripts d'installation et un guide pas à pas.
 - **Authentification** : email + mot de passe, **sur invitation** uniquement (pas d'inscription ouverte). Sessions par cookie.
-- **Faisabilité des relevés, d'abord** : la VM Oracle a une IP de datacenter, qui risque d'être bloquée elle aussi, et l'auteur n'a pas de machine à domicile. **La première étape du plan est un test de faisabilité** : depuis la VM, relever un produit réel sur chacune des 4 sources et noter ce qui passe. Pour chaque source bloquée, les alternatives gratuites à essayer, dans l'ordre :
-  1. une **API officielle gratuite**, par exemple l'API Browse d'eBay, gratuite avec un compte développeur, pour les annonces en cours ;
-  2. les **points d'accès JSON** utilisés par le site lui-même, comme le catalogue de Vinted, avec le cookie de session obtenu sur la page d'accueil ;
-  3. des **exécuteurs GitHub Actions** planifiés, gratuits pour un dépôt privé dans la limite du quota mensuel, avec des IP différentes à chaque exécution, qui renvoient les relevés à l'app via une route authentifiée ;
-  4. en dernier recours, la source est désactivée et signalée comme telle dans l'interface.
-
-  Si la VM Oracle elle-même est impossible à obtenir, par manque de capacité ARM, le repli est une VM AMD Always Free d'Oracle, plus petite, avec la reconnaissance photo allégée, ou un autre hébergeur gratuit équivalent. Le constructeur choisit selon le résultat du test.
-- **Relevés de prix** : un module par source (« adaptateur ») — eBay (annonces en cours + ventes conclues), Vinted (annonces en cours), Cardmarket (prix de tendance / à partir de), Leboncoin (annonces en cours) ; d'autres adaptateurs peuvent s'ajouter. Exécution par Playwright dans un worker séparé de l'app, avec file d'attente, délais entre requêtes, et toujours anonyme (jamais connecté avec le compte d'un utilisateur, pour ne mettre aucun compte en danger). Relevé quotidien de tous les produits détenus en stock par au moins un utilisateur ; le bouton met le produit en tête de file.
+- **Relevés de prix** : un module par source (« adaptateur ») qui renvoie des observations normalisées : source, type, état de la source, prix en centimes, lien. On y trouve eBay (API Browse, jeton OAuth « client credentials », filtre d'état), Cardmarket (téléchargement quotidien des fichiers, rapprochement par `idProduct`), TCGdex, pokemontcg.io, et la saisie manuelle Vinted / Leboncoin. Un worker séparé de l'app gère une file d'attente et respecte les quotas. Relevé quotidien de tous les produits détenus en stock par au moins un utilisateur ; le bouton met le produit en tête de file.
+- **Rapprochement d'un produit avec chaque source** : chaque produit du catalogue garde son identifiant par source quand il existe (`idProduct` Cardmarket, id TCGdex / pokemontcg.io), et une requête de recherche eBay éditable. Le rapprochement est proposé automatiquement à la création du produit, puis confirmé ou corrigé par l'utilisateur.
+- **Hébergement de repli** : si la VM ARM d'Oracle est indisponible, faute de capacité, le repli est une VM AMD Always Free d'Oracle, plus petite, avec une reconnaissance photo allégée. Sans navigateur automatisé, l'application tient sur cette petite machine.
 - **Gouvernance du catalogue partagé** *(choix de Claude)* : tout membre peut corriger une fiche produit, une association EAN, une requête de recherche, ou exclure une annonce. La correction vaut pour tous, et chaque modification est journalisée (qui, quand, avant/après), avec un retour arrière possible.
 - **Fiabilité des prix** : chaque produit a, par source, une requête de recherche **éditable** et des mots-clés d'exclusion ; les valeurs aberrantes sont écartées statistiquement (médiane / écart interquartile) ; chaque relevé enregistre les annonces retenues avec leur lien, consultables, pour qu'on voie d'où vient le chiffre et qu'on puisse exclure une annonce.
-- **Code-barres** : décodage dans le navigateur (bibliothèque type `@zxing/browser`). Recherche : d'abord le catalogue partagé (association EAN → produit apprise), puis une base gratuite de codes-barres si disponible, sinon identification manuelle une fois, mémorisée pour tous.
+- **Code-barres** : décodage dans le navigateur (bibliothèque type `@zxing/browser`). Recherche dans cet ordre :
+  1. le catalogue partagé (association EAN → produit apprise) ;
+  2. **Open Beauty Facts** pour les cosmétiques ;
+  3. **UPCitemdb**, limité à 100 recherches par jour, pour le reste ;
+  4. sinon, identification manuelle une fois, mémorisée pour tous.
+- **Cartes gradées** : le numéro de certificat, scanné ou saisi, est envoyé à l'**API publique PSA** (environ 100 appels par jour). Elle renvoie la carte et la note. Les autres sociétés de gradation sont saisies à la main.
 - **Reconnaissance photo, gratuite et sur le serveur** :
   - OCR (Tesseract, français + anglais) pour lire le texte de la boîte (extension, « Coffret Dresseur d'Élite »…) ;
   - embeddings visuels (modèle type CLIP exécuté localement, ex. ONNX) comparés aux images du catalogue via pgvector ;
   - combinaison des deux scores → produit proposé directement au-delà d'un seuil de confiance, sinon les ~5 meilleurs candidats ; possibilité de basculer vers la recherche texte.
   - Chaque produit identifié ajoute son image au catalogue : la reconnaissance s'améliore avec l'usage.
   - L'API gratuite Gemini reste une piste secondaire, non retenue comme base (quotas et conditions instables).
-- **Recherche texte / images** : catalogue partagé, puis résultats des adaptateurs de prix (titres + images d'annonces), et l'API gratuite **Pokémon TCG** (pokemontcg.io) pour les cartes.
+- **Recherche texte / images** : catalogue partagé, puis catalogue Cardmarket (noms anglais) et **TCGdex** (noms français) pour Pokémon, puis résultats eBay (titres + images d'annonces) pour tout le reste.
 
 ## 8. Modèle de données (esquisse)
 
 - **Utilisateur** : compte, invitations.
-- **Produit** *(catalogue partagé entre tous)* : nom, catégorie (Pokémon scellé, carte gradée, jouet, maquillage, autre), type (ETB, display, coffret…), extension/gamme, langue, codes EAN (plusieurs), images, requêtes de recherche par source.
+- **Produit** *(catalogue partagé entre tous)* : nom, catégorie (Pokémon scellé, carte gradée, jouet, maquillage, autre), type (ETB, display, coffret…), extension/gamme, langue, codes EAN (plusieurs), images, identifiants par source (`idProduct` Cardmarket, id TCGdex, id pokemontcg.io), requête de recherche eBay et mots-clés d'exclusion.
 - **Exemplaire** *(appartient à un utilisateur)* : produit, état (échelle Kairos de sa catégorie), prix d'achat, date d'achat, lieu, statut (`en livraison` → `en stock` → `vendu – en livraison` → `vendu`), suivi d'achat (numéro ou lien), notes. Pour une carte gradée : société de gradation, note, numéro de certificat.
 - **Lieu** *(par utilisateur)* : libellé.
 - **Correspondance d'états** : pour chaque catégorie et chaque source, l'état de la source ↔ l'état Kairos (table de configuration, modifiable).
-- **Relevé de prix** *(partagé)* : produit (et, pour les cartes gradées, société + note), source, date, type (en cours / vendu), **état** (vocabulaire de la source + état Kairos correspondant), moyenne, médiane, minimum, nombre d'annonces, annonces retenues (titre, prix, état, lien).
+- **Relevé de prix** *(partagé)* : produit (et, pour les cartes gradées, société + note), source, date, type (en cours / vendu / agrégat de la source / saisie manuelle), **état** (vocabulaire de la source + état Kairos correspondant), moyenne, médiane, minimum, nombre d'annonces, annonces retenues (titre, prix, état, lien) ; pour une saisie manuelle, l'auteur de la saisie.
 - **Achat** : date, vendeur ou plateforme, prix total, frais (port…), suivi de livraison ; regroupe **un ou plusieurs** exemplaires, avec répartition du prix total entre eux.
 - **Vente** : **un ou plusieurs** exemplaires, date, prix total, port inclus ou non, frais (commission, port payé, emballage), plateforme, acheteur (personne), suivi d'expédition, date de livraison ; répartition du prix entre exemplaires pour le bénéfice net par exemplaire.
 - **Journal du catalogue** : modifications du catalogue partagé (auteur, date, avant/après).

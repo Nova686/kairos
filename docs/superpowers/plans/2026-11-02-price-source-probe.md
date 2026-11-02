@@ -1,181 +1,167 @@
-# Price Source Probe Implementation Plan
+# Price Source Adapters Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build one reusable adapter per price source (eBay, Vinted, Leboncoin, Cardmarket) and a probe that tells, from a home IP and from a datacenter IP (GitHub Actions), which sources answer and with what data.
+> **Revision 2 (2026-11-02).** Revision 1 relied on scraping with Playwright. Every source blocked a plain headless browser, and circumvention is excluded (`docs/spikes/2026-11-02-price-sources.md`). Revision 2 uses only official, free APIs and published files. Task 1 of revision 1 is kept as is. The Playwright loader of revision 1 (Task 2) is removed in Task 2 below.
 
-**Architecture:** A standalone TypeScript package at the repository root (`src/price-sources/`), later imported by the Nuxt server in plan 3. Each adapter splits into a pure parser (HTML/JSON → observations, unit-tested on captured fixtures) and a thin Playwright fetcher. A CLI probe runs every adapter on reference queries and writes a JSON report; a manual GitHub Actions workflow runs the same probe from a datacenter IP.
+**Goal:** One adapter per official price or identification source, returning normalised observations, plus a probe that tells which sources answer with the keys present.
 
-**Tech Stack:** Node 22, TypeScript (ESM), `tsx`, `vitest`, `playwright` (Chromium), GitHub Actions.
+**Architecture:** A standalone TypeScript package at the repository root (`src/price-sources/`, `src/identification-sources/`), later imported by the Nuxt server in plan 3. Each adapter splits into a pure parser (JSON → observations, unit-tested on captured or documented fixtures) and a thin HTTP client built on native `fetch`, injected so tests never hit the network. A CLI probe runs every adapter on reference products and writes a JSON report.
 
-**Spec:** `docs/superpowers/specs/2026-11-02-kairos-design.md` (sections 5 and 7, « Faisabilité des relevés »).
+**Tech Stack:** Node 22, TypeScript (ESM), `tsx`, `vitest`, native `fetch`.
+
+**Spec:** `docs/superpowers/specs/2026-11-02-kairos-design.md` (objective 3, sections 5 and 7).
 
 ## Global Constraints
 
-- Everything free: no paid API, proxy or service.
-- French sites only: `www.ebay.fr`, `www.vinted.fr`, `www.leboncoin.fr`, `www.cardmarket.com/fr/Pokemon`.
-- Always anonymous: never log in, never send a user's credentials or cookies.
-- At least 2 000 ms between two requests to the same source.
-- Prices stored as integer euro cents; any non-euro listing is dropped.
+- Only official, free channels. No scraping, no headless browser, no circumvention of any protection.
+- Keys come from environment variables, never committed: `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `POKEMONTCG_API_KEY`, `PSA_API_TOKEN`. A missing key disables its source (`SourceDisabledError`), it never crashes the run.
+- eBay marketplace `EBAY_FR`; Cardmarket game id `6` (Pokémon) by default.
+- Prices as integer euro cents; any non-EUR amount is dropped.
 - No comment in the code; names reveal intent (no `data`, `temp`, `item`, `result`).
-- No mention of any employer anywhere (code, User-Agent, commits). Git identity: `Nova686 <58865656+Nova686@users.noreply.github.com>` (already configured).
+- No employer mention anywhere. Git identity `Nova686 <58865656+Nova686@users.noreply.github.com>`.
 - Commit messages: one English sentence, ending with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
 ## Review Focus
 
-- A captcha / anti-bot page answered with HTTP 200 must be reported `blocked`, never as « 0 listing ».
-- A real search with no result must be reported `ok` with 0 listing, not `blocked`.
-- French price formats: `1 234,56 €` (narrow no-break space U+202F or no-break space U+00A0), `12 €`, `12,00 €`, `EUR 12,00`, price ranges `10,00 € à 15,00 €` (take the lower bound).
-- Listings without a usable price (« Prix sur demande », free, non-euro) are skipped, not counted as 0.
-- Sponsored / duplicated cards (same URL twice) appear only once.
+- A source answering 401/403 (bad or revoked key) is reported `blocked` with the status, distinct from `disabled` (no key) and from `ok` with 0 result.
+- A Cardmarket product absent from the price guide, or with `avg`/`low`/`trend` null or 0, yields no aggregate rather than a 0 € price.
+- eBay listings priced in another currency, or with a price range, are dropped; listings without `condition` keep `sourceCondition: null`.
+- UPCitemdb's daily limit (HTTP 429) is reported `blocked`, not `error`, and is not retried within the run.
+- Search queries with accents and quotes (`Évolutions Prismatiques`, `Dresseur d'Élite`) are URL-encoded correctly for every source.
 
 ---
 
-### Task 1: Package skeleton, shared types and euro price parsing
+### Task 1: Package skeleton, shared types and euro price parsing — DONE (commit `36e362f`)
+
+Produces `PriceSourceId`, `ListingKind`, `ListingObservation`, `PriceSourceAdapter`, `SourceBlockedError`, `parseEuroPrice`, `deduplicateByUrl` in `src/price-sources/price-source-types.ts` and `src/price-sources/parse-euro-price.ts`.
+
+### Task 2: Shared HTTP client and source errors, Playwright removed
 
 **Files:**
-- Create: `package.json`, `tsconfig.json`, `vitest.config.ts`, `.gitignore` (`node_modules/`, `probe-reports/`, `.env`)
-- Create: `src/price-sources/price-source-types.ts`
-- Create: `src/price-sources/parse-euro-price.ts`
-- Test: `tests/price-sources/parse-euro-price.test.ts`
+- Delete: `src/price-sources/browser/`, `tests/price-sources/detect-anti-bot-page.test.ts`, `tests/fixtures/anti-bot/`; uninstall `playwright`.
+- Modify: `src/price-sources/price-source-types.ts`
+- Create: `src/source-http/request-source-json.ts`
+- Test: `tests/source-http/request-source-json.test.ts`
 
 **Interfaces:**
+- Consumes: Task 1 types.
 - Produces:
-  - `type PriceSourceId = 'ebay' | 'vinted' | 'leboncoin' | 'cardmarket'`
-  - `type ListingKind = 'active' | 'sold'`
-  - `interface ListingObservation { source: PriceSourceId; kind: ListingKind; title: string; priceCents: number; shippingCents: number | null; sourceCondition: string | null; url: string; imageUrl: string | null }`
-  - `interface PriceSourceAdapter { id: PriceSourceId; supportedKinds: ListingKind[]; search(query: string, kind: ListingKind): Promise<ListingObservation[]> }`
-  - `class SourceBlockedError extends Error { constructor(source: PriceSourceId, reason: string) }`
-  - `parseEuroPrice(displayedPrice: string): number | null`
-  - `deduplicateByUrl(observations: ListingObservation[]): ListingObservation[]`
+  - `PriceSourceId` widened to `'ebay' | 'cardmarket' | 'tcgdex' | 'pokemontcg' | 'vinted' | 'leboncoin'`; `ListingKind` widened to `'active' | 'sold' | 'source-aggregate' | 'manual'`.
+  - `type SourceId = PriceSourceId | 'psa' | 'openbeautyfacts' | 'upcitemdb'`
+  - `SourceBlockedError(source: SourceId, reason: string)` (signature widened), `class SourceDisabledError extends Error { constructor(source: SourceId, missingSetting: string) }`
+  - `type FetchFunction = typeof fetch`
+  - `requestSourceJson<T>(source: SourceId, url: string, init: RequestInit, fetchFunction?: FetchFunction): Promise<T | null>` → JSON body on 2xx; `null` on 404; throws `SourceBlockedError(source, 'http-<status>')` on 401/403/429; throws `Error` with the status on any other non-2xx. Keeps at least 1 000 ms between two calls to the same source.
+  - `readRequiredSetting(source: SourceId, settingName: string): string` → `process.env[settingName]` or throws `SourceDisabledError`.
 
-- [ ] **Step 1:** `package.json` with `"type": "module"`, scripts `test` (`vitest run`), `typecheck` (`tsc --noEmit`), `probe` (`tsx src/probe/run-probe.ts`); devDependencies `typescript`, `tsx`, `vitest`, `@types/node`; dependency `playwright`. `tsconfig.json`: `strict`, `module`/`moduleResolution` `NodeNext`, `target` `ES2023`. Run `npm install`. Expected: lockfile created, no error.
+- [ ] **Step 1:** Delete the Playwright files, run `npm uninstall playwright`.
+- [ ] **Step 2: Write the failing tests** with a fake `fetchFunction` returning `new Response(...)`: 200 JSON → parsed object; 404 → `null`; 403 → `SourceBlockedError` with `reason` `'http-403'`; 429 → `'http-429'`; 500 → plain `Error` whose message contains `500`; `readRequiredSetting('ebay', 'EBAY_CLIENT_ID')` with the variable unset → `SourceDisabledError`.
+- [ ] **Step 3:** Run `npx vitest run tests/source-http`. Expected: FAIL, module not found.
+- [ ] **Step 4:** Implement.
+- [ ] **Step 5:** Run `npm test && npm run typecheck`. Expected: PASS.
+- [ ] **Step 6:** Commit.
 
-- [ ] **Step 2: Write the failing tests** in `tests/price-sources/parse-euro-price.test.ts`:
-
-```ts
-it.each([
-  ['12 €', 1200],
-  ['12,00 €', 1200],
-  ['1 234,56 €', 123456],
-  ['1 234,56 €', 123456],
-  ['EUR 12,00', 1200],
-  ['10,00 € à 15,00 €', 1000],
-])('parses %s', (displayedPrice, expectedCents) => {
-  expect(parseEuroPrice(displayedPrice)).toBe(expectedCents)
-})
-
-it.each(['Prix sur demande', '$12.00', '12,00 £', '', 'Gratuit'])('rejects %s', (displayedPrice) => {
-  expect(parseEuroPrice(displayedPrice)).toBeNull()
-})
-
-it('keeps one observation per url', () => {
-  const observation = { source: 'ebay', kind: 'active', title: 'ETB', priceCents: 5000, shippingCents: null, sourceCondition: null, url: 'https://www.ebay.fr/itm/1', imageUrl: null } as const
-  expect(deduplicateByUrl([observation, { ...observation, priceCents: 4000 }])).toHaveLength(1)
-})
-```
-
-- [ ] **Step 3:** Run `npm test`. Expected: FAIL, module not found.
-- [ ] **Step 4:** Implement the types, `SourceBlockedError`, `parseEuroPrice` (requires `€` or `EUR`; normalises U+00A0 / U+202F / spaces; lower bound of a range) and `deduplicateByUrl` (keeps the first occurrence).
-- [ ] **Step 5:** Run `npm test && npm run typecheck`. Expected: PASS, no type error.
-- [ ] **Step 6:** Commit `package.json package-lock.json tsconfig.json vitest.config.ts .gitignore src tests`.
-
-### Task 2: Playwright page loader with block detection
+### Task 3: Cardmarket price guide
 
 **Files:**
-- Create: `src/price-sources/browser/open-source-page.ts`
-- Create: `src/price-sources/browser/detect-anti-bot-page.ts`
-- Test: `tests/price-sources/detect-anti-bot-page.test.ts`, fixtures `tests/fixtures/anti-bot/*.html`
+- Create: `src/price-sources/cardmarket/cardmarket-files.ts`, `src/price-sources/cardmarket/parse-cardmarket-price-guide.ts`, `src/price-sources/cardmarket/search-cardmarket-catalogue.ts`
+- Test: `tests/price-sources/cardmarket/*.test.ts`, fixtures `tests/fixtures/cardmarket/price-guide-sample.json`, `tests/fixtures/cardmarket/nonsingles-sample.json` — trimmed slices of the real files (≈20 entries, including ids `798930`, `798931`, `798932` and one entry whose `avg`, `low` and `trend` are all null).
 
 **Interfaces:**
-- Consumes: `PriceSourceId`, `SourceBlockedError` (Task 1).
+- Consumes: Task 2 `requestSourceJson`.
 - Produces:
-  - `detectAntiBotPage(httpStatus: number, html: string): string | null` → returns the reason (`'http-403'`, `'datadome'`, `'cloudflare-challenge'`, `'captcha'`) or `null`.
-  - `withSourcePage<T>(source: PriceSourceId, url: string, readPage: (page: Page) => Promise<T>): Promise<T>` → launches a shared headless Chromium (locale `fr-FR`, timezone `Europe/Paris`), waits until the per-source 2 000 ms spacing is respected, navigates, throws `SourceBlockedError` when `detectAntiBotPage` returns a reason, else runs `readPage`.
-  - `closeSourceBrowser(): Promise<void>`
+  - `cardmarketFileUrls(gameId: number): { priceGuide: string; singles: string; nonSingles: string }` → `https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_<id>.json`, `.../productList/products_singles_<id>.json`, `.../productList/products_nonsingles_<id>.json`
+  - `interface CardmarketCatalogueProduct { idProduct: number; name: string; categoryName: string; idExpansion: number }`
+  - `interface SourceAggregate { source: PriceSourceId; sourceProductId: string; averageCents: number | null; lowCents: number | null; trendCents: number | null; average7DaysCents: number | null; average30DaysCents: number | null; observedAt: string }`
+  - `parseCardmarketPriceGuide(rawGuide: unknown, observedAt: string): Map<number, SourceAggregate>` — euros × 100 rounded; null or 0 → null; entries with all of average/low/trend null are skipped.
+  - `searchCardmarketCatalogue(products: CardmarketCatalogueProduct[], query: string, limit: number): CardmarketCatalogueProduct[]` — case- and accent-insensitive, every query word must appear in the name, shortest name first.
 
-- [ ] **Step 1: Write the failing tests:** 403 → `'http-403'`; 200 with an HTML containing `captcha-delivery.com` → `'datadome'`; 200 with `cf-chl` / `Just a moment...` → `'cloudflare-challenge'`; 200 with a normal results page fixture → `null`. Fixtures are minimal hand-written HTML snippets holding those markers.
-- [ ] **Step 2:** Run `npx vitest run tests/price-sources/detect-anti-bot-page.test.ts`. Expected: FAIL.
-- [ ] **Step 3:** Implement both files; `withSourcePage` is not unit-tested (network), it is exercised by the probe.
+- [ ] **Step 1:** Build the two fixtures from the real files (download with `curl` into the job's temp dir, trim with a script, keep the real values).
+- [ ] **Step 2: Write the failing tests:** id `798930` → `averageCents 15123`, `lowCents 8400`, `trendCents 14764`; the all-null entry is absent from the map; `searchCardmarketCatalogue(products, 'prismatic elite trainer', 5)[0].idProduct === 798930`; `'PRISMATIC ÉLITE'` finds the same product.
+- [ ] **Step 3:** Run. Expected: FAIL.
+- [ ] **Step 4:** Implement.
+- [ ] **Step 5:** Run `npm test && npm run typecheck`. Expected: PASS.
+- [ ] **Step 6:** Commit.
+
+### Task 4: eBay Browse API
+
+**Files:**
+- Create: `src/price-sources/ebay/ebay-access-token.ts`, `src/price-sources/ebay/parse-ebay-item-summaries.ts`, `src/price-sources/ebay/ebay-adapter.ts`
+- Test: `tests/price-sources/ebay/*.test.ts`, fixture `tests/fixtures/ebay/item-summary-search.json` built from the documented response shape of `GET /buy/browse/v1/item_summary/search` (`itemSummaries[].{itemId,title,price{value,currency},condition,conditionId,itemWebUrl,image{imageUrl},shippingOptions[].shippingCost{value,currency}}`, `total`), replaced by a real capture once the keys exist.
+
+**Interfaces:**
+- Consumes: Task 2.
+- Produces:
+  - `fetchEbayAccessToken(fetchFunction?: FetchFunction): Promise<string>` — `POST https://api.ebay.com/identity/v1/oauth2/token`, Basic auth `base64(EBAY_CLIENT_ID:EBAY_CLIENT_SECRET)`, body `grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope`; caches the token until 60 s before `expires_in`.
+  - `buildEbaySearchUrl(query: string, conditionIds: number[]): string` → `https://api.ebay.com/buy/browse/v1/item_summary/search?q=<query>&limit=100&filter=conditionIds:{1000|3000}` (filter omitted when the list is empty).
+  - `parseEbayItemSummaries(rawSearch: unknown): ListingObservation[]` — kind `active`; `sourceCondition` = `condition`; shipping = first `shippingOptions` cost in EUR, else null; non-EUR dropped; deduplicated by URL.
+  - `ebayAdapter: PriceSourceAdapter` with `supportedKinds: ['active']`, header `X-EBAY-C-MARKETPLACE-ID: EBAY_FR`.
+
+- [ ] **Step 1: Write the failing tests:** fixture with 4 summaries (one in USD, one duplicated URL) → 2 observations; prices `6490` and `7200`; one `sourceCondition` `'Neuf'`; token request carries the Basic header and form body, second call within validity reuses the cached token (fake fetch called once); missing `EBAY_CLIENT_ID` → `SourceDisabledError`.
+- [ ] **Step 2:** Run. Expected: FAIL.
+- [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run `npm test && npm run typecheck`. Expected: PASS.
 - [ ] **Step 5:** Commit.
 
-### Tasks 3 to 6: One adapter per source
-
-Each of the four tasks follows the same cycle; the per-source table fixes what differs.
-
-**Files (per source `<source>`):**
-- Create: `src/price-sources/<source>/<source>-search-url.ts`, `src/price-sources/<source>/parse-<source>-results.ts`, `src/price-sources/<source>/<source>-adapter.ts`
-- Create: `scripts/capture-fixture.ts` (Task 3 only; reused afterwards): `tsx scripts/capture-fixture.ts <source> <kind> "<query>"` saves the raw page (HTML or JSON) to `tests/fixtures/<source>/<kind>.<ext>` through `withSourcePage`.
-- Test: `tests/price-sources/<source>/parse-<source>-results.test.ts`
-
-**Interfaces:**
-- Consumes: Task 1 types, `parseEuroPrice`, `deduplicateByUrl`; Task 2 `withSourcePage`.
-- Produces: `build<Source>SearchUrl(query: string, kind: ListingKind): string`, `parse<Source>Results(rawPage: string, kind: ListingKind): ListingObservation[]`, `export const <source>Adapter: PriceSourceAdapter`.
-
-| Task | Source | Kinds | Where the listings are | `sourceCondition` taken from | URL check in tests |
-|---|---|---|---|---|---|
-| 3 | eBay | `active`, `sold` | `https://www.ebay.fr/sch/i.html?_nkw=<q>`; sold adds `&LH_Sold=1&LH_Complete=1` | the condition line of each card (« Neuf », « Occasion »…) | starts with `https://www.ebay.fr/itm/` |
-| 4 | Vinted | `active` | homepage first (session cookie), then `https://www.vinted.fr/api/v2/catalog/items?search_text=<q>&per_page=96` fetched from the page context; raw page = JSON | `status` field (« Neuf avec étiquette »…) | starts with `https://www.vinted.fr/items/` |
-| 5 | Leboncoin | `active` | `https://www.leboncoin.fr/recherche?text=<q>`; JSON of the `__NEXT_DATA__` script | `item_condition` / `condition` attribute when present, else `null` | starts with `https://www.leboncoin.fr/` |
-| 6 | Cardmarket | `active` | search `https://www.cardmarket.com/fr/Pokemon/Products/Search?searchString=<q>`, first product, then its offers list | the condition badge of each offer, `null` for sealed | starts with `https://www.cardmarket.com/fr/Pokemon/Products/` |
-
-- [ ] **Step 1:** Capture the fixtures for each kind with the query `ETB Évolutions Prismatiques`, plus an empty-result fixture with the query `zzqxkairosaucunresultat`. If the capture is blocked from the home IP, record it, write the parser from the source's public page structure using a hand-built fixture, and flag the source in the probe report notes.
-- [ ] **Step 2: Write the failing tests:**
-
-```ts
-it('reads the listings of a real results page', () => {
-  const observations = parseVintedResults(readFixture('vinted/active.json'), 'active')
-  expect(observations.length).toBeGreaterThanOrEqual(10)
-  for (const observation of observations) {
-    expect(observation.source).toBe('vinted')
-    expect(observation.kind).toBe('active')
-    expect(observation.priceCents).toBeGreaterThan(0)
-    expect(observation.url.startsWith('https://www.vinted.fr/items/')).toBe(true)
-    expect(observation.title.length).toBeGreaterThan(0)
-  }
-  expect(new Set(observations.map((observation) => observation.url)).size).toBe(observations.length)
-})
-
-it('returns no listing for an empty search', () => {
-  expect(parseVintedResults(readFixture('vinted/empty.json'), 'active')).toEqual([])
-})
-```
-
-  Plus, per source: at least one observation has a non-null `sourceCondition` (except Cardmarket sealed); for eBay `sold`, the parser skips the first placeholder card eBay inserts (« Shop on eBay »).
-- [ ] **Step 3:** Run the source's test file. Expected: FAIL.
-- [ ] **Step 4:** Implement URL builder, parser and adapter. Selectors are the builder's call.
-- [ ] **Step 5:** Run `npm test && npm run typecheck`. Expected: PASS.
-- [ ] **Step 6:** Commit the source's files and fixtures.
-
-### Task 7: Probe CLI and report
+### Task 5: TCGdex and pokemontcg.io card prices
 
 **Files:**
-- Create: `src/probe/probe-queries.ts`, `src/probe/run-probe.ts`, `src/probe/summarize-probe.ts`
+- Create: `src/price-sources/tcgdex/tcgdex-adapter.ts`, `src/price-sources/pokemontcg/pokemontcg-adapter.ts`, a parser file for each
+- Test: `tests/price-sources/tcgdex/*.test.ts` with real fixtures (`GET https://api.tcgdex.net/v2/fr/cards?name=Dracaufeu` and `GET https://api.tcgdex.net/v2/fr/cards/sv08.5-161`); `tests/price-sources/pokemontcg/*.test.ts` with a fixture from the documented shape of `GET https://api.pokemontcg.io/v2/cards?q=name:"<name>"` (`data[].{id,name,set{name},images{small},cardmarket{prices{averageSellPrice,lowPrice,trendPrice,avg7,avg30}}}`). On this network `api.pokemontcg.io` is intercepted by a Sophos proxy: never disable TLS checks; the real capture happens from GitHub Actions or the server.
+
+**Interfaces:**
+- Consumes: Tasks 2 and 3 (`SourceAggregate`).
+- Produces:
+  - `interface CardCandidate { source: 'tcgdex' | 'pokemontcg'; sourceCardId: string; name: string; setName: string | null; imageUrl: string | null }`
+  - `searchTcgdexCards(frenchName: string, fetchFunction?: FetchFunction): Promise<CardCandidate[]>`
+  - `fetchTcgdexCardAggregate(cardId: string, fetchFunction?: FetchFunction): Promise<SourceAggregate | null>` — from `pricing.cardmarket`, `sourceProductId` = its `idProduct` (link to Cardmarket); null when `pricing.cardmarket` is null or `unit` is not `EUR`.
+  - `searchPokemontcgCards(name: string, fetchFunction?: FetchFunction): Promise<CardCandidate[]>`, `fetchPokemontcgCardAggregate(cardId: string, fetchFunction?: FetchFunction): Promise<SourceAggregate | null>` — header `X-Api-Key` when `POKEMONTCG_API_KEY` is set (the API also answers without a key at a lower rate).
+
+- [ ] **Step 1: Write the failing tests:** card `sv08.5-161` → `averageCents 101899`, `trendCents 91670`, `average7DaysCents 102337`, `sourceProductId '805555'`; search `Dracaufeu` → candidates all named `Dracaufeu`; the name `Dresseur d'Élite` is sent percent-encoded; pokemontcg fixture → aggregate from `cardmarket.prices`, `X-Api-Key` sent only when the variable is set.
+- [ ] **Step 2:** Run. Expected: FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test && npm run typecheck`. Expected: PASS.
+- [ ] **Step 5:** Commit.
+
+### Task 6: Identification sources — PSA, Open Beauty Facts, UPCitemdb
+
+**Files:**
+- Create: `src/identification-sources/identification-types.ts`, `src/identification-sources/psa-certificate.ts`, `src/identification-sources/open-beauty-facts.ts`, `src/identification-sources/upcitemdb.ts`
+- Test: `tests/identification-sources/*.test.ts`; real fixtures for Open Beauty Facts (`GET https://world.openbeautyfacts.org/api/v2/product/<ean>.json?fields=product_name,brands,image_front_url`, one found, one `status: 0`) and UPCitemdb (`GET https://api.upcitemdb.com/prod/trial/lookup?upc=0820650853715`); PSA fixture from the documented shape of `GET https://api.psacard.com/publicapi/cert/GetByCertNumber/<cert>` (`PSACert.{CertNumber,Year,Brand,Subject,CardNumber,CardGrade,GradeDescription}`), replaced by a real capture once the token exists.
+
+**Interfaces:**
+- Consumes: Task 2.
+- Produces:
+  - `interface ProductIdentification { source: 'psa' | 'openbeautyfacts' | 'upcitemdb'; name: string; brand: string | null; imageUrl: string | null; barcode: string | null; gradingCompany: string | null; grade: string | null; certificateNumber: string | null }`
+  - `lookupPsaCertificate(certificateNumber: string, fetchFunction?: FetchFunction): Promise<ProductIdentification | null>` — bearer `PSA_API_TOKEN`; `gradingCompany 'PSA'`, `grade` from `CardGrade`, `name` = `Year Brand Subject #CardNumber`.
+  - `lookupOpenBeautyFacts(barcode: string, fetchFunction?: FetchFunction): Promise<ProductIdentification | null>` — null when `status` is 0.
+  - `lookupUpcitemdb(barcode: string, fetchFunction?: FetchFunction): Promise<ProductIdentification | null>` — first item; null when `total` is 0.
+
+- [ ] **Step 1: Write the failing tests:** UPCitemdb `0820650853715` → name starts with `Pokemon TCG: Paldea Evolved Build & Battle Box`; UPCitemdb 429 → `SourceBlockedError` reason `'http-429'`; Open Beauty Facts not found → null; PSA fixture → `grade` `'10'`, `gradingCompany` `'PSA'`, Authorization header `bearer <token>`; missing `PSA_API_TOKEN` → `SourceDisabledError`.
+- [ ] **Step 2:** Run. Expected: FAIL.
+- [ ] **Step 3:** Implement.
+- [ ] **Step 4:** Run `npm test && npm run typecheck`. Expected: PASS.
+- [ ] **Step 5:** Commit.
+
+### Task 7: Probe CLI, CI workflow and findings
+
+**Files:**
+- Create: `src/probe/probe-references.ts`, `src/probe/run-probe.ts`, `src/probe/summarize-probe.ts`, `.github/workflows/probe-sources.yml`
+- Modify: `docs/spikes/2026-11-02-price-sources.md`
 - Test: `tests/probe/summarize-probe.test.ts`
 
 **Interfaces:**
-- Consumes: the four adapters (Tasks 3-6), `closeSourceBrowser` (Task 2).
+- Consumes: every adapter and lookup of Tasks 3-6.
 - Produces:
-  - `const probeQueries = ['ETB Évolutions Prismatiques', 'Display Flammes Obsidiennes', 'PSA 10 Dracaufeu', 'Coffret maquillage Sephora', 'Lego Technic 42143']`
-  - `type ProbeOutcome = { source: PriceSourceId; kind: ListingKind; query: string; status: 'ok' | 'blocked' | 'error'; reason: string | null; listingCount: number; durationMs: number; sample: ListingObservation[] }`
-  - `summarizeProbe(outcomes: ProbeOutcome[]): { source: PriceSourceId; kind: ListingKind; okCount: number; blockedCount: number; errorCount: number; medianListingCount: number }[]`
-  - `npm run probe -- --label <home|github-actions|oracle>` writes `probe-reports/<label>-<ISO date>.json` (outcomes + summary + Node version + public IP from `https://api.ipify.org`) and prints the summary as a table.
+  - `probeReferences`: eBay queries `['ETB Évolutions Prismatiques', 'Display Flammes Obsidiennes', 'PSA 10 Dracaufeu', 'Coffret maquillage', 'Lego Technic']`; Cardmarket ids `[798930, 798931]`; TCGdex card `sv08.5-161` and name `Dracaufeu`; pokemontcg name `Charizard`; UPCitemdb `0820650853715`; Open Beauty Facts `3600523307722`; PSA certificate from `PSA_PROBE_CERTIFICATE` when set.
+  - `type ProbeOutcome = { source: SourceId; reference: string; status: 'ok' | 'disabled' | 'blocked' | 'error'; reason: string | null; resultCount: number; durationMs: number; sample: unknown[] }`
+  - `summarizeProbe(outcomes: ProbeOutcome[]): { source: SourceId; okCount: number; disabledCount: number; blockedCount: number; errorCount: number }[]`
+  - `npm run probe -- --label <local|github-actions|server>` loads `.env` when present (Node's `--env-file-if-exists`), writes `probe-reports/<label>-<ISO date>.json`, prints the summary.
 
-- [ ] **Step 1: Write the failing tests:** a `SourceBlockedError` outcome counts in `blockedCount`, never in `okCount`; an `ok` outcome with 0 listing counts in `okCount`; `medianListingCount` of `[3, 10, 50]` is `10`; `sample` holds at most 3 observations.
+- [ ] **Step 1: Write the failing tests:** `SourceDisabledError` → `disabled`, `SourceBlockedError` → `blocked`, never `ok`; an `ok` with 0 result counts in `okCount`; `sample` holds at most 3 entries.
 - [ ] **Step 2:** Run. Expected: FAIL.
-- [ ] **Step 3:** Implement. `run-probe.ts` runs sources sequentially, each query × each supported kind, catches `SourceBlockedError` → `blocked`, any other error → `error` with its message.
+- [ ] **Step 3:** Implement; sources run sequentially.
 - [ ] **Step 4:** Run `npm test && npm run typecheck`. Expected: PASS.
-- [ ] **Step 5:** Run `npm run probe -- --label home`. Expected: a report file and a table with one row per source × kind.
-- [ ] **Step 6:** Commit (reports stay out of git).
-
-### Task 8: Datacenter run on GitHub Actions and findings
-
-**Files:**
-- Create: `.github/workflows/probe-price-sources.yml`
-- Create: `docs/spikes/2026-11-02-price-sources.md`
-
-- [ ] **Step 1:** Workflow triggered by `workflow_dispatch` only, `ubuntu-latest`, Node 22, `npm ci`, `npx playwright install --with-deps chromium`, `npm test`, `npm run probe -- --label github-actions`, upload `probe-reports/` as an artifact (retention 14 days).
-- [ ] **Step 2:** Commit, push the branch, run it once: `gh workflow run probe-price-sources.yml --ref <branch>`, then check it **once** with `gh run list --workflow probe-price-sources.yml --limit 1`; if it is still running, hand back to the user instead of waiting. Download the artifact with `gh run download`.
-- [ ] **Step 3:** Write `docs/spikes/2026-11-02-price-sources.md`, in French: a table with source × kind × (home IP, GitHub Actions IP) → status and median listing count, the observed conditions vocabulary per source, and the recommendation per source among the spec's fallbacks (VM, official free API, site JSON, GitHub Actions, disabled). The Oracle column stays « à mesurer » until plan 5 provides the VM.
-- [ ] **Step 4:** Commit and push.
+- [ ] **Step 5:** Run `npm run probe -- --label local`. Expected: a report; sources without keys `disabled`; pokemontcg may be `error` (Sophos interception) on this network.
+- [ ] **Step 6:** Workflow `probe-sources.yml`: `workflow_dispatch` only, `ubuntu-latest`, Node 22, `npm ci`, `npm test`, `npm run probe -- --label github-actions` with the four keys from repository secrets when set, artifact `probe-reports/` kept 14 days. Push, trigger once with `gh workflow run probe-sources.yml --ref <branch>`, check **once** with `gh run list --workflow probe-sources.yml --limit 1`; if still running, hand back instead of waiting.
+- [ ] **Step 7:** Update the findings doc with a source × (local, GitHub Actions) table and each source's status. Commit and push.

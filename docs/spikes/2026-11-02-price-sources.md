@@ -11,6 +11,8 @@ Chromium headless (Playwright), sans aucun contournement, une requête par site,
 | Leboncoin (`www.leboncoin.fr/recherche`) | HTTP 403 | bloqué |
 | Cardmarket (`www.cardmarket.com/fr/Pokemon/Products/Search`) | HTTP 403 | bloqué |
 
+Le poste de mesure passe par un proxy Sophos qui intercepte certaines connexions HTTPS. Pour ces quatre sites, le certificat reçu était bien celui du site (Sectigo, Let's Encrypt, Amazon, Google Trust Services) : les refus viennent donc des sites eux-mêmes, pas du proxy. En revanche, `api.pokemontcg.io` est intercepté par Sophos sur ce réseau, avec un certificat « Sophos SSL CA ». Cette source n'est donc testable que depuis un autre réseau, par exemple GitHub Actions ou le serveur.
+
 Les quatre sites refusent un navigateur automatisé dès l'IP de particulier. Une IP de datacenter (Oracle, GitHub Actions) ne peut que faire pire. Passer outre ces protections reviendrait à les contourner, ce qui est exclu : c'est contraire aux conditions d'utilisation des sites, et refusé par l'outil. **Le relevé par navigateur automatisé est abandonné.**
 
 ## Voies officielles et gratuites
