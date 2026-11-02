@@ -43,7 +43,7 @@
         :title="`${recentSale.platform} · ${recentSale.soldOn}`"
       >
         <template #append>
-          <span :class="recentSale.netProfitCents < 0 ? 'text-error' : 'text-success'">
+          <span :class="describeGainTone(recentSale.netProfitCents)">
             {{ recentSale.netProfitCents > 0 ? '+' : '' }}{{ formatEuros(recentSale.netProfitCents) }}
           </span>
         </template>
@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import { describeGainTone } from '~/utils/stock-value-view'
 import type { DashboardOverviewView } from '~/composables/useDashboardOverview'
 
 defineProps({

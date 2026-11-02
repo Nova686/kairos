@@ -67,7 +67,7 @@
       <template #[`item.gainCents`]="{ item: listRow }">
         <span
           v-if="listRow.gainCents !== null"
-          :class="listRow.gainCents < 0 ? 'text-error' : 'text-success'"
+          :class="describeGainTone(listRow.gainCents)"
         >
           {{ listRow.gainCents > 0 ? '+' : '' }}{{ formatEuros(listRow.gainCents) }}
         </span>
@@ -78,7 +78,7 @@
 
 <script setup lang="ts">
 import type { StockItemRow } from '~~/shared/stock/stock-item-row'
-import type { StockItemValuationView } from '~/utils/stock-value-view'
+import { describeGainTone, type StockItemValuationView } from '~/utils/stock-value-view'
 
 const props = defineProps({
   stockItems: { type: Array as PropType<StockItemRow[]>, required: true },

@@ -1,6 +1,12 @@
 <template>
   <span
-    v-if="!valueDescription.hasPrice"
+    v-if="valueDescription.state === 'not-applicable'"
+    class="text-medium-emphasis"
+  >
+    —
+  </span>
+  <span
+    v-else-if="!valueDescription.hasPrice"
     class="text-medium-emphasis"
   >
     pas de prix
@@ -18,7 +24,7 @@
     </span>
     <span
       v-if="showGain && valueDescription.gainCents !== null"
-      :class="valueDescription.gainCents < 0 ? 'text-error' : 'text-success'"
+      :class="describeGainTone(valueDescription.gainCents)"
     >
       ({{ valueDescription.gainCents > 0 ? '+' : '' }}{{ formatEuros(valueDescription.gainCents) }})
     </span>
@@ -26,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import type { StockItemValueDescription } from '~/utils/stock-value-view'
+import { describeGainTone, type StockItemValueDescription } from '~/utils/stock-value-view'
 
 defineProps({
   valueDescription: { type: Object as PropType<StockItemValueDescription>, required: true },

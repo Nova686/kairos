@@ -26,7 +26,7 @@
     </div>
     <p
       class="mt-2"
-      :class="stockValue.latentGainCents < 0 ? 'text-error' : 'text-success'"
+      :class="describeGainTone(stockValue.latentGainCents)"
     >
       Gain latent : {{ stockValue.latentGainCents > 0 ? '+' : '' }}{{ formatEuros(stockValue.latentGainCents) }}
     </p>
@@ -46,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+import { describeGainTone } from '~/utils/stock-value-view'
 import type { DashboardStockValueView } from '~/composables/useDashboardOverview'
 
 defineProps({

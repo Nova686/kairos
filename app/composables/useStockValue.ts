@@ -17,7 +17,7 @@ export const useStockValue = () => {
   const sendRequest = $fetch as (path: string, options: { method: string }) => Promise<PriceRefreshResponse>
   const runExclusively = createExclusiveRunner()
 
-  const { data: fetchedStockValue, refresh: reloadStockValue } = useFetch<StockValueResponse>('/api/stock/value', {
+  const { data: fetchedStockValue } = useFetch<StockValueResponse>('/api/stock/value', {
     default: () => ({ items: [] }),
   })
 
@@ -36,7 +36,6 @@ export const useStockValue = () => {
       try {
         const outcome = await sendRequest('/api/stock/refresh-prices', { method: 'POST' })
         refreshMessage.value = describeQueuedProducts(outcome.queuedProductCount)
-        await reloadStockValue()
       }
       catch {
         errorMessage.value = 'Impossible de programmer le relevé des prix.'

@@ -15,6 +15,8 @@ export interface StockItemListRow {
   valueDescription: StockItemValueDescription
 }
 
+const heldStatuses: string[] = ['in-transit', 'in-stock']
+
 const tableHeaders = [
   { title: '', key: 'productImageUrl', sortable: false },
   { title: 'Produit', key: 'productName' },
@@ -36,6 +38,7 @@ export const useStockItemList = (
       const valueDescription = describeStockItemValue(
         valuationsByStockItemId().get(stockItem.id),
         stockItem.allocatedPurchaseCents,
+        heldStatuses.includes(stockItem.status),
       )
       return {
         id: stockItem.id,

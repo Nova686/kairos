@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildStockValueChartData,
+  describeGainTone,
   describeStockItemValue,
   type StockItemValuationView,
   type StockValueHistoryPointView,
@@ -15,7 +16,7 @@ const valuation = (overrides: Partial<StockItemValuationView>): StockItemValuati
 
 describe('describeStockItemValue', () => {
   it('shows value and a positive gain against the allocated purchase price', () => {
-    expect(describeStockItemValue(valuation({}), 10000)).toMatchObject({
+    expect(describeStockItemValue(valuation({}), 10000, true)).toMatchObject({
       hasPrice: true,
       valueCents: 12000,
       gainCents: 2000,
@@ -25,22 +26,35 @@ describe('describeStockItemValue', () => {
   })
 
   it('flags an approximate value with the condition actually used', () => {
-    const description = describeStockItemValue(valuation({ approximate: true, usedCondition: 'neuf scellé' }), 15000)
+    const description = describeStockItemValue(valuation({ approximate: true, usedCondition: 'neuf scellé' }), 15000, true)
     expect(description.isApproximate).toBe(true)
     expect(description.gainCents).toBe(-3000)
     expect(description.approximateTooltip).toBe('estimé à partir de l’état neuf scellé')
   })
 
   it('reports no price instead of zero when nothing is valued', () => {
-    expect(describeStockItemValue(valuation({ valueCents: null, usedCondition: null }), 10000)).toMatchObject({
+    expect(describeStockItemValue(valuation({ valueCents: null, usedCondition: null }), 10000, true)).toMatchObject({
       hasPrice: false,
       valueCents: null,
       gainCents: null,
     })
   })
 
-  it('reports no price when the item has no valuation', () => {
-    expect(describeStockItemValue(undefined, 10000)).toMatchObject({ hasPrice: false, valueCents: null, gainCents: null })
+  it('reports no price when a held item has no valuation', () => {
+    expect(describeStockItemValue(undefined, 10000, true)).toMatchObject({ state: 'no-price', hasPrice: false, valueCents: null, gainCents: null })
+  })
+
+  it('reports not applicable for an item that is not held, even with a valuation', () => {
+    expect(describeStockItemValue(valuation({}), 10000, false)).toMatchObject({
+      state: 'not-applicable',
+      hasPrice: false,
+      valueCents: null,
+      gainCents: null,
+    })
+  })
+
+  it('reports a valued state for a held valued item', () => {
+    expect(describeStockItemValue(valuation({}), 10000, true).state).toBe('valued')
   })
 })
 
@@ -60,5 +74,14 @@ describe('buildStockValueChartData', () => {
 
   it('has no datasets without history', () => {
     expect(buildStockValueChartData([]).datasets).toEqual([])
+  })
+})
+
+describe('describeGainTone', () => {
+  it('is green for a gain, red for a loss and neutral for zero or missing', () => {
+    expect(describeGainTone(1)).toBe('text-success')
+    expect(describeGainTone(-1)).toBe('text-error')
+    expect(describeGainTone(0)).toBe('')
+    expect(describeGainTone(null)).toBe('')
   })
 })

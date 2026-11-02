@@ -12,7 +12,10 @@ export interface StockValueHistoryPointView {
   estimatedValueCents: number
 }
 
+export type StockItemValueState = 'valued' | 'no-price' | 'not-applicable'
+
 export interface StockItemValueDescription {
+  state: StockItemValueState
   hasPrice: boolean
   valueCents: number | null
   gainCents: number | null
@@ -23,11 +26,16 @@ export interface StockItemValueDescription {
 export const describeStockItemValue = (
   valuation: StockItemValuationView | undefined,
   allocatedPurchaseCents: number,
+  isHeld: boolean,
 ): StockItemValueDescription => {
+  if (!isHeld) {
+    return { state: 'not-applicable', hasPrice: false, valueCents: null, gainCents: null, isApproximate: false, approximateTooltip: null }
+  }
   if (valuation === undefined || valuation.valueCents === null) {
-    return { hasPrice: false, valueCents: null, gainCents: null, isApproximate: false, approximateTooltip: null }
+    return { state: 'no-price', hasPrice: false, valueCents: null, gainCents: null, isApproximate: false, approximateTooltip: null }
   }
   return {
+    state: 'valued',
     hasPrice: true,
     valueCents: valuation.valueCents,
     gainCents: valuation.valueCents - allocatedPurchaseCents,
@@ -36,6 +44,13 @@ export const describeStockItemValue = (
       ? `estimé à partir de l’état ${valuation.usedCondition}`
       : null,
   }
+}
+
+export const describeGainTone = (gainCents: number | null): string => {
+  if (gainCents === null || gainCents === 0) {
+    return ''
+  }
+  return gainCents > 0 ? 'text-success' : 'text-error'
 }
 
 const costLineColor = '#757575'
