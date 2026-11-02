@@ -28,6 +28,8 @@ export const useProductSearch = () => {
   const candidates = ref<ProductCandidate[]>([])
   const unavailableSources = ref<string[]>([])
   const isSearching = ref(false)
+  const searchErrorMessage = ref('')
+  let latestSearchNumber = 0
   let pendingSearch: ReturnType<typeof setTimeout> | undefined
 
   const candidateGroups = computed<CandidateGroup[]>(() =>
@@ -43,10 +45,14 @@ export const useProductSearch = () => {
   const unavailableMessages = computed(() => unavailableSources.value.map(describeUnavailableSource))
 
   const runSearch = async () => {
+    latestSearchNumber += 1
+    const searchNumber = latestSearchNumber
     const trimmedText = searchText.value.trim()
+    searchErrorMessage.value = ''
     if (trimmedText === '') {
       candidates.value = []
       unavailableSources.value = []
+      isSearching.value = false
       return
     }
     isSearching.value = true
@@ -55,11 +61,20 @@ export const useProductSearch = () => {
         '/api/catalogue/search',
         { query: { q: trimmedText } },
       )
-      candidates.value = outcome.candidates
-      unavailableSources.value = outcome.unavailableSources
+      if (searchNumber === latestSearchNumber) {
+        candidates.value = outcome.candidates
+        unavailableSources.value = outcome.unavailableSources
+      }
+    }
+    catch {
+      if (searchNumber === latestSearchNumber) {
+        searchErrorMessage.value = 'La recherche a échoué. Réessayez.'
+      }
     }
     finally {
-      isSearching.value = false
+      if (searchNumber === latestSearchNumber) {
+        isSearching.value = false
+      }
     }
   }
 
@@ -70,5 +85,5 @@ export const useProductSearch = () => {
 
   onScopeDispose(() => clearTimeout(pendingSearch))
 
-  return { searchText, candidateGroups, unavailableMessages, isSearching, runSearch }
+  return { searchText, candidateGroups, unavailableMessages, isSearching, searchErrorMessage, runSearch }
 }

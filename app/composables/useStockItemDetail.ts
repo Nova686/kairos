@@ -13,6 +13,7 @@ export interface ProductChangeRow {
 interface StockItemDetail {
   stockItem: StockItemRow
   changes: ProductChangeRow[]
+  purchaseTrackingReference: string | null
 }
 
 const describeFailure = (failure: unknown): string => {
@@ -34,13 +35,18 @@ export const useStockItemDetail = async (stockItemId: string) => {
     async () => {
       const stockItem = await requestFetch<StockItemRow>(`/api/stock-items/${stockItemId}`)
       const changes = await requestFetch<ProductChangeRow[]>(`/api/products/${stockItem.productId}/changes`)
-      return { stockItem, changes }
+      const purchases = await requestFetch<{ id: string, trackingReference: string | null }[]>('/api/purchases')
+      const purchaseTrackingReference = purchases.find(purchase => purchase.id === stockItem.purchaseId)?.trackingReference ?? null
+      return { stockItem, changes, purchaseTrackingReference }
     },
   )
 
   const stockItem = computed(() => detail.value?.stockItem ?? null)
   const changes = computed<ProductChangeRow[]>(() => detail.value?.changes ?? [])
+  const purchaseTrackingReference = computed(() => detail.value?.purchaseTrackingReference ?? null)
   const locations = computed<LocationRow[]>(() => fetchedLocations.value ?? [])
+  const locationLabel = computed(() =>
+    locations.value.find(location => location.id === stockItem.value?.locationId)?.label ?? '—')
   const isInTransit = computed(() => stockItem.value?.status === 'in-transit')
 
   const conditionOptions = computed(() => {
@@ -83,7 +89,7 @@ export const useStockItemDetail = async (stockItemId: string) => {
   const receiveStockItem = () =>
     runMutation(() => sendRequest(`/api/stock-items/${stockItemId}/receive`, {
       method: 'POST',
-      body: { receivedOn: new Date().toISOString().slice(0, 10) },
+      body: { receivedOn: todayAsLocalCalendarDate() },
     }))
 
   loadEditedValues()
@@ -92,6 +98,8 @@ export const useStockItemDetail = async (stockItemId: string) => {
     stockItem,
     locations,
     changes,
+    purchaseTrackingReference,
+    locationLabel,
     editedCondition,
     editedLocationId,
     editedNotes,

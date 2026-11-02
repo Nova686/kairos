@@ -1,4 +1,4 @@
-import { conditionLabel, type ConditionCode } from '../../shared/catalogue/condition-scale.ts'
+import { conditionLabel, type ConditionCode } from '~~/shared/catalogue/condition-scale'
 
 export const describeStockItemCondition = (
   condition: string,

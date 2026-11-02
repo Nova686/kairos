@@ -3,9 +3,30 @@
     <h1 class="text-h5 mb-4">
       {{ stockItem.productName }}
     </h1>
-    <p>
-      {{ stockItemStatusLabels[stockItem.status] }} · {{ formatEuros(stockItem.allocatedPurchaseCents) }}
-    </p>
+    <dl class="stock-item-page__details">
+      <dt>Statut</dt>
+      <dd>{{ stockItemStatusLabels[stockItem.status] }}</dd>
+      <dt>Prix d’achat</dt>
+      <dd>{{ formatEuros(stockItem.allocatedPurchaseCents) }}</dd>
+      <dt>État</dt>
+      <dd>{{ describeStockItemCondition(stockItem.condition, null, null) }}</dd>
+      <dt>Lieu</dt>
+      <dd>{{ locationLabel }}</dd>
+      <template v-if="stockItem.productCategory === 'graded-card'">
+        <dt>Société de gradation</dt>
+        <dd>{{ stockItem.gradingCompany ?? '—' }}</dd>
+        <dt>Note</dt>
+        <dd>{{ stockItem.grade ?? '—' }}</dd>
+        <dt>Numéro de certificat</dt>
+        <dd>{{ stockItem.certificateNumber ?? '—' }}</dd>
+      </template>
+      <dt>Reçu le</dt>
+      <dd>{{ stockItem.receivedOn ?? '—' }}</dd>
+      <dt>Référence de suivi</dt>
+      <dd>{{ purchaseTrackingReference ?? '—' }}</dd>
+      <dt>Notes</dt>
+      <dd>{{ stockItem.notes ?? '—' }}</dd>
+    </dl>
     <v-btn
       v-if="isInTransit"
       color="primary"
@@ -78,6 +99,8 @@ const {
   stockItem,
   locations,
   changes,
+  purchaseTrackingReference,
+  locationLabel,
   editedCondition,
   editedLocationId,
   editedNotes,
@@ -95,6 +118,16 @@ const describeChangedValue = (changedValue: unknown): string =>
 </script>
 
 <style scoped>
+.stock-item-page__details {
+  display: grid;
+  gap: 4px 16px;
+  grid-template-columns: max-content 1fr;
+}
+
+.stock-item-page__details dt {
+  font-weight: 500;
+}
+
 .stock-item-page__form {
   max-width: 560px;
 }

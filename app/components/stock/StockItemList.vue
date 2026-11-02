@@ -3,55 +3,60 @@
     Aucun exemplaire en stock.
   </p>
   <div
-    v-else-if="isMobile"
-    class="stock-item-list"
+    v-else
+    class="stock-item-list__responsive"
   >
-    <v-card
-      v-for="listRow in listRows"
-      :key="listRow.id"
-      :to="`/stock/${listRow.id}`"
+    <div class="stock-item-list d-md-none">
+      <v-card
+        v-for="listRow in listRows"
+        :key="listRow.id"
+        :to="`/stock/${listRow.id}`"
+      >
+        <div class="stock-item-list__card">
+          <v-img
+            v-if="listRow.productImageUrl"
+            :src="listRow.productImageUrl"
+            :alt="listRow.productName"
+            width="64"
+            height="64"
+            cover
+          />
+          <div>
+            <div class="text-subtitle-1">
+              {{ listRow.productName }}
+            </div>
+            <div>{{ listRow.conditionText }} · {{ listRow.locationText }}</div>
+            <div>{{ listRow.statusText }} · {{ formatEuros(listRow.purchasePriceCents) }}</div>
+          </div>
+        </div>
+      </v-card>
+    </div>
+    <v-data-table
+      class="d-none d-md-block"
+      :headers="tableHeaders"
+      :items="listRows"
+      item-value="id"
     >
-      <div class="stock-item-list__card">
+      <template #[`item.productImageUrl`]="{ value }">
         <v-img
-          v-if="listRow.productImageUrl"
-          :src="listRow.productImageUrl"
-          :alt="listRow.productName"
-          width="64"
-          height="64"
+          v-if="value"
+          :src="value"
+          alt=""
+          width="48"
+          height="48"
           cover
         />
-        <div>
-          <div class="text-subtitle-1">
-            {{ listRow.productName }}
-          </div>
-          <div>{{ listRow.conditionText }} · {{ listRow.locationText }}</div>
-          <div>{{ listRow.statusText }} · {{ listRow.purchasePriceText }}</div>
-        </div>
-      </div>
-    </v-card>
+      </template>
+      <template #[`item.productName`]="{ item: listRow }">
+        <NuxtLink :to="`/stock/${listRow.id}`">
+          {{ listRow.productName }}
+        </NuxtLink>
+      </template>
+      <template #[`item.purchasePriceCents`]="{ value }">
+        {{ formatEuros(value) }}
+      </template>
+    </v-data-table>
   </div>
-  <v-data-table
-    v-else
-    :headers="tableHeaders"
-    :items="listRows"
-    item-value="id"
-  >
-    <template #[`item.productImageUrl`]="{ value }">
-      <v-img
-        v-if="value"
-        :src="value"
-        alt=""
-        width="48"
-        height="48"
-        cover
-      />
-    </template>
-    <template #[`item.productName`]="{ item: listRow }">
-      <NuxtLink :to="`/stock/${listRow.id}`">
-        {{ listRow.productName }}
-      </NuxtLink>
-    </template>
-  </v-data-table>
 </template>
 
 <script setup lang="ts">
@@ -62,7 +67,7 @@ const props = defineProps({
   locationLabelsById: { type: Object as PropType<Map<string, string>>, required: true },
 })
 
-const { isMobile, listRows, tableHeaders } = useStockItemList(
+const { listRows, tableHeaders } = useStockItemList(
   () => props.stockItems,
   () => props.locationLabelsById,
 )

@@ -7,6 +7,14 @@
       :loading="isSearching"
       clearable
     />
+    <v-alert
+      v-if="searchErrorMessage"
+      type="error"
+      class="mb-4"
+      role="alert"
+    >
+      {{ searchErrorMessage }}
+    </v-alert>
     <p
       v-for="unavailableMessage in unavailableMessages"
       :key="unavailableMessage"
@@ -63,6 +71,7 @@
         type="submit"
         color="primary"
         height="56"
+        :loading="isCreating"
       >
         Créer un produit
       </v-btn>
@@ -78,8 +87,8 @@ const emit = defineEmits<{ picked: [product: ProductReference] }>()
 
 const categoryOptions = productCategories.map(category => ({ value: category, title: productCategoryLabels[category] }))
 
-const { searchText, candidateGroups, unavailableMessages, isSearching } = useProductSearch()
-const { errorMessage, newProductName, newProductCategory, pickCandidate, createBlankProduct } = useProductPicking(
+const { searchText, candidateGroups, unavailableMessages, isSearching, searchErrorMessage } = useProductSearch()
+const { errorMessage, isCreating, newProductName, newProductCategory, pickCandidate, createBlankProduct } = useProductPicking(
   product => emit('picked', product),
 )
 </script>

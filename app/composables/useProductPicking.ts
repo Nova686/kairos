@@ -4,17 +4,27 @@ import type { ProductReference } from '~~/shared/catalogue/product-reference'
 
 export const useProductPicking = (onProductPicked: (product: ProductReference) => void) => {
   const errorMessage = ref('')
+  const isCreating = ref(false)
   const newProductName = ref('')
   const newProductCategory = ref<ProductCategory>(productCategories[0]!)
 
-  const createProductFrom = async (productDraft: Record<string, unknown>): Promise<void> => {
+  const createProductFrom = async (productDraft: Record<string, unknown>): Promise<boolean> => {
+    if (isCreating.value) {
+      return false
+    }
+    isCreating.value = true
     errorMessage.value = ''
     try {
       const createdProduct = await $fetch<ProductReference>('/api/products', { method: 'POST', body: productDraft })
       onProductPicked({ id: createdProduct.id, name: createdProduct.name, category: createdProduct.category })
+      return true
     }
     catch {
       errorMessage.value = 'Impossible de créer ce produit.'
+      return false
+    }
+    finally {
+      isCreating.value = false
     }
   }
 
@@ -30,9 +40,10 @@ export const useProductPicking = (onProductPicked: (product: ProductReference) =
     if (newProductName.value.trim() === '') {
       return
     }
-    await createProductFrom({ name: newProductName.value, category: newProductCategory.value })
-    newProductName.value = ''
+    if (await createProductFrom({ name: newProductName.value, category: newProductCategory.value })) {
+      newProductName.value = ''
+    }
   }
 
-  return { errorMessage, newProductName, newProductCategory, pickCandidate, createBlankProduct }
+  return { errorMessage, isCreating, newProductName, newProductCategory, pickCandidate, createBlankProduct }
 }

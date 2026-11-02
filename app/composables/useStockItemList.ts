@@ -1,4 +1,3 @@
-import { useDisplay } from 'vuetify'
 import type { StockItemRow } from '~~/shared/stock/stock-item-row'
 import { stockItemStatusLabels } from '~~/shared/stock/stock-item-status'
 
@@ -9,7 +8,7 @@ export interface StockItemListRow {
   conditionText: string
   locationText: string
   statusText: string
-  purchasePriceText: string
+  purchasePriceCents: number
 }
 
 const tableHeaders = [
@@ -18,15 +17,13 @@ const tableHeaders = [
   { title: 'État', key: 'conditionText' },
   { title: 'Lieu', key: 'locationText' },
   { title: 'Statut', key: 'statusText' },
-  { title: 'Prix d’achat', key: 'purchasePriceText', align: 'end' as const },
+  { title: 'Prix d’achat', key: 'purchasePriceCents', align: 'end' as const },
 ]
 
 export const useStockItemList = (
   stockItems: () => StockItemRow[],
   locationLabelsById: () => Map<string, string>,
 ) => {
-  const { mobile: isMobile } = useDisplay()
-
   const listRows = computed<StockItemListRow[]>(() =>
     stockItems().map(stockItem => ({
       id: stockItem.id,
@@ -35,9 +32,9 @@ export const useStockItemList = (
       conditionText: describeStockItemCondition(stockItem.condition, stockItem.gradingCompany, stockItem.grade),
       locationText: stockItem.locationId === null ? '—' : (locationLabelsById().get(stockItem.locationId) ?? '—'),
       statusText: stockItemStatusLabels[stockItem.status],
-      purchasePriceText: formatEuros(stockItem.allocatedPurchaseCents),
+      purchasePriceCents: stockItem.allocatedPurchaseCents,
     })),
   )
 
-  return { isMobile, listRows, tableHeaders }
+  return { listRows, tableHeaders }
 }

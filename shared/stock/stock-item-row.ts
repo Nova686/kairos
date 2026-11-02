@@ -3,6 +3,7 @@ import type { StockItemStatus } from './stock-item-status.ts'
 export interface StockItemRow {
   id: string
   productId: string
+  purchaseId: string
   productName: string
   productImageUrl: string | null
   productCategory: string
