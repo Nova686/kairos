@@ -137,9 +137,9 @@ export const refreshProductPrices = async (
   const snapshotIds = await database.transaction(async (transaction) => {
     const insertedIds = await insertPriceSnapshotDrafts(transaction as unknown as KairosDatabase, productId, drafts)
     await transaction
-      .update(priceRefreshRequests)
-      .set({ lastRefreshedAt: now })
-      .where(eq(priceRefreshRequests.productId, productId))
+      .insert(priceRefreshRequests)
+      .values({ productId, requestedAt: null, lastRefreshedAt: now })
+      .onConflictDoUpdate({ target: priceRefreshRequests.productId, set: { lastRefreshedAt: now } })
     return insertedIds
   })
   return { snapshotIds, unavailableSources }

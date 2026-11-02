@@ -62,7 +62,7 @@ export const titleConditionRules = pgTable('title_condition_rules', {
 
 export const priceRefreshRequests = pgTable('price_refresh_requests', {
   productId: uuid('product_id').primaryKey().references(() => products.id, { onDelete: 'restrict' }),
-  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+  requestedAt: timestamp('requested_at', { withTimezone: true }),
   requestedByUserId: uuid('requested_by_user_id').references(() => users.id, { onDelete: 'restrict' }),
   lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }),
 })

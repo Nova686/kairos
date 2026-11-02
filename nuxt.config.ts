@@ -14,7 +14,11 @@ export default defineNuxtConfig({
   },
   nitro: {
     experimental: { tasks: true },
-    scheduledTasks: { '0 4 * * *': ['catalogue:refresh-cardmarket-products'] },
+    scheduledTasks: {
+      '0 4 * * *': ['catalogue:refresh-cardmarket-products'],
+      '30 4 * * *': ['prices:enqueue-daily'],
+      '*/5 * * * *': ['prices:process-queue'],
+    },
   },
   typescript: { strict: true },
 })
