@@ -28,6 +28,13 @@
       <dd>{{ stockItem.notes ?? '—' }}</dd>
     </dl>
     <v-btn
+      :to="productPricesLink"
+      variant="outlined"
+      class="my-4 mr-2"
+    >
+      Voir les prix
+    </v-btn>
+    <v-btn
       v-if="isInTransit"
       color="primary"
       class="my-4"
@@ -73,6 +80,11 @@
     <h2 class="text-h6 mt-8 mb-2">
       Journal du produit
     </h2>
+    <p class="mb-2">
+      <NuxtLink :to="productPricesLink">
+        Prix et historique du produit
+      </NuxtLink>
+    </p>
     <p v-if="changes.length === 0">
       Aucune modification enregistrée.
     </p>
@@ -112,6 +124,13 @@ const {
 } = await useStockItemDetail(String(route.params.id))
 
 const locationOptions = computed(() => locations.value.map(location => ({ value: location.id, title: location.label })))
+
+const productPricesLink = computed(() => {
+  const gradedColumnKey = stockItem.value?.gradingCompany && stockItem.value.grade
+    ? `graded|${stockItem.value.gradingCompany}|${stockItem.value.grade}`
+    : stockItem.value?.condition
+  return `/produits/${stockItem.value?.productId}?condition=${encodeURIComponent(gradedColumnKey ?? '')}`
+})
 
 const describeChangedValue = (changedValue: unknown): string =>
   changedValue === null || changedValue === undefined ? '—' : String(typeof changedValue === 'object' ? JSON.stringify(changedValue) : changedValue)
