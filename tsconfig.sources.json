@@ -12,5 +12,5 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "tests", "scripts", "vitest.config.ts", "app/utils"]
+  "include": ["src", "tests", "scripts", "vitest.config.ts", "app/utils", "server/database", "drizzle.config.ts"]
 }

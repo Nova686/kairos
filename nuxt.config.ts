@@ -9,5 +9,8 @@ export default defineNuxtConfig({
   vite: {
     plugins: [vuetify({ autoImport: true })],
   },
+  runtimeConfig: {
+    databaseUrl: 'pglite://.data/kairos',
+  },
   typescript: { strict: true },
 })
