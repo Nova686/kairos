@@ -1,4 +1,5 @@
 import {
+  isSaleRecorded,
   submitSaleWithDebt,
   validateSaleInput,
   type SaleSubmissionInput,
@@ -56,7 +57,7 @@ describe('submitSaleWithDebt', () => {
   it('sends euro inputs as integer cents with fees defaulting to zero and shippingIncluded', async () => {
     const { sentRequests, sendRequest } = buildRecordingSender()
 
-    await submitSaleWithDebt(sendRequest, buildInput(), { saleId: null })
+    await submitSaleWithDebt(sendRequest, buildInput(), { saleId: null, createdTotalPriceCents: null })
 
     expect(sentRequests).toHaveLength(1)
     expect(sentRequests[0]!.path).toBe('/api/sales')
@@ -77,14 +78,14 @@ describe('submitSaleWithDebt', () => {
   it('sends a null tracking reference when blank', async () => {
     const { sentRequests, sendRequest } = buildRecordingSender()
 
-    await submitSaleWithDebt(sendRequest, buildInput({ trackingReference: '  ' }), { saleId: null })
+    await submitSaleWithDebt(sendRequest, buildInput({ trackingReference: '  ' }), { saleId: null, createdTotalPriceCents: null })
 
     expect(sentRequests[0]!.body).toMatchObject({ trackingReference: null })
   })
 
   it('creates an owed-to-me debt for the sale total when the buyer has not paid yet', async () => {
     const { sentRequests, sendRequest } = buildRecordingSender()
-    const progress: SaleSubmissionProgress = { saleId: null }
+    const progress: SaleSubmissionProgress = { saleId: null, createdTotalPriceCents: null }
 
     await submitSaleWithDebt(sendRequest, buildInput({ isNotYetPaid: true, buyerPersonId: 'person-1' }), progress)
 
@@ -101,7 +102,7 @@ describe('submitSaleWithDebt', () => {
 
   it('does not create the sale again when retrying after a debt failure', async () => {
     const failingSender = buildRecordingSender('/api/debts')
-    const progress: SaleSubmissionProgress = { saleId: null }
+    const progress: SaleSubmissionProgress = { saleId: null, createdTotalPriceCents: null }
     const input = buildInput({ isNotYetPaid: true, buyerPersonId: 'person-1' })
 
     await expect(submitSaleWithDebt(failingSender.sendRequest, input, progress)).rejects.toThrow('network down')
@@ -111,5 +112,24 @@ describe('submitSaleWithDebt', () => {
     expect(failingSender.sentRequests.map(request => request.path)).toEqual(['/api/sales', '/api/debts'])
     expect(retrySender.sentRequests.map(request => request.path)).toEqual(['/api/debts'])
     expect(retrySender.sentRequests[0]!.body).toMatchObject({ saleId: 'sale-1' })
+  })
+
+  it('takes the retried debt amount from the created sale, not from the edited form', async () => {
+    const failingSender = buildRecordingSender('/api/debts')
+    const progress: SaleSubmissionProgress = { saleId: null, createdTotalPriceCents: null }
+    const input = buildInput({ isNotYetPaid: true, buyerPersonId: 'person-1' })
+
+    await expect(submitSaleWithDebt(failingSender.sendRequest, input, progress)).rejects.toThrow('network down')
+    const retrySender = buildRecordingSender()
+    await submitSaleWithDebt(retrySender.sendRequest, { ...input, totalPriceText: '1' }, progress)
+
+    expect(retrySender.sentRequests[0]!.body).toMatchObject({ amountCents: 9550 })
+  })
+})
+
+describe('isSaleRecorded', () => {
+  it('locks the form once the sale exists', () => {
+    expect(isSaleRecorded({ saleId: null, createdTotalPriceCents: null })).toBe(false)
+    expect(isSaleRecorded({ saleId: 'sale-1', createdTotalPriceCents: 100 })).toBe(true)
   })
 })

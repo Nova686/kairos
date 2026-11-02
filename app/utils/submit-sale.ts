@@ -17,7 +17,10 @@ export interface SaleSubmissionInput {
 
 export interface SaleSubmissionProgress {
   saleId: string | null
+  createdTotalPriceCents: number | null
 }
+
+export const isSaleRecorded = (progress: SaleSubmissionProgress): boolean => progress.saleId !== null
 
 const textOrNull = (text: string): string | null => (text.trim() === '' ? null : text.trim())
 
@@ -71,13 +74,14 @@ export const submitSaleWithDebt = async (
       },
     }) as { sale: { id: string } }
     progress.saleId = createdSale.sale.id
+    progress.createdTotalPriceCents = totalPriceCents
   }
   if (input.isNotYetPaid) {
     await sendRequest('/api/debts', {
       method: 'POST',
       body: {
         personId: input.buyerPersonId,
-        amountCents: totalPriceCents,
+        amountCents: progress.createdTotalPriceCents,
         direction: 'owed-to-me',
         reason: 'Vente non encore payée',
         saleId: progress.saleId,

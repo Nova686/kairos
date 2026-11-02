@@ -1,4 +1,5 @@
 import {
+  isPurchaseRecorded,
   submitPurchaseWithAdvance,
   validatePurchaseInput,
   type PurchaseSubmissionInput,
@@ -134,5 +135,12 @@ describe('submitPurchaseWithAdvance', () => {
     expect(failingSender.sentRequests.map(request => request.path)).toEqual(['/api/purchases', '/api/debts'])
     expect(retrySender.sentRequests.map(request => request.path)).toEqual(['/api/debts'])
     expect(retrySender.sentRequests[0]!.body).toMatchObject({ purchaseId: 'purchase-1' })
+  })
+})
+
+describe('isPurchaseRecorded', () => {
+  it('locks the form once the purchase exists', () => {
+    expect(isPurchaseRecorded({ purchaseId: null })).toBe(false)
+    expect(isPurchaseRecorded({ purchaseId: 'purchase-1' })).toBe(true)
   })
 })

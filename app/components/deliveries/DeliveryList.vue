@@ -33,6 +33,7 @@
       </div>
       <v-btn
         color="primary"
+        :loading="isActionPending(incomingDelivery.stockItemId)"
         @click="markReceived(incomingDelivery.stockItemId)"
       >
         Reçu
@@ -59,6 +60,7 @@
       </div>
       <v-btn
         color="primary"
+        :loading="isActionPending(outgoingDelivery.saleId)"
         @click="markDelivered(outgoingDelivery.saleId)"
       >
         Livré
@@ -68,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-const { incoming, outgoing, pending, errorMessage, markReceived, markDelivered } = useDeliveries()
+const { incoming, outgoing, pending, errorMessage, isActionPending, markReceived, markDelivered } = useDeliveries()
 </script>
 
 <style scoped>

@@ -1,6 +1,7 @@
 <template>
   <v-form
     v-if="lines.length > 0"
+    :readonly="isLocked"
     @submit.prevent="submitAndLeave"
   >
     <v-card
@@ -13,6 +14,7 @@
         <v-btn
           icon="mdi-delete"
           variant="text"
+          :disabled="isLocked"
           :aria-label="`Retirer ${line.product.name}`"
           @click="removeLine(line.lineKey)"
         />
@@ -100,6 +102,13 @@
     </div>
 
     <v-alert
+      v-if="isLocked"
+      type="info"
+      class="my-4"
+    >
+      Achat enregistré — seule la dette reste à créer.
+    </v-alert>
+    <v-alert
       v-if="errorMessage"
       type="error"
       class="my-4"
@@ -112,8 +121,9 @@
       color="primary"
       class="mt-4"
       :loading="isSubmitting"
+      :disabled="isSubmitting"
     >
-      Enregistrer l’achat
+      {{ isLocked ? "Réessayer de créer la dette" : "Enregistrer l’achat" }}
     </v-btn>
   </v-form>
 </template>
@@ -138,6 +148,7 @@ const {
   conditionOptionsFor,
   isGradedLine,
   submitPurchase,
+  isLocked,
 } = usePurchaseForm()
 
 const locationOptions = computed(() => locations.value.map(location => ({ value: location.id, title: location.label })))

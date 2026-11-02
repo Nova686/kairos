@@ -1,5 +1,8 @@
 <template>
-  <v-form @submit.prevent="submitAndLeave">
+  <v-form
+    :readonly="isLocked"
+    @submit.prevent="submitAndLeave"
+  >
     <v-select
       v-model="selectedStockItemIds"
       label="Exemplaires vendus"
@@ -84,6 +87,13 @@
     </v-card>
 
     <v-alert
+      v-if="isLocked"
+      type="info"
+      class="my-4"
+    >
+      Vente enregistrée — seule la dette reste à créer.
+    </v-alert>
+    <v-alert
       v-if="errorMessage"
       type="error"
       class="my-4"
@@ -96,8 +106,9 @@
       color="primary"
       class="mt-4"
       :loading="isSubmitting"
+      :disabled="isSubmitting"
     >
-      Enregistrer la vente
+      {{ isLocked ? "Réessayer de créer la dette" : "Enregistrer la vente" }}
     </v-btn>
   </v-form>
 </template>
@@ -123,6 +134,7 @@ const {
   purchaseCostCents,
   netProfitCents,
   submitSale,
+  isLocked,
 } = useSaleForm()
 
 const submitAndLeave = async () => {

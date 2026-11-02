@@ -31,7 +31,9 @@ export const usePurchaseForm = () => {
   const errorMessage = ref('')
   const isSubmitting = ref(false)
   let nextLineKey = 0
-  const submissionProgress: SubmissionProgress = { purchaseId: null }
+  const submissionProgress = reactive<SubmissionProgress>({ purchaseId: null })
+  const isLocked = computed(() => isPurchaseRecorded(submissionProgress))
+  const runExclusively = createExclusiveRunner()
   const sendRequest = $fetch as SendRequest
 
   const { data: fetchedLocations } = useFetch<LocationRow[]>('/api/locations', { default: () => [] })
@@ -40,6 +42,9 @@ export const usePurchaseForm = () => {
   const persons = computed<PersonRow[]>(() => fetchedPersons.value ?? [])
 
   const addLine = (product: ProductReference) => {
+    if (isLocked.value) {
+      return
+    }
     nextLineKey += 1
     lines.value.push({
       lineKey: nextLineKey,
@@ -81,7 +86,7 @@ export const usePurchaseForm = () => {
     })),
   })
 
-  const submitPurchase = async (): Promise<boolean> => {
+  const performPurchaseSubmission = async (): Promise<boolean> => {
     errorMessage.value = validatePurchaseInput(submissionInput())
     if (errorMessage.value !== '') {
       return false
@@ -102,7 +107,10 @@ export const usePurchaseForm = () => {
     }
   }
 
+  const submitPurchase = async (): Promise<boolean> => (await runExclusively(performPurchaseSubmission)) ?? false
+
   return {
+    isLocked,
     lines,
     purchasedOn,
     sellerLabel,

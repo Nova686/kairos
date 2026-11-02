@@ -13,7 +13,13 @@
         :title="balance.personName"
       >
         <template #append>
-          <span :class="balance.balanceCents < 0 ? 'text-error' : 'text-success'">
+          <span v-if="balance.balanceCents === 0">
+            soldé
+          </span>
+          <span
+            v-else
+            :class="balance.balanceCents < 0 ? 'text-error' : 'text-success'"
+          >
             {{ balance.balanceCents < 0 ? 'Je dois' : 'On me doit' }} {{ formatEuros(Math.abs(balance.balanceCents)) }}
           </span>
         </template>

@@ -43,7 +43,9 @@ export const useSaleForm = () => {
   const isNotYetPaid = ref(false)
   const errorMessage = ref('')
   const isSubmitting = ref(false)
-  const submissionProgress: SaleSubmissionProgress = { saleId: null }
+  const submissionProgress = reactive<SaleSubmissionProgress>({ saleId: null, createdTotalPriceCents: null })
+  const isLocked = computed(() => isSaleRecorded(submissionProgress))
+  const runExclusively = createExclusiveRunner()
   const sendRequest = $fetch as SendRequest
 
   const { data: fetchedStockItems } = useFetch<StockItemRow[]>('/api/stock-items', {
@@ -103,7 +105,7 @@ export const useSaleForm = () => {
     isNotYetPaid: isNotYetPaid.value,
   })
 
-  const submitSale = async (): Promise<boolean> => {
+  const performSaleSubmission = async (): Promise<boolean> => {
     errorMessage.value = validateSaleInput(submissionInput())
     if (errorMessage.value !== '') {
       return false
@@ -124,7 +126,10 @@ export const useSaleForm = () => {
     }
   }
 
+  const submitSale = async (): Promise<boolean> => (await runExclusively(performSaleSubmission)) ?? false
+
   return {
+    isLocked,
     soldOn,
     platform,
     buyerPersonId,

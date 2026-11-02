@@ -28,6 +28,8 @@ export interface SubmissionProgress {
 
 export type SendRequest = (path: string, options: { method: string, body: unknown }) => Promise<unknown>
 
+export const isPurchaseRecorded = (progress: SubmissionProgress): boolean => progress.purchaseId !== null
+
 const textOrNull = (text: string): string | null => (text.trim() === '' ? null : text.trim())
 
 const parseFeesCents = (feesText: string): number | null => (feesText.trim() === '' ? 0 : parseEuroInput(feesText))
