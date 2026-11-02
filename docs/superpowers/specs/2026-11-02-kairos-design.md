@@ -18,10 +18,18 @@ L'usage type : **chez soi**, au retour d'achats, on scanne les produits (code-ba
 3. **Relevé des prix** sur plusieurs sources, **automatique à intervalle régulier** (quotidien) **et à la demande** via un bouton (un produit ou tout le stock). Les annonces **en cours** comptent autant que les ventes conclues ; chaque source garde son propre prix.
 4. **Historique conservé** de chaque relevé → courbe de valeur par produit et courbe de valeur du stock entier dans le temps.
 5. **Valeur du stock** = deux montants côte à côte : somme des prix d'achat et somme des prix moyens actuels (plus-value latente par exemplaire et globale). Règle de calcul validée par l'auteur :
-   - pour chaque source, on calcule la **médiane** des annonces en cours, et celle des ventes conclues quand la source en fournit ;
-   - la valeur d'un produit est la **médiane de ces chiffres toutes sources confondues**, en ignorant les relevés de plus de 7 jours ;
-   - l'état de l'exemplaire n'entre pas dans le calcul ; il reste indicatif.
+   - l'**état de l'exemplaire est toujours pris en compte** : on ne retient que les annonces dont l'état correspond au sien ;
+   - pour chaque source, on calcule la **médiane** de ces annonces en cours, et celle des ventes conclues quand la source en fournit ;
+   - la valeur de l'exemplaire est la **médiane de ces chiffres toutes sources confondues**, en ignorant les relevés de plus de 7 jours ;
+   - deux exemplaires du même produit dans des états différents ont donc des valeurs différentes ;
+   - *(choix de Claude)* quand aucune annonce récente ne correspond à cet état, on prend l'état le plus proche disponible, et la valeur est affichée comme **approximative**, avec l'état réellement utilisé.
 6. **Détail par source et par état** : la fiche produit montre, pour chaque source, les prix ventilés **par état** tels que la source les expose. Exemples : sur Vinted, « neuf avec étiquette », « neuf sans étiquette », « très bon état », etc. ; sur eBay, « neuf » ou « occasion » ; sur Leboncoin, l'état de l'annonce ; sur Cardmarket, l'état de la carte (NM, EX…), le scellé n'ayant qu'un état. Les annonces relevées sont donc classées par état.
+   - *(choix de Claude)* **Échelle d'états de Kairos**, propre à chaque catégorie. Chaque état de Kairos est mis en correspondance avec le vocabulaire de chaque source. Proposition :
+     - **Scellé** (ETB, display, coffret) : `neuf scellé`, `neuf boîte abîmée`, `ouvert complet`, `ouvert incomplet` ;
+     - **Jouets, maquillage** : `neuf avec étiquette / emballage`, `neuf sans étiquette`, `très bon état`, `bon état`, `état satisfaisant` (calqué sur Vinted) ;
+     - **Carte gradée** : l'état, c'est la **société + la note** (ex. PSA 10) ; on ne retient que les annonces de la même société et de la même note ;
+     - **Carte non gradée** (si ajoutée plus tard) : échelle Cardmarket (`NM`, `EX`, `GD`, `LP`, `PL`, `PO`).
+   - Pour les sources qui exposent peu d'états, comme eBay avec « neuf » / « occasion », la correspondance est approximative. Le titre de l'annonce sert alors à affiner, par exemple « boîte abîmée » ou « ouvert ».
 7. **Ventes** : on renseigne date, prix de vente, plateforme et acheteur, et si le prix inclut ou non les frais de port. On peut aussi noter les frais : commission de la plateforme, port payé, emballage. Le bénéfice affiché est **net**. L'exemplaire quitte le stock mais reste visible dans un historique des ventes.
 8. **Lots** :
    - une **vente** peut regrouper plusieurs exemplaires pour un prix unique ;
@@ -74,7 +82,7 @@ L'usage type : **chez soi**, au retour d'achats, on scanne les produits (code-ba
 | Catégories | Pokémon (scellé), cartes gradées, jouets, coffrets de maquillage, autres |
 | Hébergement | Gratuit ; pas d'existant |
 | Nom / dépôt | Kairos, dépôt GitHub privé `Nova686/kairos` |
-| Calcul de la valeur | Médiane par source (annonces en cours + ventes conclues), puis médiane entre sources, relevés de plus de 7 jours ignorés, état non pris en compte |
+| Calcul de la valeur | Médiane par source (annonces en cours + ventes conclues), puis médiane entre sources, relevés de plus de 7 jours ignorés, **toujours selon l'état de l'exemplaire** |
 | Détail des prix | Par source **et par état** |
 | Lots, frais | Vente en lot, achat en lot réparti, frais notés, bénéfice net ; port inclus ou non précisé à la vente |
 | Machine à domicile | Aucune ; si Oracle est bloqué, trouver une alternative gratuite |
@@ -108,9 +116,10 @@ L'usage type : **chez soi**, au retour d'achats, on scanne les produits (code-ba
 
 - **Utilisateur** : compte, invitations.
 - **Produit** *(catalogue partagé entre tous)* : nom, catégorie (Pokémon scellé, carte gradée, jouet, maquillage, autre), type (ETB, display, coffret…), extension/gamme, langue, codes EAN (plusieurs), images, requêtes de recherche par source.
-- **Exemplaire** *(appartient à un utilisateur)* : produit, état, prix d'achat, date d'achat, lieu, statut (`en livraison` → `en stock` → `vendu – en livraison` → `vendu`), suivi d'achat (numéro ou lien), notes. Pour une carte gradée : société de gradation, note, numéro de certificat.
+- **Exemplaire** *(appartient à un utilisateur)* : produit, état (échelle Kairos de sa catégorie), prix d'achat, date d'achat, lieu, statut (`en livraison` → `en stock` → `vendu – en livraison` → `vendu`), suivi d'achat (numéro ou lien), notes. Pour une carte gradée : société de gradation, note, numéro de certificat.
 - **Lieu** *(par utilisateur)* : libellé.
-- **Relevé de prix** *(partagé)* : produit (et, pour les cartes gradées, société + note), source, date, type (en cours / vendu), **état** (selon le vocabulaire de la source), moyenne, médiane, minimum, nombre d'annonces, annonces retenues (titre, prix, état, lien).
+- **Correspondance d'états** : pour chaque catégorie et chaque source, l'état de la source ↔ l'état Kairos (table de configuration, modifiable).
+- **Relevé de prix** *(partagé)* : produit (et, pour les cartes gradées, société + note), source, date, type (en cours / vendu), **état** (vocabulaire de la source + état Kairos correspondant), moyenne, médiane, minimum, nombre d'annonces, annonces retenues (titre, prix, état, lien).
 - **Achat** : date, vendeur ou plateforme, prix total, frais (port…), suivi de livraison ; regroupe **un ou plusieurs** exemplaires, avec répartition du prix total entre eux.
 - **Vente** : **un ou plusieurs** exemplaires, date, prix total, port inclus ou non, frais (commission, port payé, emballage), plateforme, acheteur (personne), suivi d'expédition, date de livraison ; répartition du prix entre exemplaires pour le bénéfice net par exemplaire.
 - **Journal du catalogue** : modifications du catalogue partagé (auteur, date, avant/après).
