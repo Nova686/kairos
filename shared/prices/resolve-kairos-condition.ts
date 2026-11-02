@@ -22,7 +22,12 @@ export interface ConditionResolutionInput {
   title: string
 }
 
+export const maximumTitleRulePatternLength = 200
+
 export const isValidTitleRulePattern = (pattern: string): boolean => {
+  if (pattern.length > maximumTitleRulePatternLength) {
+    return false
+  }
   try {
     new RegExp(pattern, 'i')
     return true
@@ -32,17 +37,44 @@ export const isValidTitleRulePattern = (pattern: string): boolean => {
   }
 }
 
-const titleMatchesRule = (title: string, rule: TitleConditionRuleEntry): boolean =>
-  isValidTitleRulePattern(rule.pattern) && new RegExp(rule.pattern, 'i').test(title)
+export interface CompiledTitleRule {
+  category: string
+  matcher: RegExp
+  kairosCondition: ConditionCode
+  priority: number
+}
 
-export const resolveKairosCondition = (
+export interface CompiledTitleRules {
+  rules: CompiledTitleRule[]
+  skippedPatterns: string[]
+}
+
+export const compileTitleRules = (rules: TitleConditionRuleEntry[]): CompiledTitleRules => {
+  const compiled: CompiledTitleRule[] = []
+  const skippedPatterns: string[] = []
+  for (const rule of rules) {
+    if (!isValidTitleRulePattern(rule.pattern)) {
+      skippedPatterns.push(rule.pattern)
+      continue
+    }
+    compiled.push({
+      category: rule.category,
+      matcher: new RegExp(rule.pattern, 'i'),
+      kairosCondition: rule.kairosCondition,
+      priority: rule.priority,
+    })
+  }
+  compiled.sort((first, second) => second.priority - first.priority)
+  return { rules: compiled, skippedPatterns }
+}
+
+export const resolveKairosConditionWithCompiledRules = (
   mappings: ConditionMappingEntry[],
-  rules: TitleConditionRuleEntry[],
+  compiledRules: CompiledTitleRules,
   input: ConditionResolutionInput,
 ): ConditionCode | null => {
-  const matchingRule = rules
-    .filter(rule => rule.category === input.category && titleMatchesRule(input.title, rule))
-    .sort((first, second) => second.priority - first.priority)[0]
+  const matchingRule = compiledRules.rules.find(rule =>
+    rule.category === input.category && rule.matcher.test(input.title))
   if (matchingRule) {
     return matchingRule.kairosCondition
   }
@@ -52,3 +84,10 @@ export const resolveKairosCondition = (
     && mapping.sourceCondition === input.sourceCondition)
   return matchingMapping?.kairosCondition ?? null
 }
+
+export const resolveKairosCondition = (
+  mappings: ConditionMappingEntry[],
+  rules: TitleConditionRuleEntry[],
+  input: ConditionResolutionInput,
+): ConditionCode | null =>
+  resolveKairosConditionWithCompiledRules(mappings, compileTitleRules(rules), input)
