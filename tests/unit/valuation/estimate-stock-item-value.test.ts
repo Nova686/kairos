@@ -146,6 +146,26 @@ describe('estimateStockItemValue', () => {
     expect(exactlySevenDays.valueCents).toBe(1000)
   })
 
+  it('returns no value for a graded item without a numeric grade or without a company', () => {
+    const gradedSnapshots = [
+      snapshot({ kairosCondition: 'graded', gradingCompany: 'PSA', grade: '9', figureCents: 20000 }),
+      snapshot({ kairosCondition: 'graded', gradingCompany: null, grade: '9', figureCents: 5000 }),
+    ]
+    const withoutGrade = estimateStockItemValue({ ...gradedCard('PSA', '10'), grade: null }, gradedSnapshots, now)
+    expect(withoutGrade.valueCents).toBeNull()
+    expect(withoutGrade.perSource).toEqual([])
+    expect(estimateStockItemValue(gradedCard('PSA', 'abc'), gradedSnapshots, now).valueCents).toBeNull()
+    expect(estimateStockItemValue({ ...gradedCard('PSA', '9'), gradingCompany: null }, gradedSnapshots, now).valueCents).toBeNull()
+  })
+
+  it('breaks a tie between snapshots observed at the same instant with the lower figure, whatever the input order', () => {
+    const observedAt = daysAgo(1)
+    const high = snapshot({ observedAt, figureCents: 9000 })
+    const low = snapshot({ observedAt, figureCents: 6000 })
+    expect(estimateStockItemValue(sealedProduct('sealed-new'), [high, low], now).valueCents).toBe(6000)
+    expect(estimateStockItemValue(sealedProduct('sealed-new'), [low, high], now).valueCents).toBe(6000)
+  })
+
   it('ignores snapshots without a figure', () => {
     const valuation = estimateStockItemValue(sealedProduct('sealed-new'), [
       snapshot({ figureCents: null }),

@@ -3,9 +3,11 @@ import { conditionCodesFor } from '../catalogue/condition-scale.ts'
 import type { ProductCategory } from '../catalogue/product-category.ts'
 import { medianCents } from './median.ts'
 
+export type ValuationSnapshotKind = 'active' | 'sold' | 'source-aggregate' | 'manual'
+
 export type ValuationSnapshot = {
   source: string
-  kind: string
+  kind: ValuationSnapshotKind
   kairosCondition: ConditionCode | null
   gradingCompany: string | null
   grade: string | null
@@ -40,8 +42,8 @@ type SnapshotGroup = {
 
 const valuationSources = ['ebay', 'cardmarket', 'vinted', 'leboncoin']
 const freshnessWindowMilliseconds = 7 * 24 * 60 * 60 * 1000
-const aggregateKind = 'source-aggregate'
-const manualKind = 'manual'
+const aggregateKind: ValuationSnapshotKind = 'source-aggregate'
+const manualKind: ValuationSnapshotKind = 'manual'
 const aggregateCondition: ConditionCode = 'sealed-new'
 
 const newestDate = (dates: Date[]): Date => new Date(Math.max(...dates.map(date => date.getTime())))
@@ -82,12 +84,17 @@ const groupFreshSnapshots = (stockItem: ValuedStockItem, snapshots: ValuationSna
   return [...groups.values()]
 }
 
+const isNewerSnapshot = (candidate: ValuationSnapshot, current: ValuationSnapshot): boolean => {
+  if (candidate.observedAt.getTime() !== current.observedAt.getTime()) return candidate.observedAt > current.observedAt
+  return candidate.figureCents! < current.figureCents!
+}
+
 const figureOfGroup = (group: SnapshotGroup): SourceFigure => {
   const observedAt = newestDate(group.snapshots.map(snapshot => snapshot.observedAt))
   if (group.isManual) {
     return { source: group.source, figureCents: medianCents(group.snapshots.map(snapshot => snapshot.figureCents!))!, observedAt }
   }
-  const newestSnapshot = group.snapshots.reduce((newest, snapshot) => snapshot.observedAt > newest.observedAt ? snapshot : newest)
+  const newestSnapshot = group.snapshots.reduce((newest, snapshot) => isNewerSnapshot(snapshot, newest) ? snapshot : newest)
   return { source: group.source, figureCents: newestSnapshot.figureCents!, observedAt }
 }
 
@@ -114,6 +121,9 @@ export const estimateStockItemValue = (
   snapshots: ValuationSnapshot[],
   now: Date,
 ): StockItemValuation => {
+  if (stockItem.category === 'graded-card' && (stockItem.gradingCompany === null || Number.isNaN(Number(stockItem.grade)) || stockItem.grade === null)) {
+    return { valueCents: null, approximate: false, usedCondition: null, perSource: [] }
+  }
   const groups = groupFreshSnapshots(stockItem, snapshots, now)
   const usedPosition = pickClosestPosition(stockItem, groups)
   if (usedPosition === null) return { valueCents: null, approximate: false, usedCondition: null, perSource: [] }
