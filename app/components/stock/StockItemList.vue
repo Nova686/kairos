@@ -27,6 +27,12 @@
             </div>
             <div>{{ listRow.conditionText }} · {{ listRow.locationText }}</div>
             <div>{{ listRow.statusText }} · {{ formatEuros(listRow.purchasePriceCents) }}</div>
+            <div>
+              Valeur : <StockItemValue
+                :value-description="listRow.valueDescription"
+                show-gain
+              />
+            </div>
           </div>
         </div>
       </v-card>
@@ -55,21 +61,35 @@
       <template #[`item.purchasePriceCents`]="{ value }">
         {{ formatEuros(value) }}
       </template>
+      <template #[`item.valueCents`]="{ item: listRow }">
+        <StockItemValue :value-description="listRow.valueDescription" />
+      </template>
+      <template #[`item.gainCents`]="{ item: listRow }">
+        <span
+          v-if="listRow.gainCents !== null"
+          :class="listRow.gainCents < 0 ? 'text-error' : 'text-success'"
+        >
+          {{ listRow.gainCents > 0 ? '+' : '' }}{{ formatEuros(listRow.gainCents) }}
+        </span>
+      </template>
     </v-data-table>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { StockItemRow } from '~~/shared/stock/stock-item-row'
+import type { StockItemValuationView } from '~/utils/stock-value-view'
 
 const props = defineProps({
   stockItems: { type: Array as PropType<StockItemRow[]>, required: true },
   locationLabelsById: { type: Object as PropType<Map<string, string>>, required: true },
+  valuationsByStockItemId: { type: Object as PropType<Map<string, StockItemValuationView>>, default: () => new Map() },
 })
 
 const { listRows, tableHeaders } = useStockItemList(
   () => props.stockItems,
   () => props.locationLabelsById,
+  () => props.valuationsByStockItemId,
 )
 </script>
 
