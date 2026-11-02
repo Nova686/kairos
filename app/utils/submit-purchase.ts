@@ -1,4 +1,4 @@
-import { parseEuroInput } from './format-euros'
+import { parseEuroInput } from './format-euros.ts'
 
 export interface PurchaseSubmissionLine {
   productId: string
