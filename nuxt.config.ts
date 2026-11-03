@@ -2,7 +2,7 @@ import vuetify from 'vite-plugin-vuetify'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-02',
-  modules: ['@nuxt/eslint', 'nuxt-auth-utils'],
+  modules: ['@nuxt/eslint', 'nuxt-auth-utils', '@vite-pwa/nuxt'],
   components: [{ path: '~/components', pathPrefix: false }],
   css: ['@mdi/font/css/materialdesignicons.css', 'vuetify/styles'],
   build: { transpile: ['vuetify'] },
@@ -25,6 +25,32 @@ export default defineNuxtConfig({
       '0 6 * * *': ['valuation:record-stock-value'],
       '*/15 * * * *': ['scan:embed-catalogue-images'],
     },
+  },
+  pwa: {
+    registerType: 'autoUpdate',
+    manifest: {
+      name: 'Kairos',
+      short_name: 'Kairos',
+      lang: 'fr',
+      display: 'standalone',
+      start_url: '/',
+      theme_color: '#1e5a8a',
+      background_color: '#ffffff',
+      icons: [
+        { src: '/icons/kairos-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icons/kairos-512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/icons/kairos-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+    },
+    workbox: {
+      navigateFallback: null,
+      globPatterns: ['**/*.{js,css,png,svg,ico}'],
+      runtimeCaching: [
+        { urlPattern: ({ url }) => url.pathname.startsWith('/api/'), handler: 'NetworkOnly' },
+      ],
+    },
+    client: { installPrompt: false },
+    devOptions: { enabled: false },
   },
   typescript: { strict: true },
 })
