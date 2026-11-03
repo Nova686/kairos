@@ -13,8 +13,10 @@ export default defineNuxtConfig({
     databaseUrl: 'pglite://.data/kairos',
     modelsDirectory: '.data/models',
     tesseractDirectory: '.data/tesseract',
+    photoRecognition: 'on',
   },
   nitro: {
+    preset: 'node-server',
     experimental: { tasks: true },
     scheduledTasks: {
       '0 4 * * *': ['catalogue:refresh-cardmarket-products'],
