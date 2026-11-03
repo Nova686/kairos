@@ -3,12 +3,11 @@ import type { ChildProcess } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { $fetch as baseFetch } from 'ofetch'
+import { builtServerEntryPath } from './built-server-process.ts'
 
 export const endToEndAppSecret = 'kairos-end-to-end-app-secret-1234567890'
 
-const builtServerEntry = fileURLToPath(new URL('../../.output/server/index.mjs', import.meta.url))
 const startupTimeoutMs = 60000
 
 const serverPidDirectoryVariable = 'KAIROS_E2E_SERVER_PID_DIRECTORY'
@@ -56,9 +55,16 @@ const recordServerPid = (child: ChildProcess): void => {
   }
 }
 
+const removeServerPid = (child: ChildProcess): void => {
+  const pidDirectory = process.env[serverPidDirectoryVariable]
+  if (pidDirectory && child.pid !== undefined) {
+    rmSync(join(pidDirectory, String(child.pid)), { force: true })
+  }
+}
+
 export const startEndToEndServer = async (databaseUrl?: string): Promise<void> => {
   const resolvedDatabaseUrl = databaseUrl ?? `${pgliteUrlPrefix}${join(mkdtempSync(join(tmpdir(), 'kairos-e2e-')), 'database')}`
-  const child = spawn(process.execPath, [builtServerEntry], {
+  const child = spawn(process.execPath, [builtServerEntryPath], {
     env: {
       ...process.env,
       NODE_ENV: 'production',
@@ -74,6 +80,7 @@ export const startEndToEndServer = async (databaseUrl?: string): Promise<void> =
   process.once('exit', killOnWorkerExit)
   afterAll(async () => {
     await stopServer(child)
+    removeServerPid(child)
     process.off('exit', killOnWorkerExit)
     if (resolvedDatabaseUrl.startsWith(pgliteUrlPrefix)) {
       rmSync(dirname(resolvedDatabaseUrl.slice(pgliteUrlPrefix.length)), { recursive: true, force: true })

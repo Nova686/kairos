@@ -1,12 +1,12 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isBuiltServerProcess } from './built-server-process.ts'
 
 const serverPidDirectoryVariable = 'KAIROS_E2E_SERVER_PID_DIRECTORY'
 const pidDirectoryPrefix = 'kairos-e2e-pids-'
-const builtServerEntryName = '.output/server/index.mjs'
 const gracefulStopMs = 3000
 
 const isAlive = (pid: number): boolean => {
@@ -27,7 +27,7 @@ const sendSignal = (pid: number, signal: NodeJS.Signals): void => {
 }
 
 const stopSurvivingServers = async (pidDirectory: string): Promise<void> => {
-  const survivingPids = readdirSync(pidDirectory).map(Number).filter(isAlive)
+  const survivingPids = readdirSync(pidDirectory).map(Number).filter(pid => isAlive(pid) && isBuiltServerProcess(pid))
   survivingPids.forEach(pid => sendSignal(pid, 'SIGTERM'))
   const deadline = Date.now() + gracefulStopMs
   while (survivingPids.some(isAlive) && Date.now() < deadline) {
@@ -36,19 +36,11 @@ const stopSurvivingServers = async (pidDirectory: string): Promise<void> => {
   survivingPids.filter(isAlive).forEach(pid => sendSignal(pid, 'SIGKILL'))
 }
 
-const isKairosServer = (pid: number): boolean => {
-  try {
-    return readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes(builtServerEntryName)
-  } catch {
-    return false
-  }
-}
-
 const stopServersLeftByInterruptedRuns = async (): Promise<void> => {
   const staleDirectories = readdirSync(tmpdir()).filter(name => name.startsWith(pidDirectoryPrefix))
   for (const directoryName of staleDirectories) {
     const staleDirectory = join(tmpdir(), directoryName)
-    const leftoverPids = readdirSync(staleDirectory).map(Number).filter(pid => isAlive(pid) && isKairosServer(pid))
+    const leftoverPids = readdirSync(staleDirectory).map(Number).filter(pid => isAlive(pid) && isBuiltServerProcess(pid))
     leftoverPids.forEach(pid => sendSignal(pid, 'SIGKILL'))
     rmSync(staleDirectory, { recursive: true, force: true })
   }
