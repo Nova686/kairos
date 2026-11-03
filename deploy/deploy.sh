@@ -36,7 +36,7 @@ wait_until_healthy() {
 
 roll_back() {
   echo "$1" >&2
-  git checkout --detach "$previous_commit" >&2
+  git checkout --detach "$previous_commit" >&2 || echo "Restoring commit $previous_commit failed; continuing with the image rollback." >&2
   if [ "$has_previous_image" = true ]; then
     docker tag "$app_image:$previous_tag" "$app_image:latest"
     compose up -d --no-deps --no-build "$app_service" >&2 || echo "Restarting the previous image failed." >&2
@@ -47,33 +47,38 @@ roll_back() {
   exit 1
 }
 
-if [ ! -f "$compose_file" ]; then
-  echo "Run this script from the repository root (missing $compose_file)." >&2
-  exit 2
-fi
+main() {
+  if [ ! -f "$compose_file" ]; then
+    echo "Run this script from the repository root (missing $compose_file)." >&2
+    exit 2
+  fi
 
-previous_commit="$(git rev-parse HEAD)"
+  previous_commit="$(git rev-parse HEAD)"
 
-has_previous_image=false
-if docker image inspect "$app_image:latest" >/dev/null 2>&1; then
-  docker tag "$app_image:latest" "$app_image:$previous_tag"
-  has_previous_image=true
-fi
+  has_previous_image=false
+  if docker image inspect "$app_image:latest" >/dev/null 2>&1; then
+    docker tag "$app_image:latest" "$app_image:$previous_tag"
+    has_previous_image=true
+  fi
 
-git fetch origin
-git checkout --detach origin/main
+  git fetch origin
+  git checkout --detach origin/main
 
-compose build "$app_service"
+  compose build "$app_service"
 
-if ! compose up -d --no-deps "$app_service"; then
-  roll_back "Starting the new release failed."
-fi
+  if ! compose up -d --no-deps "$app_service"; then
+    roll_back "Starting the new release failed."
+  fi
 
-if wait_until_healthy; then
-  docker image prune -f --filter "label=com.docker.compose.project=$compose_project"
-  docker builder prune -f --filter until=168h
-  echo "Deployment succeeded."
-  exit 0
-fi
+  if wait_until_healthy; then
+    docker image prune -f --filter "label=com.docker.compose.project=$compose_project"
+    docker builder prune -f --filter until=168h
+    echo "Deployment succeeded."
+    exit 0
+  fi
 
-roll_back "The new release did not become healthy after $health_attempts checks."
+  roll_back "The new release did not become healthy after $health_attempts checks."
+}
+
+main "$@"
+exit $?
