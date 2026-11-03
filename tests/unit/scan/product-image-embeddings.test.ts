@@ -115,6 +115,17 @@ describe('storeProductEmbedding', () => {
     expect(await database.select().from(productImageEmbeddings)).toHaveLength(1)
   })
 
+  it('keeps a single catalogue-image embedding per product', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database)
+    const product = await insertProduct(database, userId, 'Display')
+
+    await storeProductEmbedding(database, { productId: product.id, origin: 'catalogue-image', embedding: unitVector(0) })
+    await storeProductEmbedding(database, { productId: product.id, origin: 'catalogue-image', embedding: unitVector(1) })
+
+    expect(await database.select().from(productImageEmbeddings)).toHaveLength(1)
+  })
+
   it('rejects an embedding of the wrong length', async () => {
     const database = await createTestDatabase()
     const userId = await insertUser(database)

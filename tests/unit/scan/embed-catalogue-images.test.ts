@@ -1,9 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { productImageEmbeddings, products, users } from '../../../server/database/schema/index.ts'
-import { createProduct } from '../../../server/domain/catalogue/catalogue-service.ts'
+import { createProduct, updateProduct } from '../../../server/domain/catalogue/catalogue-service.ts'
 import { embedCatalogueImages } from '../../../server/domain/scan/embed-catalogue-images.ts'
 import { embeddingDimensions } from '../../../server/domain/scan/product-image-embeddings.ts'
-import type { ImageEmbedder } from '../../../server/domain/scan/image-embedder.ts'
+import { ImageEmbedderUnavailableError, type ImageEmbedder } from '../../../server/domain/scan/image-embedder.ts'
 import { emptyProductDraft } from '../../../shared/catalogue/product-draft.ts'
 import type { KairosDatabase } from '../../../server/database/open-database.ts'
 import { createTestDatabase } from '../../support/create-test-database.ts'
@@ -151,17 +151,59 @@ describe('embedCatalogueImages', () => {
     expect(recoveredProduct!.lastEmbeddingFailureAt).toBeNull()
   })
 
-  it('treats a non-http image URL as a failure without fetching it', async () => {
+  it('aborts the run without marking any product when the model cannot be loaded', async () => {
     const database = await createTestDatabase()
     const userId = await insertUser(database)
-    await insertProduct(database, userId, 'Odd', 'ftp://img.example/a.jpg')
-    const fetchImage = vi.fn(async () => Buffer.from([1]))
+    const product = await insertProduct(database, userId, 'Display', 'https://img.example/a.jpg')
+    const modelUnavailable = {
+      embed: async () => {
+        throw new ImageEmbedderUnavailableError(new Error('offline'))
+      },
+    }
+
+    await expect(
+      embedCatalogueImages(database, { embedder: modelUnavailable, fetchImage: async () => Buffer.from([1]), now }),
+    ).rejects.toBeInstanceOf(ImageEmbedderUnavailableError)
+
+    const [untouchedProduct] = await database.select().from(products).where(eq(products.id, product.id))
+    expect(untouchedProduct!.lastEmbeddingFailureAt).toBeNull()
+  })
+
+  it('does not store an embedding computed for an image that changed during the run', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database)
+    const product = await insertProduct(database, userId, 'Display', 'https://img.example/old.jpg')
+
+    const summary = await embedCatalogueImages(database, {
+      embedder: constantEmbedder(),
+      fetchImage: async () => {
+        await updateProduct(database, userId, product.id, { imageUrl: 'https://img.example/new.jpg' })
+        return Buffer.from([1])
+      },
+      now,
+    })
+
+    expect(summary).toEqual({ embeddedCount: 0, failedCount: 0 })
+    expect(await database.select().from(productImageEmbeddings)).toHaveLength(0)
+  })
+
+  it('does not record a failure for an image that changed during the run', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database)
+    const product = await insertProduct(database, userId, 'Display', 'https://img.example/old.jpg')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
 
-    const summary = await embedCatalogueImages(database, { embedder: constantEmbedder(), fetchImage, now })
+    await embedCatalogueImages(database, {
+      embedder: constantEmbedder(),
+      fetchImage: async () => {
+        await updateProduct(database, userId, product.id, { imageUrl: 'https://img.example/new.jpg' })
+        throw new Error('HTTP 404')
+      },
+      now,
+    })
 
-    expect(summary).toEqual({ embeddedCount: 0, failedCount: 1 })
-    expect(fetchImage).not.toHaveBeenCalled()
+    const [currentProduct] = await database.select().from(products).where(eq(products.id, product.id))
+    expect(currentProduct!.lastEmbeddingFailureAt).toBeNull()
     warn.mockRestore()
   })
 })

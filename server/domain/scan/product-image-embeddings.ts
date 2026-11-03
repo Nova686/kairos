@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import type { KairosDatabase } from '../../database/open-database.ts'
-import { productImageEmbeddings } from '../../database/schema/index.ts'
+import { productImageEmbeddings, products } from '../../database/schema/index.ts'
 
 export const embeddingDimensions = 512
 
@@ -49,8 +49,38 @@ export const storeProductEmbedding = async (
       uploadFingerprint: storedEmbedding.uploadFingerprint ?? null,
       embedding: Array.from(storedEmbedding.embedding),
     })
-    .onConflictDoNothing({ target: productImageEmbeddings.uploadFingerprint })
+    .onConflictDoNothing()
   invalidateEmbeddingMatrix()
+}
+
+export const storeCatalogueEmbeddingIfImageUnchanged = async (
+  database: KairosDatabase,
+  catalogueEmbedding: { productId: string, imageUrl: string, embedding: Float32Array },
+): Promise<boolean> => {
+  assertEmbeddingLength(catalogueEmbedding.embedding)
+  const wasStored = await database.transaction(async (transaction) => {
+    const [lockedProduct] = await transaction
+      .select({ imageUrl: products.imageUrl })
+      .from(products)
+      .where(eq(products.id, catalogueEmbedding.productId))
+      .for('update')
+    if (lockedProduct?.imageUrl !== catalogueEmbedding.imageUrl) {
+      return false
+    }
+    await transaction
+      .insert(productImageEmbeddings)
+      .values({
+        productId: catalogueEmbedding.productId,
+        origin: 'catalogue-image',
+        imageUrl: catalogueEmbedding.imageUrl,
+        embedding: Array.from(catalogueEmbedding.embedding),
+      })
+      .onConflictDoNothing()
+    await transaction.update(products).set({ lastEmbeddingFailureAt: null }).where(eq(products.id, catalogueEmbedding.productId))
+    return true
+  })
+  invalidateEmbeddingMatrix()
+  return wasStored
 }
 
 export const deleteCatalogueImageEmbeddings = async (

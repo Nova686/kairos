@@ -1,5 +1,14 @@
 export type ImageEmbedder = { embed(image: Buffer): Promise<Float32Array> }
 
+export class ImageEmbedderUnavailableError extends Error {
+  constructor(loadingError: unknown) {
+    super(`Image embedding model unavailable: ${loadingError instanceof Error ? loadingError.message : String(loadingError)}`, {
+      cause: loadingError,
+    })
+    this.name = 'ImageEmbedderUnavailableError'
+  }
+}
+
 export type ImageFeatureExtractor = (image: Buffer) => Promise<Float32Array>
 
 export type ClipImageEmbedderOptions = {
@@ -52,7 +61,7 @@ export const createClipImageEmbedder = (
   const obtainExtractor = (): Promise<ImageFeatureExtractor> => {
     loadingExtractor ??= withDownloadTimeout(loadExtractor(modelsDirectory), downloadTimeoutMs).catch((loadingError) => {
       loadingExtractor = null
-      throw loadingError
+      throw new ImageEmbedderUnavailableError(loadingError)
     })
     return loadingExtractor
   }

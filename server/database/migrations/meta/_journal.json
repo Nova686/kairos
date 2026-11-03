@@ -71,6 +71,13 @@
       "when": 1793697253902,
       "tag": "0009_product_image_embeddings",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793697999760,
+      "tag": "0010_catalogue_embedding_uniqueness",
+      "breakpoints": true
     }
   ]
 }

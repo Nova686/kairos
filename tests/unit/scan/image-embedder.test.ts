@@ -1,5 +1,6 @@
 import {
   createClipImageEmbedder,
+  ImageEmbedderUnavailableError,
   l2Normalise,
   sharedClipImageEmbedder,
   type ImageFeatureExtractor,
@@ -41,7 +42,7 @@ describe('createClipImageEmbedder', () => {
       .mockResolvedValue(extractorReturning([1, 0]))
     const embedder = createClipImageEmbedder('.data/models', { loadExtractor })
 
-    await expect(embedder.embed(Buffer.from([1]))).rejects.toThrow('offline')
+    await expect(embedder.embed(Buffer.from([1]))).rejects.toBeInstanceOf(ImageEmbedderUnavailableError)
     const embedding = await embedder.embed(Buffer.from([1]))
 
     expect(embedding[0]).toBe(1)
@@ -51,7 +52,20 @@ describe('createClipImageEmbedder', () => {
     const loadExtractor = () => new Promise<ImageFeatureExtractor>(() => undefined)
     const embedder = createClipImageEmbedder('.data/models', { loadExtractor, downloadTimeoutMs: 20 })
 
-    await expect(embedder.embed(Buffer.from([1]))).rejects.toThrow(/téléchargement|download/i)
+    await expect(embedder.embed(Buffer.from([1]))).rejects.toThrow(/download/i)
+    await expect(embedder.embed(Buffer.from([1]))).rejects.toBeInstanceOf(ImageEmbedderUnavailableError)
+  })
+
+  it('lets an image decoding error through without calling it a model failure', async () => {
+    const decodingFailure: ImageFeatureExtractor = async () => {
+      throw new Error('unsupported image')
+    }
+    const embedder = createClipImageEmbedder('.data/models', { loadExtractor: async () => decodingFailure })
+
+    const rejection = await embedder.embed(Buffer.from([1])).catch((embeddingError: unknown) => embeddingError)
+
+    expect(rejection).not.toBeInstanceOf(ImageEmbedderUnavailableError)
+    expect((rejection as Error).message).toBe('unsupported image')
   })
 })
 

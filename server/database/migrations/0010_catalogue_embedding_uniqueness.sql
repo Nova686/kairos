@@ -1,0 +1,2 @@
+CREATE INDEX "product_image_embeddings_product_id_index" ON "product_image_embeddings" USING btree ("product_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "product_image_embeddings_one_catalogue_image_per_product" ON "product_image_embeddings" USING btree ("product_id") WHERE "product_image_embeddings"."origin" = 'catalogue-image';
