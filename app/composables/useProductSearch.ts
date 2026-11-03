@@ -13,6 +13,7 @@ const originTitles: Record<ProductCandidate['origin'], string> = {
   cardmarket: 'Cardmarket',
   tcgdex: 'TCGdex',
   ebay: 'eBay',
+  identification: 'Code-barres',
 }
 
 const unavailableSourceMessages: Record<string, string> = {

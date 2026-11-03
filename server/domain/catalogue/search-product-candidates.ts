@@ -15,7 +15,7 @@ import { searchTcgdexCards } from '../../../src/price-sources/tcgdex/tcgdex-adap
 import type { Product } from './catalogue-service.ts'
 
 export interface ProductCandidate {
-  origin: 'catalogue' | 'cardmarket' | 'tcgdex' | 'ebay'
+  origin: 'catalogue' | 'cardmarket' | 'tcgdex' | 'ebay' | 'identification'
   label: string
   imageUrl: string | null
   productId: string | null
