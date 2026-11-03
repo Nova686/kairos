@@ -106,6 +106,7 @@ const {
   analyse,
   rejectAutoPick,
   pickProduct,
+  confirmAutoPick,
 } = usePhotoIdentification(
   {
     onProductReady: product => emit('productReady', product),
@@ -114,6 +115,8 @@ const {
   $fetch as ScanRequestSender,
   resizePhoto,
 )
+
+defineExpose({ confirmAutoPick })
 
 const fileInput = useTemplateRef('fileInput')
 const previewUrl = ref<string | null>(null)

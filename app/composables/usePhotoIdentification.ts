@@ -96,19 +96,30 @@ export const usePhotoIdentification = (
     autoPickedProduct.value = null
   }
 
-  const pickProduct = async (product: ProductReference): Promise<void> => {
-    if (uploadFingerprint.value !== null) {
-      try {
-        await sendRequest('/api/scan/photo/confirm', {
-          method: 'POST',
-          body: { uploadFingerprint: uploadFingerprint.value, productId: product.id },
-        })
-      }
-      catch {
-        errorMessage.value = ''
-      }
+  const confirmPhoto = async (productId: string): Promise<void> => {
+    if (uploadFingerprint.value === null) {
+      return
     }
+    try {
+      await sendRequest('/api/scan/photo/confirm', {
+        method: 'POST',
+        body: { uploadFingerprint: uploadFingerprint.value, productId },
+      })
+    }
+    catch (failure) {
+      console.warn('Photo confirmation failed', failure)
+    }
+  }
+
+  const pickProduct = async (product: ProductReference): Promise<void> => {
+    await confirmPhoto(product.id)
     handlers.onProductReady(product)
+  }
+
+  const confirmAutoPick = async (purchasedProductIds: string[]): Promise<void> => {
+    if (autoPickedProduct.value !== null && purchasedProductIds.includes(autoPickedProduct.value.id)) {
+      await confirmPhoto(autoPickedProduct.value.id)
+    }
   }
 
   return {
@@ -122,5 +133,6 @@ export const usePhotoIdentification = (
     analyse,
     rejectAutoPick,
     pickProduct,
+    confirmAutoPick,
   }
 }

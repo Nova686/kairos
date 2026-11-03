@@ -152,11 +152,15 @@ const {
   isLocked,
 } = usePurchaseForm()
 
+const emit = defineEmits<{ purchaseRecorded: [productIds: string[]] }>()
+
 const locationOptions = computed(() => locations.value.map(location => ({ value: location.id, title: location.label })))
 const personOptions = computed(() => persons.value.map(person => ({ value: person.id, title: person.name })))
 
 const submitAndLeave = async () => {
+  const purchasedProductIds = lines.value.map(line => line.product.id)
   if (await submitPurchase()) {
+    emit('purchaseRecorded', purchasedProductIds)
     await navigateTo('/stock')
   }
 }

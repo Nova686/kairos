@@ -61,6 +61,7 @@
       <v-tabs-window-item value="photo">
         <PhotoCapture
           v-if="activeTab === 'photo'"
+          ref="photoCapture"
           @product-ready="addPickedProduct"
           @product-withdrawn="removePickedProduct"
         />
@@ -69,7 +70,10 @@
         <ProductCandidatePicker @picked="addPickedProduct" />
       </v-tabs-window-item>
     </v-tabs-window>
-    <PurchaseForm ref="purchaseForm" />
+    <PurchaseForm
+      ref="purchaseForm"
+      @purchase-recorded="confirmPhotoAutoPick"
+    />
   </div>
 </template>
 
@@ -81,6 +85,12 @@ const { activeTab } = useAddProductTabs()
 
 const addPickedProduct = (product: ProductReference, prefill: ScanProductPrefill | null = null) => {
   purchaseForm.value?.addLine(product, prefill)
+}
+
+const photoCapture = useTemplateRef('photoCapture')
+
+const confirmPhotoAutoPick = (purchasedProductIds: string[]) => {
+  photoCapture.value?.confirmAutoPick(purchasedProductIds)
 }
 
 const removePickedProduct = (productId: string) => {

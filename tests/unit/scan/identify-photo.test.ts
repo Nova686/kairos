@@ -131,6 +131,61 @@ describe('identifyPhoto', () => {
     expect(outcome.degradedReasons).toEqual(['image-embedder-unavailable', 'text-reader-unavailable'])
   })
 
+  it('finds a product without catalogue image through noisy OCR by querying fewer words', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database)
+    const coffret = await createProduct(database, userId, emptyProductDraft('Coffret Dresseur Elite', 'pokemon-sealed'))
+
+    const outcome = await identifyPhoto(
+      database,
+      Buffer.from('photo-noisy'),
+      buildDependencies(database, { textReader: fakeReader('Coffret Dresseur Elite 6+ Nintendo Creatures Inc') }),
+    )
+
+    expect(outcome.candidates.map(candidate => candidate.productId)).toContain(coffret.id)
+  })
+
+  it('caps the number of searches when nothing is ever found', async () => {
+    const database = await createTestDatabase()
+    const queries: string[] = []
+
+    await identifyPhoto(
+      database,
+      Buffer.from('photo-capped'),
+      buildDependencies(database, {
+        textReader: fakeReader('alpha bravo charlie delta echo foxtrot golf hotel'),
+        searchCandidates: async (query) => {
+          queries.push(query)
+          return { candidates: [], unavailableSources: [] }
+        },
+      }),
+    )
+
+    expect(queries).toHaveLength(4)
+    expect(queries[0]!.split(' ')).toHaveLength(8)
+  })
+
+  it('does not search again once the first query found a catalogue product', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database)
+    await createProduct(database, userId, emptyProductDraft('Coffret Dresseur Elite', 'pokemon-sealed'))
+    let searchCount = 0
+
+    await identifyPhoto(
+      database,
+      Buffer.from('photo-single-search'),
+      buildDependencies(database, {
+        textReader: fakeReader('Coffret Dresseur Elite'),
+        searchCandidates: async (query) => {
+          searchCount += 1
+          return searchProductCandidates(database, query, { searchTcgdexCards: async () => [], searchEbayListings: async () => [] })
+        },
+      }),
+    )
+
+    expect(searchCount).toBe(1)
+  })
+
   it('returns at most five candidates', async () => {
     const database = await createTestDatabase()
     const userId = await insertUser(database)

@@ -16,6 +16,7 @@ const textWeightWithVisual = 0.4
 const textOnlyWeight = 0.7
 const autoPickMinimumScore = 0.85
 const autoPickMinimumLead = 0.1
+export const minimumVisualSimilarityForCandidate = 0.7
 
 const stripAccents = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '')
 

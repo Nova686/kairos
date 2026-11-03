@@ -14,6 +14,7 @@ import { cachePhotoEmbedding, findCachedPhotoEmbedding } from './photo-embedding
 import { findSimilarProducts, storeProductEmbedding } from './product-image-embeddings.ts'
 import { extractSearchWords } from '../../../shared/scan/extract-search-words.ts'
 import {
+  minimumVisualSimilarityForCandidate,
   scorePhotoCandidates,
   shouldAutoPick,
   type PhotoCandidateSignal,
@@ -39,7 +40,8 @@ export type PhotoIdentification = {
 
 const maximumReturnedCandidates = 5
 const maximumVisualCandidates = 10
-const minimumVisualSimilarity = 0.5
+const longestWordsInFallbackQuery = 3
+const maximumFallbackSearches = 3
 
 const outcomeOrNullWhenUnavailable = async <Outcome>(
   attempt: () => Promise<Outcome>,
@@ -64,7 +66,7 @@ const loadVisualCandidates = async (
   embedding: Float32Array,
 ): Promise<{ candidate: ProductCandidate, similarity: number }[]> => {
   const similarProducts = (await findSimilarProducts(database, embedding, maximumVisualCandidates))
-    .filter(similarProduct => similarProduct.similarity >= minimumVisualSimilarity)
+    .filter(similarProduct => similarProduct.similarity >= minimumVisualSimilarityForCandidate)
   if (similarProducts.length === 0) {
     return []
   }
@@ -76,6 +78,39 @@ const loadVisualCandidates = async (
     const productRow = productRows.find(row => row.id === similarProduct.productId)
     return productRow ? [{ candidate: toCatalogueCandidate(productRow), similarity: similarProduct.similarity }] : []
   })
+}
+
+const hasCatalogueCandidate = (candidates: ProductCandidate[]): boolean =>
+  candidates.some(candidate => candidate.productId !== null)
+
+const searchTextCandidates = async (
+  ocrWords: string[],
+  searchCandidates: PhotoIdentificationDependencies['searchCandidates'],
+): Promise<ProductSearchOutcome> => {
+  const fullQuery = ocrWords.join(' ')
+  const fallbackQueries = [
+    ocrWords.slice(0, longestWordsInFallbackQuery).join(' '),
+    ...ocrWords,
+  ].filter((query, position, queries) => query !== fullQuery && queries.indexOf(query) === position)
+  const mergedCandidates = new Map<string, ProductCandidate>()
+  const unavailableSources = new Set<string>()
+  let performedFallbackSearches = 0
+  let nextQuery: string | undefined = fullQuery
+  while (nextQuery !== undefined) {
+    const outcome = await searchCandidates(nextQuery)
+    for (const candidate of outcome.candidates) {
+      if (!mergedCandidates.has(candidateKeyOf(candidate))) {
+        mergedCandidates.set(candidateKeyOf(candidate), candidate)
+      }
+    }
+    outcome.unavailableSources.forEach(source => unavailableSources.add(source))
+    if (hasCatalogueCandidate([...mergedCandidates.values()]) || performedFallbackSearches >= maximumFallbackSearches) {
+      break
+    }
+    nextQuery = fallbackQueries.shift()
+    performedFallbackSearches += 1
+  }
+  return { candidates: [...mergedCandidates.values()], unavailableSources: [...unavailableSources].sort() }
 }
 
 export const identifyPhoto = async (
@@ -109,7 +144,7 @@ export const identifyPhoto = async (
     embedding === null ? [] : loadVisualCandidates(database, embedding),
     ocrWords.length === 0
       ? { candidates: [], unavailableSources: [] }
-      : dependencies.searchCandidates(ocrWords.join(' ')),
+      : searchTextCandidates(ocrWords, dependencies.searchCandidates),
   ])
   if (embedding !== null) {
     cachePhotoEmbedding(uploadFingerprint, embedding, now)

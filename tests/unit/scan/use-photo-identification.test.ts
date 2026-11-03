@@ -87,6 +87,7 @@ describe('usePhotoIdentification', () => {
     const sendRequest = vi.fn()
       .mockResolvedValueOnce(outcomeWith({ candidates: [candidateFor(coffret.id, coffret.name)] }))
       .mockRejectedValueOnce({ statusCode: 404 })
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { photo, onProductReady } = buildComposable(sendRequest)
     await photo.analyse(photoFile)
 
@@ -94,6 +95,37 @@ describe('usePhotoIdentification', () => {
 
     expect(onProductReady).toHaveBeenCalledWith(coffret)
     expect(photo.errorMessage.value).toBe('')
+    expect(warning).toHaveBeenCalledTimes(1)
+    warning.mockRestore()
+  })
+
+  it('does not confirm at auto-pick time, only once a purchase still containing the product is recorded', async () => {
+    const sendRequest = vi.fn()
+      .mockResolvedValueOnce(outcomeWith({ autoPicked: candidateFor(coffret.id, coffret.name) }))
+      .mockResolvedValueOnce({ confirmed: true })
+    const { photo } = buildComposable(sendRequest)
+    await photo.analyse(photoFile)
+
+    expect(sendRequest).toHaveBeenCalledTimes(1)
+    await photo.confirmAutoPick(['another-product'])
+    expect(sendRequest).toHaveBeenCalledTimes(1)
+    await photo.confirmAutoPick([coffret.id])
+
+    expect(sendRequest).toHaveBeenLastCalledWith('/api/scan/photo/confirm', {
+      method: 'POST',
+      body: { uploadFingerprint: 'fingerprint-1', productId: coffret.id },
+    })
+  })
+
+  it('does not confirm a rejected auto-pick', async () => {
+    const sendRequest = vi.fn().mockResolvedValue(outcomeWith({ autoPicked: candidateFor(coffret.id, coffret.name) }))
+    const { photo } = buildComposable(sendRequest)
+    await photo.analyse(photoFile)
+    photo.rejectAutoPick()
+
+    await photo.confirmAutoPick([coffret.id])
+
+    expect(sendRequest).toHaveBeenCalledTimes(1)
   })
 
   it('translates degraded reasons into French messages', async () => {
