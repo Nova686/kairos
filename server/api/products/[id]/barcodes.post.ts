@@ -1,7 +1,10 @@
 import { z } from 'zod'
 import { attachBarcode } from '../../../domain/catalogue/catalogue-service'
+import { normalizeBarcode } from '../../../../shared/scan/normalize-barcode'
 
-const barcodeBodySchema = z.object({ barcode: z.string().trim().min(1) })
+const barcodeBodySchema = z.object({
+  barcode: z.string().transform(rawBarcode => normalizeBarcode(rawBarcode)).pipe(z.string()),
+})
 
 export default defineEventHandler(async (event) => {
   const sessionUser = await requireSessionUser(event)

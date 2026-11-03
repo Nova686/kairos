@@ -52,13 +52,40 @@ describe('shared catalogue API', async () => {
     })
 
     const attachResponse = await sendJson(`/api/products/${createdProduct.id}/barcodes`, 'POST', cookie, {
-      barcode: '3665361000001',
+      barcode: '3665361000006',
     })
-    const foundResponse = await sendJson('/api/barcodes/3665361000001', 'GET', cookie)
+    const foundResponse = await sendJson('/api/barcodes/3665361000006', 'GET', cookie)
     const unknownResponse = await sendJson('/api/barcodes/0000000000000', 'GET', cookie)
 
     expect(attachResponse.status).toBe(204)
     expect(((await foundResponse.json()) as { id: string }).id).toBe(createdProduct.id)
     expect(unknownResponse.status).toBe(404)
+  })
+
+  it('resolves UPC-A, UPC-E and EAN-13 forms of one barcode to the same product and refuses invalid codes', async () => {
+    const cookie = await logIn('catalogue@example.com', password)
+    const createdProduct = await $fetch<{ id: string }>('/api/products', {
+      method: 'POST',
+      body: { name: 'Blister', category: 'pokemon-sealed' },
+      headers: { cookie },
+    })
+
+    const attachResponse = await sendJson(`/api/products/${createdProduct.id}/barcodes`, 'POST', cookie, {
+      barcode: '04252614',
+    })
+    const byEanThirteen = await sendJson('/api/barcodes/0042100005264', 'GET', cookie)
+    const byUpcA = await sendJson('/api/barcodes/042100005264', 'GET', cookie)
+    const byUpcE = await sendJson('/api/barcodes/04252614', 'GET', cookie)
+    const invalidLookup = await sendJson('/api/barcodes/12345', 'GET', cookie)
+    const invalidAttach = await sendJson(`/api/products/${createdProduct.id}/barcodes`, 'POST', cookie, {
+      barcode: '3665361000001',
+    })
+
+    expect(attachResponse.status).toBe(204)
+    expect(((await byEanThirteen.json()) as { id: string }).id).toBe(createdProduct.id)
+    expect(((await byUpcA.json()) as { id: string }).id).toBe(createdProduct.id)
+    expect(((await byUpcE.json()) as { id: string }).id).toBe(createdProduct.id)
+    expect(invalidLookup.status).toBe(422)
+    expect(invalidAttach.status).toBe(422)
   })
 })
