@@ -20,6 +20,7 @@
     <v-tabs-window v-model="activeTab">
       <v-tabs-window-item value="code-barres">
         <BarcodeScanner
+          v-if="activeTab === 'code-barres'"
           v-model:psa-mode="isPsaMode"
           @code-submitted="identify"
         />

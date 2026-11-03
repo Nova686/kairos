@@ -37,6 +37,7 @@ export const useBarcodeScanner = () => {
     activeControls = null
     stopVideoTracks(videoElement.value)
     document.removeEventListener('visibilitychange', handleVisibilityChange)
+    window.removeEventListener('pagehide', stop)
     if (cameraState.value === 'starting' || cameraState.value === 'scanning') {
       cameraState.value = 'idle'
     }
@@ -54,6 +55,8 @@ export const useBarcodeScanner = () => {
     cameraState.value = 'starting'
     startGeneration += 1
     const currentGeneration = startGeneration
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pagehide', stop)
     try {
       const [{ BrowserMultiFormatReader }, { BarcodeFormat, DecodeHintType }] = await Promise.all([
         import('@zxing/browser'),
@@ -89,13 +92,14 @@ export const useBarcodeScanner = () => {
       }
       activeControls = controls
       cameraState.value = 'scanning'
-      document.addEventListener('visibilitychange', handleVisibilityChange)
     }
     catch (failure) {
       if (currentGeneration !== startGeneration) {
         return
       }
       stopVideoTracks(videoElement.value)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pagehide', stop)
       const failureName = (failure as { name?: string }).name ?? ''
       cameraState.value = deniedErrorNames.includes(failureName) ? 'denied' : 'unavailable'
     }

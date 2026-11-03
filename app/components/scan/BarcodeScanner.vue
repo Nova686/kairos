@@ -12,6 +12,7 @@
       <video
         ref="videoElement"
         class="barcode-scanner__video"
+        autoplay
         playsinline
         muted
         aria-label="Aperçu de l’appareil photo"

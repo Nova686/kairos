@@ -51,6 +51,7 @@
         v-for="candidate in candidateGroup.candidates"
         :key="`${candidate.origin}-${candidate.label}`"
         :title="candidate.label"
+        :subtitle="pendingBarcode ? 'Lier ce code-barres à ce produit' : undefined"
         @click="pickCandidate(candidate)"
       >
         <template

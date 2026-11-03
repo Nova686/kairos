@@ -54,14 +54,15 @@ export const useScanIdentification = (
 
   const identify = async (rawCode: string): Promise<void> => {
     resetOutcome()
+    latestIdentificationNumber += 1
     const classifiedCode = classifyScannedCode(rawCode, isPsaMode.value)
     if (classifiedCode.kind === 'invalid') {
+      isIdentifying.value = false
       errorMessage.value = isPsaMode.value
         ? 'Numéro de certificat invalide : 7 à 10 chiffres.'
         : 'Code-barres invalide.'
       return
     }
-    latestIdentificationNumber += 1
     const identificationNumber = latestIdentificationNumber
     isIdentifying.value = true
     try {
@@ -116,7 +117,9 @@ export const useScanIdentification = (
         errorMessage.value = `Le code-barres n’a pas pu être associé : ${describeFailure(failure)}`
       }
     }
-    onProductReady(product, pendingPrefill.value)
+    const prefillToApply = pendingPrefill.value
+    pendingPrefill.value = null
+    onProductReady(product, prefillToApply)
   }
 
   return {

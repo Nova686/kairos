@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { mount, flushPromises } from '@vue/test-utils'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, ref } from 'vue'
 import { useBarcodeScanner } from '../../../app/composables/useBarcodeScanner.ts'
 
 type DecodeCallback = (
@@ -109,6 +109,96 @@ describe('useBarcodeScanner', () => {
     expect(controls.stop).toHaveBeenCalled()
     expect(fakeTrack.stop).toHaveBeenCalled()
     expect(scanner.cameraState.value).toBe('idle')
+  })
+
+  it('sets the code once when several decode callbacks fire', async () => {
+    const controls = { stop: vi.fn() }
+    let decodeCallback: DecodeCallback = () => {}
+    readerBehaviour.decodeFromConstraints.mockImplementation(async (_constraints, _video, callback: DecodeCallback) => {
+      decodeCallback = callback
+      return controls
+    })
+    const { scanner } = mountScanner()
+    await scanner.start()
+
+    decodeCallback({ getText: () => '3017620422003' }, undefined, controls)
+    decodeCallback({ getText: () => '5449000000996' }, undefined, controls)
+
+    expect(scanner.lastCode.value).toBe('3017620422003')
+  })
+
+  it('stops the camera that finishes opening after stop was called while starting', async () => {
+    const controls = { stop: vi.fn() }
+    let releaseCamera: (value: typeof controls) => void = () => {}
+    readerBehaviour.decodeFromConstraints.mockReturnValue(new Promise((resolve) => {
+      releaseCamera = resolve
+    }))
+    const { scanner } = mountScanner()
+    const starting = scanner.start()
+    await flushPromises()
+    expect(scanner.cameraState.value).toBe('starting')
+
+    scanner.stop()
+    releaseCamera(controls)
+    await starting
+
+    expect(controls.stop).toHaveBeenCalled()
+    expect(scanner.cameraState.value).toBe('idle')
+  })
+
+  it('stops a camera still opening when the page is hidden', async () => {
+    const controls = { stop: vi.fn() }
+    let releaseCamera: (value: typeof controls) => void = () => {}
+    readerBehaviour.decodeFromConstraints.mockReturnValue(new Promise((resolve) => {
+      releaseCamera = resolve
+    }))
+    const { scanner } = mountScanner()
+    const starting = scanner.start()
+    await flushPromises()
+
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    releaseCamera(controls)
+    await starting
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+
+    expect(controls.stop).toHaveBeenCalled()
+    expect(scanner.cameraState.value).toBe('idle')
+  })
+
+  it('stops the camera on pagehide', async () => {
+    const controls = { stop: vi.fn() }
+    readerBehaviour.decodeFromConstraints.mockResolvedValue(controls)
+    const { scanner } = mountScanner()
+    await scanner.start()
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(controls.stop).toHaveBeenCalled()
+    expect(scanner.cameraState.value).toBe('idle')
+  })
+
+  it('stops the tracks when the scanner is removed by a v-if, as when leaving its tab', async () => {
+    const controls = { stop: vi.fn() }
+    readerBehaviour.decodeFromConstraints.mockResolvedValue(controls)
+    const fakeTrack = { stop: vi.fn() }
+    const isTabActive = ref(true)
+    let scanner!: ReturnType<typeof useBarcodeScanner>
+    const ScannerTab = defineComponent({
+      setup() {
+        scanner = useBarcodeScanner()
+        scanner.videoElement.value = { srcObject: { getTracks: () => [fakeTrack] } } as unknown as HTMLVideoElement
+        return () => h('div')
+      },
+    })
+    mount(defineComponent({ setup: () => () => (isTabActive.value ? h(ScannerTab) : h('p')) }))
+    await scanner.start()
+
+    isTabActive.value = false
+    await flushPromises()
+
+    expect(controls.stop).toHaveBeenCalled()
+    expect(fakeTrack.stop).toHaveBeenCalled()
   })
 
   it('stops the camera when the page becomes hidden', async () => {

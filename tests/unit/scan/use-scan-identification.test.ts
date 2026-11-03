@@ -98,6 +98,48 @@ describe('useScanIdentification', () => {
     expect(onProductReady).toHaveBeenCalledWith(kinderProduct, prefilledStockItem)
   })
 
+  it('ignores an older in-flight response once an invalid code was entered', async () => {
+    let releaseResponse: (value: unknown) => void = () => {}
+    const sendRequest = vi.fn().mockReturnValue(new Promise((resolve) => {
+      releaseResponse = resolve
+    }))
+    const scan = useScanIdentification(vi.fn(), sendRequest)
+
+    const firstIdentification = scan.identify('3017620422003')
+    await scan.identify('3017620422004')
+    releaseResponse({
+      barcode: '3017620422003',
+      knownProduct: null,
+      candidates: [candidateFor('Nutella')],
+      unavailableSources: [],
+    })
+    await firstIdentification
+
+    expect(scan.identifiedCandidates.value).toEqual([])
+    expect(scan.pendingBarcode.value).toBeNull()
+    expect(scan.isIdentifying.value).toBe(false)
+  })
+
+  it('applies the PSA prefill once only', async () => {
+    const prefilledStockItem = { condition: 'graded', gradingCompany: 'PSA', grade: '10', certificateNumber: '12345678' }
+    const sendRequest = vi.fn().mockResolvedValue({
+      identification: null,
+      candidates: [],
+      prefilledStockItem,
+      unavailableSources: [],
+    })
+    const onProductReady = vi.fn()
+    const scan = useScanIdentification(onProductReady, sendRequest)
+    scan.isPsaMode.value = true
+    await scan.identify('12345678')
+
+    await scan.pickProduct(kinderProduct)
+    await scan.pickProduct(kinderProduct)
+
+    expect(onProductReady).toHaveBeenNthCalledWith(1, kinderProduct, prefilledStockItem)
+    expect(onProductReady).toHaveBeenNthCalledWith(2, kinderProduct, null)
+  })
+
   it('shows the server message when the certificate is already owned', async () => {
     const sendRequest = vi.fn().mockRejectedValue({ data: { statusMessage: 'Certificat déjà possédé' } })
     const scan = useScanIdentification(vi.fn(), sendRequest)
