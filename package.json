@@ -7,6 +7,7 @@
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "vitest run --project unit",
     "test:e2e": "vitest run --project e2e",
+    "test:slow": "vitest run --project slow",
     "typecheck": "nuxt typecheck",
     "probe": "tsx --env-file-if-exists=.env src/probe/run-probe.ts",
     "dev": "nuxt dev",
@@ -34,6 +35,7 @@
   "dependencies": {
     "@adonisjs/hash": "^9.1.1",
     "@electric-sql/pglite": "^0.5.14",
+    "@huggingface/transformers": "^4.3.2",
     "@mdi/font": "^7.4.47",
     "@zxing/browser": "^0.2.1",
     "@zxing/library": "^0.23.0",

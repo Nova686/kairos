@@ -1,0 +1,62 @@
+import {
+  createClipImageEmbedder,
+  l2Normalise,
+  sharedClipImageEmbedder,
+  type ImageFeatureExtractor,
+} from '../../../server/domain/scan/image-embedder.ts'
+
+const extractorReturning = (values: number[]): ImageFeatureExtractor => async () => Float32Array.from(values)
+
+describe('l2Normalise', () => {
+  it('scales a vector to unit length', () => {
+    const normalised = l2Normalise(Float32Array.from([3, 4]))
+
+    expect(normalised[0]).toBeCloseTo(0.6, 6)
+    expect(normalised[1]).toBeCloseTo(0.8, 6)
+  })
+
+  it('refuses a zero vector', () => {
+    expect(() => l2Normalise(new Float32Array(4))).toThrow(/zero/i)
+  })
+})
+
+describe('createClipImageEmbedder', () => {
+  it('loads nothing until the first embed and loads once for several images', async () => {
+    const loadExtractor = vi.fn(async () => extractorReturning([3, 4]))
+    const embedder = createClipImageEmbedder('.data/models', { loadExtractor })
+    expect(loadExtractor).not.toHaveBeenCalled()
+
+    const first = await embedder.embed(Buffer.from([1]))
+    await embedder.embed(Buffer.from([2]))
+
+    expect(loadExtractor).toHaveBeenCalledTimes(1)
+    expect(loadExtractor).toHaveBeenCalledWith('.data/models')
+    expect(first[0]).toBeCloseTo(0.6, 6)
+  })
+
+  it('retries loading after a failed attempt', async () => {
+    const loadExtractor = vi
+      .fn<(modelsDirectory: string) => Promise<ImageFeatureExtractor>>()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(extractorReturning([1, 0]))
+    const embedder = createClipImageEmbedder('.data/models', { loadExtractor })
+
+    await expect(embedder.embed(Buffer.from([1]))).rejects.toThrow('offline')
+    const embedding = await embedder.embed(Buffer.from([1]))
+
+    expect(embedding[0]).toBe(1)
+  })
+
+  it('fails with an explicit message when the model download exceeds the timeout', async () => {
+    const loadExtractor = () => new Promise<ImageFeatureExtractor>(() => undefined)
+    const embedder = createClipImageEmbedder('.data/models', { loadExtractor, downloadTimeoutMs: 20 })
+
+    await expect(embedder.embed(Buffer.from([1]))).rejects.toThrow(/téléchargement|download/i)
+  })
+})
+
+describe('sharedClipImageEmbedder', () => {
+  it('always returns the same instance', () => {
+    expect(sharedClipImageEmbedder('.data/models')).toBe(sharedClipImageEmbedder('.data/models'))
+  })
+})

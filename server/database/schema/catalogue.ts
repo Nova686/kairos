@@ -9,6 +9,7 @@ export const products = pgTable('products', {
   seriesName: text('series_name'),
   language: text('language'),
   imageUrl: text('image_url'),
+  lastEmbeddingFailureAt: timestamp('last_embedding_failure_at', { withTimezone: true }),
   cardmarketProductId: integer('cardmarket_product_id'),
   tcgdexCardId: text('tcgdex_card_id'),
   pokemontcgCardId: text('pokemontcg_card_id'),

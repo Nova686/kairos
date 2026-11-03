@@ -4,6 +4,7 @@ import type { KairosDatabase } from '../../database/open-database.ts'
 import { catalogueChanges, productBarcodes, products } from '../../database/schema/index.ts'
 import { readBarcodeJournalValue, toBarcodeJournalValue } from '../../../shared/catalogue/barcode-journal-value.ts'
 import { productDraftFieldNames, type ProductDraft } from '../../../shared/catalogue/product-draft.ts'
+import { deleteCatalogueImageEmbeddings, invalidateEmbeddingMatrix } from '../scan/product-image-embeddings.ts'
 import { appendCatalogueChanges, creationFieldName } from './catalogue-journal.ts'
 
 export { listProductChanges } from './catalogue-journal.ts'
@@ -11,6 +12,8 @@ export { listProductChanges } from './catalogue-journal.ts'
 export type Product = typeof products.$inferSelect
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const imageUrlFieldName = 'imageUrl'
 
 const notFound = () => createError({ statusCode: 404, statusMessage: 'Introuvable' })
 
@@ -61,15 +64,19 @@ export const updateProduct = async (
   if (changedFieldNames.length === 0) {
     return currentProduct
   }
-  return database.transaction(async (transaction) => {
+  const savedProduct = await database.transaction(async (transaction) => {
     const [updatedProduct] = await transaction
       .update(products)
       .set({
         ...Object.fromEntries(changedFieldNames.map(fieldName => [fieldName, changes[fieldName]])),
+        ...(changedFieldNames.includes(imageUrlFieldName) ? { lastEmbeddingFailureAt: null } : {}),
         updatedAt: new Date(),
       })
       .where(eq(products.id, productId))
       .returning()
+    if (changedFieldNames.includes(imageUrlFieldName)) {
+      await deleteCatalogueImageEmbeddings(transaction, productId)
+    }
     await appendCatalogueChanges(
       transaction,
       changedFieldNames.map(fieldName => ({
@@ -82,6 +89,10 @@ export const updateProduct = async (
     )
     return updatedProduct!
   })
+  if (changedFieldNames.includes(imageUrlFieldName)) {
+    invalidateEmbeddingMatrix()
+  }
+  return savedProduct
 }
 
 export const revertCatalogueChange = async (
@@ -118,12 +129,20 @@ export const revertCatalogueChange = async (
   }
   const changedProductId = change.productId
   const currentProduct = await findProductOr404(database, changedProductId)
-  return database.transaction(async (transaction) => {
+  const isImageRevert = revertableFieldName === imageUrlFieldName
+  const savedProduct = await database.transaction(async (transaction) => {
     const [revertedProduct] = await transaction
       .update(products)
-      .set({ [revertableFieldName]: change.previousValue, updatedAt: new Date() })
+      .set({
+        [revertableFieldName]: change.previousValue,
+        ...(isImageRevert ? { lastEmbeddingFailureAt: null } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(products.id, changedProductId))
       .returning()
+    if (isImageRevert) {
+      await deleteCatalogueImageEmbeddings(transaction, changedProductId)
+    }
     await appendCatalogueChanges(transaction, [
       {
         productId: changedProductId,
@@ -136,6 +155,10 @@ export const revertCatalogueChange = async (
     ])
     return revertedProduct!
   })
+  if (isImageRevert) {
+    invalidateEmbeddingMatrix()
+  }
+  return savedProduct
 }
 
 const barcodeSubject = 'barcode'

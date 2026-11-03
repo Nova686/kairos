@@ -23,6 +23,17 @@ export default defineConfig({
       },
       {
         test: {
+          name: 'slow',
+          globals: true,
+          environment: 'node',
+          include: ['tests/slow/**/*.test.ts'],
+          fileParallelism: false,
+          testTimeout: 600000,
+          hookTimeout: 600000,
+        },
+      },
+      {
+        test: {
           name: 'e2e',
           globals: true,
           environment: 'node',
