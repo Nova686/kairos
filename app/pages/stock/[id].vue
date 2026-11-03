@@ -103,6 +103,7 @@
 </template>
 
 <script setup lang="ts">
+import { readBarcodeJournalValue } from '~~/shared/catalogue/barcode-journal-value'
 import { stockItemStatusLabels } from '~~/shared/stock/stock-item-status'
 
 const route = useRoute()
@@ -132,8 +133,16 @@ const productPricesLink = computed(() => {
   return `/produits/${stockItem.value?.productId}?condition=${encodeURIComponent(gradedColumnKey ?? '')}`
 })
 
-const describeChangedValue = (changedValue: unknown): string =>
-  changedValue === null || changedValue === undefined ? '—' : String(typeof changedValue === 'object' ? JSON.stringify(changedValue) : changedValue)
+const describeChangedValue = (changedValue: unknown): string => {
+  if (changedValue === null || changedValue === undefined) {
+    return '—'
+  }
+  const journaledBarcode = readBarcodeJournalValue(changedValue)
+  if (journaledBarcode !== null) {
+    return journaledBarcode
+  }
+  return typeof changedValue === 'object' ? JSON.stringify(changedValue) : String(changedValue)
+}
 </script>
 
 <style scoped>

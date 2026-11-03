@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { catalogueChanges, productBarcodes, products } from '../../database/schema/index.ts'
+import { readBarcodeJournalValue, toBarcodeJournalValue } from '../../../shared/catalogue/barcode-journal-value.ts'
 import { productDraftFieldNames, type ProductDraft } from '../../../shared/catalogue/product-draft.ts'
 import { appendCatalogueChanges, creationFieldName } from './catalogue-journal.ts'
 
@@ -163,7 +164,7 @@ export const attachBarcode = async (
         userId,
         fieldName: barcodeSubject,
         previousValue: null,
-        newValue: barcode,
+        newValue: toBarcodeJournalValue(barcode),
         revertedChangeId,
       },
     ])
@@ -190,7 +191,7 @@ export const detachBarcode = async (
         subject: barcodeSubject,
         userId,
         fieldName: barcodeSubject,
-        previousValue: barcode,
+        previousValue: toBarcodeJournalValue(barcode),
         newValue: null,
         revertedChangeId,
       },
@@ -198,17 +199,14 @@ export const detachBarcode = async (
   })
 }
 
-const toJournaledBarcode = (journaledValue: unknown): string | null =>
-  typeof journaledValue === 'string' || typeof journaledValue === 'number' ? String(journaledValue) : null
-
 const revertBarcodeChange = async (
   database: KairosDatabase,
   userId: string,
   change: typeof catalogueChanges.$inferSelect,
 ): Promise<Product> => {
   const productId = change.productId!
-  const linkedBarcode = toJournaledBarcode(change.newValue)
-  const detachedBarcode = toJournaledBarcode(change.previousValue)
+  const linkedBarcode = readBarcodeJournalValue(change.newValue)
+  const detachedBarcode = readBarcodeJournalValue(change.previousValue)
   if (linkedBarcode) {
     const linkedProduct = await findProductByBarcode(database, linkedBarcode)
     if (linkedProduct?.id !== productId) {

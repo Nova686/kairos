@@ -36,7 +36,7 @@ describe('barcode journal', () => {
 
     const changes = await barcodeChanges(database, productId)
     expect(changes).toHaveLength(1)
-    expect(changes[0]).toMatchObject({ fieldName: 'barcode', previousValue: null, newValue: Number(barcode), userId })
+    expect(changes[0]).toMatchObject({ fieldName: 'barcode', previousValue: null, newValue: { barcode }, userId })
   })
 
   it('detaches a barcode with a journal entry and 404s when it is not linked to that product', async () => {
@@ -48,7 +48,7 @@ describe('barcode journal', () => {
 
     expect(await findProductByBarcode(database, barcode)).toBeNull()
     const changes = await barcodeChanges(database, productId)
-    expect(changes[1]).toMatchObject({ previousValue: Number(barcode), newValue: null })
+    expect(changes[1]).toMatchObject({ previousValue: { barcode }, newValue: null })
     await expect(detachBarcode(database, userId, productId, barcode)).rejects.toMatchObject({ statusCode: 404 })
   })
 
