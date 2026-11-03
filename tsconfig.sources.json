@@ -13,5 +13,5 @@
     "resolveJsonModule": true,
     "paths": { "~~/*": ["./*"] }
   },
-  "include": ["src", "tests", "scripts", "vitest.config.ts", "app/utils", "app/composables/useBarcodeScanner.ts", "app/composables/useScanIdentification.ts", "shared","server/database", "server/domain","drizzle.config.ts"]
+  "include": ["src", "tests", "scripts", "vitest.config.ts", "app/utils", "app/composables/useBarcodeScanner.ts", "app/composables/useScanIdentification.ts", "app/composables/usePhotoIdentification.ts", "shared","server/database", "server/domain","drizzle.config.ts"]
 }

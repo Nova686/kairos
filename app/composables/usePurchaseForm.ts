@@ -67,6 +67,16 @@ export const usePurchaseForm = () => {
     lines.value = lines.value.filter(line => line.lineKey !== lineKey)
   }
 
+  const removeLatestLineOfProduct = (productId: string) => {
+    if (isLocked.value) {
+      return
+    }
+    const latestLine = lines.value.findLast(line => line.product.id === productId)
+    if (latestLine) {
+      removeLine(latestLine.lineKey)
+    }
+  }
+
   const conditionOptionsFor = (line: PurchaseFormLine) =>
     conditionCodesFor(line.product.category).map(code => ({ value: code, title: conditionLabel(code) }))
 
@@ -132,6 +142,7 @@ export const usePurchaseForm = () => {
     persons,
     addLine,
     removeLine,
+    removeLatestLineOfProduct,
     conditionOptionsFor,
     isGradedLine,
     submitPurchase,

@@ -69,4 +69,4 @@ export const fetch = (path: string, init?: RequestInit): Promise<Response> =>
   globalThis.fetch(new URL(path, serverOrigin), init)
 
 export const $fetch = <ResponseBody = unknown>(path: string, options?: Parameters<typeof baseFetch>[1]): Promise<ResponseBody> =>
-  baseFetch<ResponseBody>(path, { baseURL: serverOrigin, ...options }) as Promise<ResponseBody>
+  baseFetch<ResponseBody>(path, { baseURL: serverOrigin, ...options } as Parameters<typeof baseFetch<ResponseBody>>[1])

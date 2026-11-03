@@ -59,9 +59,11 @@
         />
       </v-tabs-window-item>
       <v-tabs-window-item value="photo">
-        <v-alert type="info">
-          La reconnaissance par photo arrive bientôt.
-        </v-alert>
+        <PhotoCapture
+          v-if="activeTab === 'photo'"
+          @product-ready="addPickedProduct"
+          @product-withdrawn="removePickedProduct"
+        />
       </v-tabs-window-item>
       <v-tabs-window-item value="texte">
         <ProductCandidatePicker @picked="addPickedProduct" />
@@ -79,6 +81,10 @@ const { activeTab } = useAddProductTabs()
 
 const addPickedProduct = (product: ProductReference, prefill: ScanProductPrefill | null = null) => {
   purchaseForm.value?.addLine(product, prefill)
+}
+
+const removePickedProduct = (productId: string) => {
+  purchaseForm.value?.removeLatestLineOfProduct(productId)
 }
 
 const {

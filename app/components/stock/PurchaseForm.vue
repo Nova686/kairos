@@ -145,6 +145,7 @@ const {
   persons,
   addLine,
   removeLine,
+  removeLatestLineOfProduct,
   conditionOptionsFor,
   isGradedLine,
   submitPurchase,
@@ -160,7 +161,7 @@ const submitAndLeave = async () => {
   }
 }
 
-defineExpose({ addLine })
+defineExpose({ addLine, removeLatestLineOfProduct })
 </script>
 
 <style scoped>
