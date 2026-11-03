@@ -14,7 +14,7 @@ export type CatalogueImageEmbeddingTaskDependencies = {
 }
 
 export const embedCatalogueImagesWhenEnabled = async (
-  photoRecognitionMode: string,
+  photoRecognitionMode: unknown,
   dependencies: CatalogueImageEmbeddingTaskDependencies,
 ): Promise<CatalogueImageEmbeddingSummary> => {
   if (!isPhotoRecognitionEnabled(photoRecognitionMode)) {

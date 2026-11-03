@@ -4,9 +4,12 @@ import type { ImageEmbedder } from './image-embedder.ts'
 
 export const photoRecognitionDisabledMessage = 'reconnaissance photo désactivée sur ce serveur'
 
-export const isPhotoRecognitionEnabled = (photoRecognitionMode: string): boolean => photoRecognitionMode !== 'off'
+const disabledPhotoRecognitionValues = ['off', 'false', '0', 'no', 'non']
 
-export const assertPhotoRecognitionEnabled = (photoRecognitionMode: string): void => {
+export const isPhotoRecognitionEnabled = (photoRecognitionMode: unknown): boolean =>
+  !disabledPhotoRecognitionValues.includes(String(photoRecognitionMode).trim().toLowerCase())
+
+export const assertPhotoRecognitionEnabled = (photoRecognitionMode: unknown): void => {
   if (!isPhotoRecognitionEnabled(photoRecognitionMode)) {
     throw createError({ statusCode: 503, statusMessage: photoRecognitionDisabledMessage })
   }
@@ -18,7 +21,7 @@ export type PhotoRecognitionEngineFactories = {
 }
 
 export const createPhotoRecognitionEngines = (
-  photoRecognitionMode: string,
+  photoRecognitionMode: unknown,
   factories: PhotoRecognitionEngineFactories,
 ): { embedder: ImageEmbedder, textReader: BoxTextReader } => {
   assertPhotoRecognitionEnabled(photoRecognitionMode)

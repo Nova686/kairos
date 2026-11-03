@@ -14,6 +14,15 @@ describe('server features', () => {
     expect(describeServerFeatures('off')).toEqual({ photoRecognition: false })
     expect(isPhotoRecognitionEnabled('off')).toBe(false)
   })
+
+  it('normalises the flag before deciding', () => {
+    for (const disabledValue of [false, 'false', 'OFF', ' off ', '0', 'no', 'Non']) {
+      expect(isPhotoRecognitionEnabled(disabledValue), String(disabledValue)).toBe(false)
+    }
+    for (const enabledValue of ['on', 'ON', 'true', '1', '', undefined, true]) {
+      expect(isPhotoRecognitionEnabled(enabledValue), String(enabledValue)).toBe(true)
+    }
+  })
 })
 
 describe('photo recognition mode', () => {
