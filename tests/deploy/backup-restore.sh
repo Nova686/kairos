@@ -19,7 +19,7 @@ run_sql() {
 run_sql "create table backup_check (label text not null)" >/dev/null
 run_sql "insert into backup_check values ('kept-by-backup')" >/dev/null
 
-"${compose[@]}" exec -T backup /backup/backup-database.sh
+"${compose[@]}" exec -T backup bash /backup/backup-database.sh
 dump_path="$("${compose[@]}" exec -T backup sh -c 'ls -1t /backups/kairos-*.dump | head -n 1' | tr -d '\r')"
 test -n "$dump_path"
 
@@ -31,6 +31,21 @@ COMPOSE_PROJECT_NAME="$check_project" KAIROS_ENV_FILE="$repository_root/deploy/e
 restored_label="$(run_sql "select label from backup_check")"
 if [ "$restored_label" != "kept-by-backup" ]; then
   echo "restore failed: got '$restored_label'" >&2
+  exit 1
+fi
+
+"${compose[@]}" exec -T backup sh -c 'head -c 200 /dev/urandom > /backups/kairos-corrupt.dump'
+run_sql "insert into backup_check values ('written-after-restore')" >/dev/null
+
+if COMPOSE_PROJECT_NAME="$check_project" KAIROS_ENV_FILE="$repository_root/deploy/env.example" \
+  bash "$repository_root/deploy/backup/restore-database.sh" /backups/kairos-corrupt.dump; then
+  echo "a corrupt dump must make the restore fail" >&2
+  exit 1
+fi
+
+surviving_labels="$(run_sql "select string_agg(label, ',' order by label) from backup_check")"
+if [ "$surviving_labels" != "kept-by-backup,written-after-restore" ]; then
+  echo "corrupt restore damaged the data: got '$surviving_labels'" >&2
   exit 1
 fi
 
