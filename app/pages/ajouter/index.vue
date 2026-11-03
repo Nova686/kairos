@@ -4,23 +4,33 @@
       Ajouter un achat
     </h1>
     <v-tabs
-      v-model="activeTab"
+      v-model="displayedTab"
       class="mb-4"
     >
       <v-tab value="code-barres">
         Code-barres
       </v-tab>
-      <v-tab value="photo">
+      <v-tab
+        v-if="isPhotoRecognitionAvailable"
+        value="photo"
+      >
         Photo
       </v-tab>
       <v-tab value="texte">
         Texte
       </v-tab>
     </v-tabs>
-    <v-tabs-window v-model="activeTab">
+    <p
+      v-if="!isPhotoRecognitionAvailable"
+      class="text-caption text-medium-emphasis mb-4"
+      role="status"
+    >
+      Reconnaissance photo désactivée sur ce serveur : utilisez le code-barres ou le texte.
+    </p>
+    <v-tabs-window v-model="displayedTab">
       <v-tabs-window-item value="code-barres">
         <BarcodeScanner
-          v-if="activeTab === 'code-barres'"
+          v-if="displayedTab === 'code-barres'"
           v-model:psa-mode="isPsaMode"
           @code-submitted="identify"
         />
@@ -68,9 +78,12 @@
           @picked="pickProduct"
         />
       </v-tabs-window-item>
-      <v-tabs-window-item value="photo">
+      <v-tabs-window-item
+        v-if="isPhotoRecognitionAvailable"
+        value="photo"
+      >
         <PhotoCapture
-          v-if="activeTab === 'photo'"
+          v-if="displayedTab === 'photo'"
           ref="photoCapture"
           @product-ready="addPickedProduct"
           @product-withdrawn="removePickedProduct"
@@ -92,6 +105,14 @@ import type { ProductReference } from '~~/shared/catalogue/product-reference'
 
 const purchaseForm = useTemplateRef('purchaseForm')
 const { activeTab } = useAddProductTabs()
+const { isPhotoRecognitionAvailable } = await useServerFeatures()
+
+const displayedTab = computed({
+  get: () => (!isPhotoRecognitionAvailable.value && activeTab.value === 'photo' ? 'texte' : activeTab.value),
+  set: (selectedTab) => {
+    activeTab.value = selectedTab
+  },
+})
 
 const addPickedProduct = (product: ProductReference, prefill: ScanProductPrefill | null = null) => {
   purchaseForm.value?.addLine(product, prefill)
