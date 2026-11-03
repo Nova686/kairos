@@ -1,5 +1,4 @@
-import { fileURLToPath } from 'node:url'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { startEndToEndServer, $fetch, fetch } from '../support/end-to-end-server.ts'
 import { logIn, seedAccounts } from '../support/end-to-end-accounts.ts'
 
 const password = 'catalogue-user-password'
@@ -15,16 +14,7 @@ describe('shared catalogue API', async () => {
   const databaseUrl = await seedAccounts([
     { email: 'catalogue@example.com', displayName: 'Catalogue', password, isAdmin: false },
   ])
-  await setup({
-    rootDir: fileURLToPath(new URL('../..', import.meta.url)),
-    server: true,
-    nuxtConfig: {
-      runtimeConfig: {
-        databaseUrl,
-        appSecret: 'kairos-end-to-end-app-secret-1234567890',
-      },
-    },
-  })
+  await startEndToEndServer(databaseUrl)
 
   it('answers 401 without a session', async () => {
     expect((await fetch('/api/products')).status).toBe(401)

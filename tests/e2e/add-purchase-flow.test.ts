@@ -1,5 +1,4 @@
-import { fileURLToPath } from 'node:url'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { startEndToEndServer, $fetch, fetch } from '../support/end-to-end-server.ts'
 import { logIn, seedAccounts } from '../support/end-to-end-accounts.ts'
 
 const buyerPassword = 'buyer-user-password'
@@ -8,16 +7,7 @@ describe('add purchase flow', async () => {
   const databaseUrl = await seedAccounts([
     { email: 'buyer@example.com', displayName: 'Buyer', password: buyerPassword, isAdmin: false },
   ])
-  await setup({
-    rootDir: fileURLToPath(new URL('../..', import.meta.url)),
-    server: true,
-    nuxtConfig: {
-      runtimeConfig: {
-        databaseUrl,
-        appSecret: 'kairos-end-to-end-app-secret-1234567890',
-      },
-    },
-  })
+  await startEndToEndServer(databaseUrl)
 
   it('lists the products of a two-line purchase on the stock page', async () => {
     const buyerCookie = await logIn('buyer@example.com', buyerPassword)

@@ -1,5 +1,4 @@
-import { fileURLToPath } from 'node:url'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { startEndToEndServer, $fetch, fetch } from '../support/end-to-end-server.ts'
 import { openDatabase } from '../../server/database/open-database.ts'
 import { stockValueSnapshots, users } from '../../server/database/schema/index.ts'
 import { logIn, seedAccounts } from '../support/end-to-end-accounts.ts'
@@ -41,16 +40,7 @@ describe('stock value history', async () => {
     { email: 'second@example.com', displayName: 'Second', password: secondPassword, isAdmin: false },
   ])
   await seedValueHistory(databaseUrl)
-  await setup({
-    rootDir: fileURLToPath(new URL('../..', import.meta.url)),
-    server: true,
-    nuxtConfig: {
-      runtimeConfig: {
-        databaseUrl,
-        appSecret: 'kairos-end-to-end-app-secret-1234567890',
-      },
-    },
-  })
+  await startEndToEndServer(databaseUrl)
 
   it('answers 401 without a session', async () => {
     expect((await fetch('/api/stock/value-history')).status).toBe(401)

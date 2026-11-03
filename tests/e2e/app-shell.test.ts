@@ -1,12 +1,7 @@
-import { fileURLToPath } from 'node:url'
-import { $fetch, setup } from '@nuxt/test-utils/e2e'
+import { startEndToEndServer, $fetch } from '../support/end-to-end-server.ts'
 
 describe('application shell', async () => {
-  await setup({
-    rootDir: fileURLToPath(new URL('../..', import.meta.url)),
-    server: true,
-    nuxtConfig: { runtimeConfig: { appSecret: 'kairos-end-to-end-app-secret-1234567890' } },
-  })
+  await startEndToEndServer()
 
   it('sends an anonymous visitor to the sign-in page titled Kairos', async () => {
     const homePageHtml = await $fetch<string>('/')

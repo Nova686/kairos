@@ -1,5 +1,4 @@
-import { fileURLToPath } from 'node:url'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { startEndToEndServer, $fetch, fetch } from '../support/end-to-end-server.ts'
 import { extractSessionCookie, seedAccounts } from '../support/end-to-end-accounts.ts'
 
 const administratorEmail = 'admin@example.com'
@@ -9,16 +8,7 @@ describe('authentication', async () => {
   const databaseUrl = await seedAccounts([
     { email: administratorEmail, displayName: 'Admin', password: administratorPassword, isAdmin: true },
   ])
-  await setup({
-    rootDir: fileURLToPath(new URL('../..', import.meta.url)),
-    server: true,
-    nuxtConfig: {
-      runtimeConfig: {
-        databaseUrl,
-        appSecret: 'kairos-end-to-end-app-secret-1234567890',
-      },
-    },
-  })
+  await startEndToEndServer(databaseUrl)
 
   it('answers 401 on the current user without a session', async () => {
     const response = await fetch('/api/auth/me')

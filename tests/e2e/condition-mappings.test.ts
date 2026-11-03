@@ -1,5 +1,4 @@
-import { fileURLToPath } from 'node:url'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { startEndToEndServer, $fetch, fetch } from '../support/end-to-end-server.ts'
 import { logIn, seedAccounts } from '../support/end-to-end-accounts.ts'
 
 const memberPassword = 'member-password-123'
@@ -15,16 +14,7 @@ describe('condition mappings API', async () => {
   const databaseUrl = await seedAccounts([
     { email: 'member@example.com', displayName: 'Member', password: memberPassword, isAdmin: false },
   ])
-  await setup({
-    rootDir: fileURLToPath(new URL('../..', import.meta.url)),
-    server: true,
-    nuxtConfig: {
-      runtimeConfig: {
-        databaseUrl,
-        appSecret: 'kairos-end-to-end-app-secret-1234567890',
-      },
-    },
-  })
+  await startEndToEndServer(databaseUrl)
 
   it('answers 401 without a session', async () => {
     expect((await fetch('/api/condition-mappings')).status).toBe(401)

@@ -1,5 +1,4 @@
-import { fileURLToPath } from 'node:url'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { startEndToEndServer, $fetch, fetch } from '../support/end-to-end-server.ts'
 import { formatEuros } from '../../app/utils/format-euros.ts'
 import { logIn, seedAccounts } from '../support/end-to-end-accounts.ts'
 
@@ -9,16 +8,7 @@ describe('sale flow', async () => {
   const databaseUrl = await seedAccounts([
     { email: 'seller@example.com', displayName: 'Seller', password: sellerPassword, isAdmin: false },
   ])
-  await setup({
-    rootDir: fileURLToPath(new URL('../..', import.meta.url)),
-    server: true,
-    nuxtConfig: {
-      runtimeConfig: {
-        databaseUrl,
-        appSecret: 'kairos-end-to-end-app-secret-1234567890',
-      },
-    },
-  })
+  await startEndToEndServer(databaseUrl)
 
   it('shows a created sale with its platform and profit, then its delivery and debt screens', async () => {
     const sellerCookie = await logIn('seller@example.com', sellerPassword)

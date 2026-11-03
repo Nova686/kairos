@@ -1,7 +1,7 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fetch } from '@nuxt/test-utils/e2e'
+import { fetch } from './end-to-end-server.ts'
 import { openDatabase } from '../../server/database/open-database.ts'
 import { createUser } from '../../server/domain/accounts/accounts-service.ts'
 import { scryptPasswordHasher } from '../../server/domain/accounts/scrypt-password-hasher.ts'

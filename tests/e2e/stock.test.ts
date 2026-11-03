@@ -1,5 +1,4 @@
-import { fileURLToPath } from 'node:url'
-import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
+import { startEndToEndServer, $fetch, fetch } from '../support/end-to-end-server.ts'
 import { logIn, seedAccounts } from '../support/end-to-end-accounts.ts'
 
 const firstPassword = 'first-user-password'
@@ -17,16 +16,7 @@ describe('purchases and stock items API', async () => {
     { email: 'first@example.com', displayName: 'First', password: firstPassword, isAdmin: false },
     { email: 'second@example.com', displayName: 'Second', password: secondPassword, isAdmin: false },
   ])
-  await setup({
-    rootDir: fileURLToPath(new URL('../..', import.meta.url)),
-    server: true,
-    nuxtConfig: {
-      runtimeConfig: {
-        databaseUrl,
-        appSecret: 'kairos-end-to-end-app-secret-1234567890',
-      },
-    },
-  })
+  await startEndToEndServer(databaseUrl)
 
   it('answers 401 without a session', async () => {
     expect((await fetch('/api/purchases')).status).toBe(401)
