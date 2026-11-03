@@ -105,6 +105,33 @@ describe('identifyPsaCertificate', () => {
     expect(outcome.candidates[0]?.productId).not.toBe(sameNameOtherCategory.id)
   })
 
+  it('puts the same-name catalogue product first even when the name search returns nothing', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database, 'a@example.com')
+    const gradedProduct = await createProduct(
+      database,
+      userId,
+      emptyProductDraft('1999 Pokemon Game Charizard #4', 'graded-card'),
+    )
+
+    const outcome = await identifyPsaCertificate(
+      database,
+      userId,
+      '12345678',
+      buildDependencies({
+        searchCandidates: async () => ({ candidates: [], unavailableSources: [] }),
+      }),
+    )
+
+    expect(outcome.candidates[0]).toMatchObject({
+      origin: 'catalogue',
+      productId: gradedProduct.id,
+      label: gradedProduct.name,
+      draft: { name: gradedProduct.name, category: 'graded-card' },
+    })
+    expect(outcome.candidates.filter(candidate => candidate.productId === gradedProduct.id)).toHaveLength(1)
+  })
+
   it.each(['12ab', '123456', '12345678901', ' '])('refuses the certificate %j with 422', async (certificate) => {
     const database = await createTestDatabase()
     const userId = await insertUser(database, 'a@example.com')
@@ -118,12 +145,15 @@ describe('identifyPsaCertificate', () => {
     const database = await createTestDatabase()
     const userId = await insertUser(database, 'a@example.com')
 
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const outcome = await identifyPsaCertificate(
       database,
       userId,
       '12345678',
       failingWith(new SourceDisabledError('psa', 'PSA_API_TOKEN')),
     )
+    expect(warning).toHaveBeenCalledTimes(1)
+    warning.mockRestore()
 
     expect(outcome).toMatchObject({
       identification: null,
@@ -137,6 +167,7 @@ describe('identifyPsaCertificate', () => {
     const database = await createTestDatabase()
     const userId = await insertUser(database, 'a@example.com')
 
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const blocked = await identifyPsaCertificate(
       database,
       userId,
@@ -147,6 +178,8 @@ describe('identifyPsaCertificate', () => {
 
     expect(blocked.unavailableSources).toEqual(['psa'])
     expect(generic.unavailableSources).toEqual(['psa'])
+    expect(warning).toHaveBeenCalledTimes(2)
+    warning.mockRestore()
     await expect(
       identifyPsaCertificate(database, userId, '12345678', failingWith('plain string')),
     ).rejects.toBe('plain string')

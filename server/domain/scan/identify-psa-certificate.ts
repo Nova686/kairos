@@ -5,6 +5,7 @@ import { products, stockItems } from '../../database/schema/index.ts'
 import type { Product } from '../catalogue/catalogue-service.ts'
 import {
   searchProductCandidates,
+  toCatalogueCandidate,
   type ProductCandidate,
   type ProductSearchDependencies,
 } from '../catalogue/search-product-candidates.ts'
@@ -30,6 +31,7 @@ export interface PsaCertificateIdentification {
 export interface PsaCertificateDependencies {
   lookupPsaCertificate: (certificateNumber: string) => Promise<ProductIdentification | null>
   productSearch?: ProductSearchDependencies
+  searchCandidates?: typeof searchProductCandidates
 }
 
 const defaultDependencies: PsaCertificateDependencies = {
@@ -118,14 +120,13 @@ export const identifyPsaCertificate = async (
   }
 
   const sameCatalogueProduct = await findSameGradedCardInCatalogue(database, identification.name)
-  const nameSearch = await searchProductCandidates(database, identification.name, dependencies.productSearch)
-  const sameProductCandidate = nameSearch.candidates.find(
-    candidate => candidate.origin === 'catalogue' && candidate.productId === sameCatalogueProduct?.id,
-  )
+  const nameSearch = await (dependencies.searchCandidates ?? searchProductCandidates)(database, identification.name, dependencies.productSearch)
   const candidates = [
-    ...(sameProductCandidate ? [sameProductCandidate] : []),
+    ...(sameCatalogueProduct ? [toCatalogueCandidate(sameCatalogueProduct)] : []),
     toGradedCardCandidate(identification),
-    ...nameSearch.candidates.filter(candidate => candidate !== sameProductCandidate),
+    ...nameSearch.candidates.filter(
+      candidate => sameCatalogueProduct === null || candidate.productId !== sameCatalogueProduct.id,
+    ),
   ]
 
   return {

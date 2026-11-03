@@ -58,7 +58,7 @@ const toDraft = (product: Product): ProductDraft => ({
   ebayExcludedKeywords: product.ebayExcludedKeywords,
 })
 
-const toCatalogueCandidate = (product: Product): ProductCandidate => ({
+export const toCatalogueCandidate = (product: Product): ProductCandidate => ({
   origin: 'catalogue',
   label: product.name,
   imageUrl: product.imageUrl,
