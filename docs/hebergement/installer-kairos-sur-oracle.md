@@ -13,6 +13,10 @@ Les valeurs entre chevrons (`<...>`) sont à remplacer par les vôtres. Ne colle
 3. Entrez une carte bancaire : c'est seulement une vérification d'identité, un montant de quelques centimes est bloqué puis rendu. Tant que vous restez sur des ressources « Always Free », rien n'est facturé.
 4. Attendez le mail de confirmation (parfois quelques minutes) puis connectez-vous à la console.
 
+**Attention, récupération des machines inactives.** Oracle peut arrêter puis récupérer une instance « Always Free » restée inactive pendant 7 jours (utilisation du processeur, du réseau et de la mémoire sous 20 % au 95e centile). Kairos, utilisé de temps en temps depuis un téléphone, peut tomber sous ces seuils. Deux attitudes :
+- laisser faire et accepter le risque : surveillez que le site répond, et sachez le remettre en route (voir le dépannage) ;
+- passer le compte en **« Pay As You Go »** : les ressources « Always Free » restent gratuites et ne sont plus récupérées pour inactivité, et cela améliore aussi les chances d'obtenir une machine A1 quand la capacité manque. Mais ce mode rattache un moyen de paiement à la facturation au-delà des limites gratuites : une erreur de configuration (un second volume, une IP de plus) peut alors coûter de l'argent. C'est un choix qui vous appartient, et il est en contradiction avec la contrainte « rien de payant » de ce projet. Ne mettez pas en place de programme « qui fait tourner le processeur pour rien » : c'est fragile et contraire aux règles d'Oracle.
+
 ## 2. Créer la machine virtuelle
 
 ### 2.1 Préparer la clé SSH
@@ -63,7 +67,7 @@ ssh -i ~/.ssh/kairos-oracle ubuntu@<ip-publique>
 
 ### 3.1 Ouvrir les ports dans le pare-feu de la machine
 
-Les images Ubuntu d'Oracle sont livrées avec des règles `iptables` qui bloquent tout sauf SSH, en plus de la liste de sécurité de la console. Les deux doivent être ouvertes.
+Les images Ubuntu d'Oracle sont livrées avec des règles `iptables` restrictives (tout est refusé sauf SSH) en plus de la liste de sécurité de la console. Docker ouvre lui-même les ports qu'il publie vers les conteneurs, donc ces règles ne sont sans doute pas indispensables au fonctionnement ; on les ajoute quand même par hygiène sur les images Ubuntu d'Oracle, pour que l'état du pare-feu soit explicite et survive aux redémarrages.
 
 ```bash
 sudo iptables -I INPUT 6 -p tcp --dport 80 -j ACCEPT
@@ -135,8 +139,15 @@ Host github.com
   IdentitiesOnly yes
 EOF
 chmod 600 ~/.ssh/config
-ssh-keyscan github.com >> ~/.ssh/known_hosts
-git clone git@github.com:<votre-compte>/kairos.git ~/kairos
+ssh-keyscan github.com > ~/.ssh/github-host-keys.txt
+ssh-keygen -lf ~/.ssh/github-host-keys.txt
+```
+
+`ssh-keyscan` fait confiance à la première réponse reçue : un intercepteur pourrait vous répondre. Comparez donc les empreintes affichées par `ssh-keygen -lf` avec celles que GitHub publie sur <https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints>. Si elles correspondent, enregistrez-les puis clonez :
+
+```bash
+cat ~/.ssh/github-host-keys.txt >> ~/.ssh/known_hosts
+git clone git@github.com:Nova686/kairos.git ~/kairos
 cd ~/kairos
 git checkout main
 ```
@@ -154,7 +165,7 @@ chmod 600 deploy/.env
 Générez les deux secrets (chacun s'affiche une seule fois dans le terminal ; copiez-les dans le fichier tout de suite) :
 
 ```bash
-openssl rand -base64 48
+openssl rand -hex 32
 openssl rand -hex 24
 ```
 
@@ -162,17 +173,17 @@ Ouvrez `deploy/.env` (`nano deploy/.env`) et remplacez chaque valeur :
 
 | Variable | Valeur |
 |---|---|
-| `NUXT_APP_SECRET` | la sortie de `openssl rand -base64 48` (secret qui scelle les sessions, 32 caractères au minimum) |
+| `NUXT_APP_SECRET` | la sortie de `openssl rand -hex 32` (secret qui scelle les sessions, 32 caractères au minimum) |
 | `POSTGRES_PASSWORD` | la sortie de `openssl rand -hex 24` (hexadécimal : sans caractère spécial, il est inséré tel quel dans l'adresse de la base) |
 | `KAIROS_DOMAIN` | `<sous-domaine>.duckdns.org` |
 | `DUCKDNS_SUBDOMAIN` | `<sous-domaine>` seul |
 | `DUCKDNS_TOKEN` | le token DuckDNS de l'étape 4 |
-| `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET` | clés de l'application eBay (programme développeurs eBay, API Browse) |
-| `POKEMONTCG_API_KEY` | clé gratuite sur <https://dev.pokemontcg.io> |
-| `PSA_API_TOKEN` | jeton de l'API PSA (vérification des certificats) |
+| `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET` | clés de l'application eBay (programme développeurs eBay, API Browse) ; laissez vide si vous n'avez pas de clé : la source sera désactivée |
+| `POKEMONTCG_API_KEY` | clé gratuite sur <https://dev.pokemontcg.io> ; vide = source désactivée |
+| `PSA_API_TOKEN` | jeton de l'API PSA (vérification des certificats) ; vide = source désactivée |
 | `NUXT_PHOTO_RECOGNITION` | `on` ; `off` sur la machine de secours à 1 Go |
 
-Le fichier `deploy/.env` n'est jamais versionné ; ne le copiez pas ailleurs. Conservez-en une copie dans votre gestionnaire de mots de passe : sans `POSTGRES_PASSWORD` exact, une base existante ne se rouvre pas.
+Le fichier `deploy/.env` n'est jamais versionné. Gardez-en **une seule copie**, dans votre gestionnaire de mots de passe, et nulle part ailleurs (ni mail, ni dépôt, ni capture) : sans le `POSTGRES_PASSWORD` exact, une base existante ne se rouvre pas.
 
 Vérifiez que la configuration est complète (aucune variable obligatoire manquante) :
 
@@ -181,6 +192,18 @@ docker compose -f deploy/compose.yml config --quiet && echo "configuration valid
 ```
 
 ## 7. Premier démarrage
+
+**Machine de secours (1 Go) seulement** : créez d'abord 2 Go d'espace d'échange, sans quoi la construction de l'image est tuée par manque de mémoire.
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
+Puis, sur toutes les machines :
 
 ```bash
 docker compose -f deploy/compose.yml up -d --build
@@ -219,7 +242,7 @@ Connectez-vous ensuite sur `https://<sous-domaine>.duckdns.org`.
 
 ## 9. Installer sur l'iPhone
 
-1. Ouvrez l'adresse du site dans **Safari** (pas dans un autre navigateur : seul Safari propose l'installation sur iOS).
+1. Ouvrez l'adresse du site dans **Safari**. Depuis iOS 16.4, Chrome et Edge savent aussi ajouter un site à l'écran d'accueil ; avant, seul Safari le permettait.
 2. Appuyez sur **Partager** (le carré avec une flèche vers le haut) › **« Sur l'écran d'accueil »** › **Ajouter**.
 3. Ouvrez Kairos depuis l'icône ainsi créée, et connectez-vous.
 4. Au premier scan (code-barres ou photo), iOS demande l'accès à l'**appareil photo** : autorisez-le. Si vous avez refusé : Réglages › Apps › Safari › Appareil photo, ou Réglages › Confidentialité et sécurité › Appareil photo.
@@ -237,17 +260,28 @@ cd ~/kairos
 ./deploy/deploy.sh
 ```
 
-Le script récupère `origin/main`, reconstruit l'image, relance uniquement l'application et attend qu'elle réponde. Si la nouvelle version ne devient pas saine, il remet automatiquement l'image précédente.
+Le script note le commit actuel, récupère `origin/main`, reconstruit l'image, relance uniquement l'application et attend qu'elle devienne saine (jusqu'à 2 minutes ; `KAIROS_DEPLOY_HEALTH_ATTEMPTS=120 ./deploy/deploy.sh` allonge l'attente, un essai toutes les 2 secondes). Si le démarrage échoue ou si la nouvelle version ne devient pas saine, il **remet à la fois l'image précédente et le code précédent** (retour sur le commit noté, en « detached HEAD »), puis s'arrête avec une erreur.
 
-**Depuis GitHub** (sans ouvrir de terminal) : onglet **Actions** › workflow **deploy** › « Run workflow ». Il se connecte en SSH à la VM et lance le même script. Il demande trois secrets, à créer une fois dans Settings › Secrets and variables › Actions :
+**Après un retour en arrière.** Les migrations de la base ne sont pas annulées : elles doivent donc rester **additives uniquement** (ajouter des tables ou des colonnes, jamais en supprimer ni en renommer dans la même version que le code qui s'en passe). Vérifiez que l'ancienne version fonctionne (`curl https://<sous-domaine>.duckdns.org/api/health`, puis une page de l'application) ; si une migration a été appliquée à moitié, le message d'erreur est dans `docker compose -f deploy/compose.yml logs --tail 100 app` et la sauvegarde de la nuit (étape 11) reste le filet de sécurité. Pour réessayer : corrigez sur `main`, puis relancez `./deploy/deploy.sh` ; il repart de `origin/main` quel que soit l'état laissé par le retour en arrière.
+
+**Depuis GitHub** (sans ouvrir de terminal) : onglet **Actions** › workflow **deploy** › « Run workflow ». Il se connecte en SSH à la VM et lance le même script. Il demande quatre secrets, à créer une fois dans Settings › Secrets and variables › Actions :
 
 | Secret | Valeur |
 |---|---|
 | `DEPLOY_HOST` | l'adresse IP publique de la VM (ou `<sous-domaine>.duckdns.org`) |
 | `DEPLOY_USER` | `ubuntu` |
+| `DEPLOY_HOST_FINGERPRINT` | l'empreinte de la clé de la VM, au format `SHA256:...` : sur la VM, `ssh-keygen -l -f /etc/ssh/ssh_host_ed25519_key.pub \| cut -d ' ' -f2` (c'est exactement la commande du README de l'action `appleboy/ssh-action` v1.2.5). Elle évite de se connecter à une machine usurpée. |
 | `DEPLOY_SSH_KEY` | le contenu de la clé **privée** de connexion (un fichier dédié, idéalement) ; sa clé publique doit figurer dans `~/.ssh/authorized_keys` de la VM |
 
 Pour une clé dédiée à GitHub Actions : `ssh-keygen -t ed25519 -f ~/.ssh/kairos-actions -N ""` sur votre ordinateur, puis `ssh-copy-id -i ~/.ssh/kairos-actions.pub -o "IdentityFile ~/.ssh/kairos-oracle" ubuntu@<ip-publique>`, et collez le contenu de `~/.ssh/kairos-actions` dans le secret.
+
+Pour limiter ce que cette clé peut faire en cas de fuite, dans `~/.ssh/authorized_keys` de la VM, préfixez sa ligne d'une commande forcée (tout sur une seule ligne) :
+
+```text
+command="cd ~/kairos && ./deploy/deploy.sh",no-port-forwarding,no-pty,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAA... kairos-actions
+```
+
+La clé ne peut alors plus lancer que le script de mise à jour. Gardez votre clé personnelle (`kairos-oracle`) sur sa propre ligne, sans commande forcée, pour l'administration.
 
 ## 11. Sauvegardes et restauration
 
@@ -287,10 +321,18 @@ docker compose -f deploy/compose.yml exec -T backup ls /backups
 
 Le script arrête l'application, restaure en une seule transaction, puis relance l'application. Si la restauration échoue, l'application reste arrêtée (la base n'est pas modifiée) : lisez le message, corrigez, puis `docker compose -f deploy/compose.yml start app`.
 
-Pour restaurer un fichier que vous avez copié hors de la VM sur une VM neuve, recopiez-le d'abord dans le volume :
+Pour restaurer un fichier que vous avez copié hors de la VM sur une VM neuve, il faut le faire passer en deux temps : de votre ordinateur vers la VM, puis de la VM vers le volume. Depuis votre ordinateur :
 
 ```bash
-docker compose -f deploy/compose.yml cp ./kairos-AAAA-MM-JJ.dump backup:/backups/
+scp -i ~/.ssh/kairos-oracle ./sauvegardes-kairos/kairos-AAAA-MM-JJ.dump ubuntu@<ip-publique>:~/
+```
+
+Puis sur la VM :
+
+```bash
+cd ~/kairos
+docker compose -f deploy/compose.yml cp ~/kairos-AAAA-MM-JJ.dump backup:/backups/
+./deploy/backup/restore-database.sh /backups/kairos-AAAA-MM-JJ.dump
 ```
 
 ## 12. Dépannage
@@ -302,17 +344,7 @@ docker compose -f deploy/compose.yml cp ./kairos-AAAA-MM-JJ.dump backup:/backups
 
 **Oracle refuse la création : « Out of capacity » pour A1.Flex.** Les machines ARM gratuites sont très demandées. Réessayez à un autre moment (le matin tôt, ou plusieurs fois dans la journée), ou essayez un autre « availability domain » de la région. Une réduction à 2 OCPU / 12 Go augmente souvent les chances et suffit à Kairos. En dernier recours, la machine de secours `VM.Standard.E2.1.Micro` avec `NUXT_PHOTO_RECOGNITION=off`.
 
-**Manque de mémoire sur la machine de secours (1 Go)** : la construction de l'image peut être tuée (« Killed »). Ajoutez de l'espace d'échange avant de relancer :
-
-```bash
-sudo fallocate -l 2G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-```
-
-Gardez `NUXT_PHOTO_RECOGNITION=off` : la reconnaissance par photo ne tient pas dans 1 Go.
+**Manque de mémoire sur la machine de secours (1 Go)** : la construction de l'image peut être tuée (« Killed »). Créez l'espace d'échange décrit à l'étape 7 avant de relancer. Gardez `NUXT_PHOTO_RECOGNITION=off` : la reconnaissance par photo ne tient pas dans 1 Go.
 
 **Première reconnaissance par photo lente** : au tout premier scan photo, l'application télécharge ses modèles (reconnaissance d'image et lecture de texte, plusieurs centaines de Mo). Le premier scan peut durer plusieurs minutes, voire échouer par délai dépassé ; relancez-le. Les modèles sont ensuite gardés dans le volume `kairos-data` et ne se retéléchargent pas, y compris après une mise à jour.
 
@@ -325,7 +357,9 @@ docker compose -f deploy/compose.yml ps
 docker compose -f deploy/compose.yml logs --tail 100 app
 ```
 
-**Le site répond 502** juste après un démarrage : l'application n'est pas encore « healthy » (jusqu'à 40 secondes). Réessayez.
+**Le site répond 502** juste après un démarrage : l'application n'est pas encore « healthy » (jusqu'à une minute). Réessayez.
+
+**La machine est arrêtée, ou le site ne répond plus après des jours sans usage** : Oracle a peut-être arrêté l'instance « Always Free » pour inactivité (voir l'étape 1). Console Oracle › Compute › Instances › votre instance › **Start**. La pile redémarre toute seule (`restart: unless-stopped`) ; l'adresse IP publique peut avoir changé : remettez-la à jour sur duckdns.org si c'est le cas. Pour que cela n'arrive plus, voir le compromis « Pay As You Go » à l'étape 1.
 
 **Tout redémarrer proprement** (les données sont dans des volumes et ne sont pas perdues) :
 
