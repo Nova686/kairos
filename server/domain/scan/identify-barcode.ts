@@ -69,7 +69,11 @@ export const identifyBarcode = async (
   ): Promise<ProductIdentification | null> => {
     try {
       return await lookup()
-    } catch {
+    } catch (failure) {
+      if (!(failure instanceof Error)) {
+        throw failure
+      }
+      console.warn(`Barcode lookup failed for ${sourceName} (${barcode}):`, failure)
       unavailableSources.push(sourceName)
       return null
     }
@@ -88,7 +92,7 @@ export const identifyBarcode = async (
     barcode,
     knownProduct: null,
     identification,
-    candidates: [...nameSearch.candidates, toIdentifiedCandidate(identification)],
+    candidates: [toIdentifiedCandidate(identification), ...nameSearch.candidates],
     unavailableSources: [...new Set([...unavailableSources, ...nameSearch.unavailableSources])].sort(),
   }
 }

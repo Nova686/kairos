@@ -95,6 +95,16 @@ export const revertCatalogueChange = async (
     throw notFound()
   }
   const revertableFieldName = productDraftFieldNames.find(fieldName => fieldName === change.fieldName)
+  if (change.subject === barcodeSubject) {
+    const [existingBarcodeRevert] = await database
+      .select({ id: catalogueChanges.id })
+      .from(catalogueChanges)
+      .where(eq(catalogueChanges.revertedChangeId, changeId))
+    if (existingBarcodeRevert) {
+      throw createError({ statusCode: 409, statusMessage: 'Cette modification a déjà été annulée' })
+    }
+    return revertBarcodeChange(database, userId, change)
+  }
   if (!revertableFieldName) {
     throw createError({ statusCode: 409, statusMessage: 'Cette modification ne peut pas être annulée' })
   }
@@ -127,11 +137,14 @@ export const revertCatalogueChange = async (
   })
 }
 
+const barcodeSubject = 'barcode'
+
 export const attachBarcode = async (
   database: KairosDatabase,
   userId: string,
   productId: string,
   barcode: string,
+  revertedChangeId?: string,
 ): Promise<void> => {
   await findProductOr404(database, productId)
   const linkedProduct = await findProductByBarcode(database, barcode)
@@ -141,5 +154,69 @@ export const attachBarcode = async (
     }
     throw createError({ statusCode: 409, statusMessage: 'Ce code-barres est déjà lié à un autre produit' })
   }
-  await database.insert(productBarcodes).values({ barcode, productId, createdByUserId: userId })
+  await database.transaction(async (transaction) => {
+    await transaction.insert(productBarcodes).values({ barcode, productId, createdByUserId: userId })
+    await appendCatalogueChanges(transaction, [
+      {
+        productId,
+        subject: barcodeSubject,
+        userId,
+        fieldName: barcodeSubject,
+        previousValue: null,
+        newValue: barcode,
+        revertedChangeId,
+      },
+    ])
+  })
+}
+
+export const detachBarcode = async (
+  database: KairosDatabase,
+  userId: string,
+  productId: string,
+  barcode: string,
+  revertedChangeId?: string,
+): Promise<void> => {
+  await findProductOr404(database, productId)
+  const linkedProduct = await findProductByBarcode(database, barcode)
+  if (linkedProduct?.id !== productId) {
+    throw notFound()
+  }
+  await database.transaction(async (transaction) => {
+    await transaction.delete(productBarcodes).where(eq(productBarcodes.barcode, barcode))
+    await appendCatalogueChanges(transaction, [
+      {
+        productId,
+        subject: barcodeSubject,
+        userId,
+        fieldName: barcodeSubject,
+        previousValue: barcode,
+        newValue: null,
+        revertedChangeId,
+      },
+    ])
+  })
+}
+
+const toJournaledBarcode = (journaledValue: unknown): string | null =>
+  typeof journaledValue === 'string' || typeof journaledValue === 'number' ? String(journaledValue) : null
+
+const revertBarcodeChange = async (
+  database: KairosDatabase,
+  userId: string,
+  change: typeof catalogueChanges.$inferSelect,
+): Promise<Product> => {
+  const productId = change.productId!
+  const linkedBarcode = toJournaledBarcode(change.newValue)
+  const detachedBarcode = toJournaledBarcode(change.previousValue)
+  if (linkedBarcode) {
+    const linkedProduct = await findProductByBarcode(database, linkedBarcode)
+    if (linkedProduct?.id !== productId) {
+      throw createError({ statusCode: 409, statusMessage: 'Ce code-barres n\u2019est plus lié à ce produit' })
+    }
+    await detachBarcode(database, userId, productId, linkedBarcode, change.id)
+  } else if (detachedBarcode) {
+    await attachBarcode(database, userId, productId, detachedBarcode, change.id)
+  }
+  return findProductOr404(database, productId)
 }

@@ -153,6 +153,46 @@ describe('identifyBarcode', () => {
   })
 })
 
+describe('identifyBarcode failure handling', () => {
+  it('logs a TypeError from a lookup and keeps the source unavailable', async () => {
+    const database = await createTestDatabase()
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const lookups = buildLookups({
+      lookupOpenBeautyFacts: async () => {
+        throw new TypeError('boom')
+      },
+    })
+
+    const outcome = await identifyBarcode(database, '3614272049529', lookups)
+
+    expect(outcome.unavailableSources).toEqual(['openbeautyfacts'])
+    expect(warning).toHaveBeenCalledWith(expect.stringContaining('openbeautyfacts'), expect.any(TypeError))
+    warning.mockRestore()
+  })
+
+  it('rethrows a non-Error throwable', async () => {
+    const database = await createTestDatabase()
+    const lookups = buildLookups({
+      lookupOpenBeautyFacts: async () => {
+        throw 'plain string'
+      },
+    })
+
+    await expect(identifyBarcode(database, '3614272049529', lookups)).rejects.toBe('plain string')
+  })
+
+  it('puts the identification-based candidate before the name-search candidates', async () => {
+    const database = await createTestDatabase()
+    const [user] = await database.insert(users).values({ email: 'b@example.com', displayName: 'B', passwordHash: 'x' }).returning()
+    await createProduct(database, user!.id, emptyProductDraft('Rouge Pur Couture', 'makeup'))
+    const lookups = buildLookups({ lookupOpenBeautyFacts: async () => identification('openbeautyfacts') })
+
+    const outcome = await identifyBarcode(database, '3614272049529', lookups)
+
+    expect(outcome.candidates.map(candidate => candidate.origin)).toEqual(['identification', 'catalogue'])
+  })
+})
+
 describe('linkBarcode', () => {
   it('is idempotent for the same product and 409 for another one', async () => {
     const database = await createTestDatabase()
