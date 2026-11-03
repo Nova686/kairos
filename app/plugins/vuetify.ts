@@ -1,5 +1,6 @@
 import { createVuetify } from 'vuetify'
 import { fr } from 'vuetify/locale'
+import { brandAccentColor, brandPrimaryColor } from '~~/shared/theme/brand-colors'
 
 export default defineNuxtPlugin((nuxtApp) => {
   const vuetify = createVuetify({
@@ -10,9 +11,9 @@ export default defineNuxtPlugin((nuxtApp) => {
       themes: {
         light: {
           colors: {
-            primary: '#1e5a8a',
+            primary: brandPrimaryColor,
             secondary: '#5c6b7a',
-            accent: '#c77d1a',
+            accent: brandAccentColor,
             success: '#2e7d4f',
             error: '#b3372f',
           },

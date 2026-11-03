@@ -1,5 +1,10 @@
 import { startEndToEndServer, fetch } from '../support/end-to-end-server.ts'
 
+const readPngDimensions = (png: Buffer): { width: number, height: number } => ({
+  width: png.readUInt32BE(16),
+  height: png.readUInt32BE(20),
+})
+
 describe('progressive web app installation', async () => {
   await startEndToEndServer()
 
@@ -35,5 +40,28 @@ describe('progressive web app installation', async () => {
       expect(response.status, iconPath).toBe(200)
       expect(response.headers.get('content-type')).toBe('image/png')
     }
+  })
+
+  it('serves icons with the exact sizes iOS and the manifest expect', async () => {
+    const expectedSizes: Record<string, number> = {
+      '/apple-touch-icon.png': 180,
+      '/icons/kairos-192.png': 192,
+      '/icons/kairos-512.png': 512,
+      '/icons/kairos-maskable-512.png': 512,
+    }
+    for (const [iconPath, expectedSize] of Object.entries(expectedSizes)) {
+      const png = Buffer.from(await (await fetch(iconPath)).arrayBuffer())
+      expect(readPngDimensions(png), iconPath).toEqual({ width: expectedSize, height: expectedSize })
+    }
+  })
+
+  it('keeps the service worker away from pages: no navigation route, no precached page', async () => {
+    const response = await fetch('/sw.js')
+    const serviceWorker = await response.text()
+
+    expect(response.status).toBe(200)
+    expect(serviceWorker).not.toContain('NavigationRoute')
+    expect(serviceWorker).not.toMatch(/url:\s*["']\/["']/)
+    expect(serviceWorker).not.toMatch(/\.html["']/)
   })
 })

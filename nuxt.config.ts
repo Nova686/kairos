@@ -1,4 +1,5 @@
 import vuetify from 'vite-plugin-vuetify'
+import { brandBackgroundColor, brandPrimaryColor } from './shared/theme/brand-colors.ts'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-02',
@@ -34,8 +35,8 @@ export default defineNuxtConfig({
       lang: 'fr',
       display: 'standalone',
       start_url: '/',
-      theme_color: '#1e5a8a',
-      background_color: '#ffffff',
+      theme_color: brandPrimaryColor,
+      background_color: brandBackgroundColor,
       icons: [
         { src: '/icons/kairos-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icons/kairos-512.png', sizes: '512x512', type: 'image/png' },
