@@ -18,6 +18,12 @@ const describeFailure = (failure: unknown): string => {
   return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
 }
 
+export interface PurchaseLinePrefill {
+  gradingCompany: string
+  grade: string
+  certificateNumber: string
+}
+
 export const usePurchaseForm = () => {
   const lines = ref<PurchaseFormLine[]>([])
   const purchasedOn = ref(todayAsLocalCalendarDate())
@@ -41,7 +47,7 @@ export const usePurchaseForm = () => {
   const locations = computed<LocationRow[]>(() => fetchedLocations.value ?? [])
   const persons = computed<PersonRow[]>(() => fetchedPersons.value ?? [])
 
-  const addLine = (product: ProductReference) => {
+  const addLine = (product: ProductReference, prefill: PurchaseLinePrefill | null = null) => {
     if (isLocked.value) {
       return
     }
@@ -50,9 +56,9 @@ export const usePurchaseForm = () => {
       lineKey: nextLineKey,
       product,
       condition: conditionCodesFor(product.category)[0]!,
-      gradingCompany: '',
-      grade: '',
-      certificateNumber: '',
+      gradingCompany: prefill?.gradingCompany ?? '',
+      grade: prefill?.grade ?? '',
+      certificateNumber: prefill?.certificateNumber ?? '',
       locationId: null,
     })
   }
