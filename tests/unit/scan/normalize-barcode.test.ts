@@ -1,4 +1,4 @@
-import { normalizeBarcode } from '../../../shared/scan/normalize-barcode'
+import { normalizeBarcode } from '../../../shared/scan/normalize-barcode.ts'
 
 describe('normalizeBarcode', () => {
   it('pads a UPC-A to EAN-13 and keeps an EAN-13', () => {

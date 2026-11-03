@@ -3,6 +3,7 @@ import { sharedTesseractBoxTextReader } from '../../domain/scan/box-text-reader'
 import { sharedClipImageEmbedder } from '../../domain/scan/image-embedder'
 import { searchProductCandidates } from '../../domain/catalogue/search-product-candidates'
 import { detectPhotoFormat } from '../../domain/scan/detect-photo-format'
+import { assertPhotoReadable } from '../../domain/scan/assert-photo-readable'
 
 const maximumPhotoBytes = 5 * 1024 * 1024
 const multipartOverheadBytes = 64 * 1024
@@ -24,6 +25,7 @@ export default defineEventHandler(async (event) => {
   if (detectPhotoFormat(photoPart.data) === null) {
     throw createError({ statusCode: 415, statusMessage: 'Format non pris en charge : envoyez une photo JPEG ou PNG.' })
   }
+  await assertPhotoReadable(photoPart.data)
   const database = await useDatabase()
   const runtimeConfig = useRuntimeConfig()
   return identifyPhoto(database, photoPart.data, {

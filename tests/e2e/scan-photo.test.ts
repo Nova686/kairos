@@ -37,6 +37,16 @@ describe('photo identification API', async () => {
     expect(await oversized.text()).toContain('5 Mo')
   })
 
+  it('answers 415 with a French message for a JPEG header followed by garbage', async () => {
+    const cookie = await logIn('scanner@example.com', scannerPassword)
+    const corruptJpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, ...Buffer.from('garbage-not-a-jpeg-at-all')])
+
+    const response = await fetch('/api/scan/photo', { method: 'POST', body: photoForm(corruptJpeg), headers: { cookie } })
+
+    expect(response.status).toBe(415)
+    expect(await response.text()).toContain('Photo illisible, réessayez avec une autre photo.')
+  })
+
   it('renders the photo tab of the add page', async () => {
     const cookie = await logIn('scanner@example.com', scannerPassword)
 
