@@ -1,0 +1,99 @@
+name: kairos
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NUXT_APP_SECRET: ${NUXT_APP_SECRET:?set NUXT_APP_SECRET in deploy/.env}
+      NUXT_DATABASE_URL: postgres://kairos:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}@database:5432/kairos
+    volumes:
+      - kairos-data:/app/.data
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+  database:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: kairos
+      POSTGRES_DB: kairos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - kairos-database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kairos -d kairos"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    environment:
+      KAIROS_DOMAIN: ${KAIROS_DOMAIN:?set KAIROS_DOMAIN in deploy/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  duckdns:
+    image: alpine:3
+    environment:
+      DUCKDNS_SUBDOMAIN: ${DUCKDNS_SUBDOMAIN:?set DUCKDNS_SUBDOMAIN in deploy/.env}
+      DUCKDNS_TOKEN: ${DUCKDNS_TOKEN:?set DUCKDNS_TOKEN in deploy/.env}
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache curl >/dev/null
+        while true; do
+          curl -fsS -o /dev/null "https://www.duckdns.org/update?domains=$${DUCKDNS_SUBDOMAIN}&token=$${DUCKDNS_TOKEN}&ip=" || echo "duckdns update failed"
+          sleep 300
+        done
+    restart: unless-stopped
+
+  backup:
+    image: postgres:17
+    environment:
+      PGHOST: database
+      PGUSER: kairos
+      PGDATABASE: kairos
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    command:
+      - bash
+      - -c
+      - |
+        while true; do
+          now=$$(date +%s)
+          next=$$(date -d "today 03:30" +%s)
+          if [ "$$next" -le "$$now" ]; then next=$$(date -d "tomorrow 03:30" +%s); fi
+          sleep $$((next - now))
+          /backup/backup-database.sh || echo "backup failed"
+        done
+    volumes:
+      - ./backup:/backup:ro
+      - kairos-backups:/backups
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  kairos-data:
+  kairos-database:
+  kairos-backups:
+  caddy-data:
+  caddy-config:
