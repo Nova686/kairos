@@ -16,16 +16,22 @@ const pgliteUrlPrefix = 'pglite://'
 const inMemoryTarget = 'memory'
 const migrationsFolder = resolve(process.cwd(), 'server/database/migrations')
 
+export const wrapPgliteClient = (pglite: PGlite): KairosDatabase =>
+  drizzlePglite(pglite, { schema }) as unknown as KairosDatabase
+
+export const prepareDatabaseOnPglite = async (pglite: PGlite): Promise<KairosDatabase> => {
+  const database = drizzlePglite(pglite, { schema })
+  await migratePglite(database, { migrationsFolder })
+  await seedConditionMappings(database as unknown as KairosDatabase)
+  return database as unknown as KairosDatabase
+}
+
 const openPgliteDatabase = async (target: string): Promise<KairosDatabase> => {
   const isInMemory = target === inMemoryTarget
   if (!isInMemory) {
     mkdirSync(resolve(target, '..'), { recursive: true })
   }
-  const pglite = new PGlite(isInMemory ? undefined : target)
-  const database = drizzlePglite(pglite, { schema })
-  await migratePglite(database, { migrationsFolder })
-  await seedConditionMappings(database as unknown as KairosDatabase)
-  return database as unknown as KairosDatabase
+  return prepareDatabaseOnPglite(new PGlite(isInMemory ? undefined : target))
 }
 
 const openPostgresDatabase = async (databaseUrl: string): Promise<KairosDatabase> => {

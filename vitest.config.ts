@@ -7,6 +7,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           globals: true,
+          globalSetup: ['tests/support/prepare-test-database-template.ts'],
           environment: 'node',
           testTimeout: 30000,
           include: [
