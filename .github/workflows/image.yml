@@ -29,7 +29,7 @@ jobs:
             -e NUXT_DATABASE_URL=pglite://memory \
             -e NUXT_APP_SECRET="$app_secret" \
             kairos:ci
-          curl -fsS --retry 45 --retry-delay 2 --retry-connrefused http://localhost:3000/api/health
+          curl -fsS --retry 45 --retry-delay 2 --retry-connrefused --retry-all-errors http://localhost:3000/api/health
       - name: Check the image reports healthy
         run: |
           for attempt in $(seq 1 18); do
