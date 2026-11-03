@@ -1,7 +1,8 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts && npm rebuild
 COPY . .
-RUN npm ci
 RUN npm run build
 RUN node_modules/.bin/esbuild scripts/create-admin.ts \
     --bundle --platform=node --format=esm --packages=external \

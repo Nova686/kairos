@@ -8,3 +8,6 @@ node_modules
 probe-reports
 .claude
 .superpowers
+tests
+docs
+*.md

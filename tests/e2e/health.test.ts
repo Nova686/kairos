@@ -8,7 +8,7 @@ describe('health', async () => {
     const body = await response.json()
 
     expect(response.status).toBe(200)
+    expect(Object.keys(body).sort()).toEqual(['database', 'status', 'version'])
     expect(body).toMatchObject({ status: 'ok', database: 'ok' })
-    expect(JSON.stringify(body)).not.toContain('pglite')
   })
 })

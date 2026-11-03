@@ -4,6 +4,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   image-amd64:
     runs-on: ubuntu-latest
@@ -26,18 +29,27 @@ jobs:
             -e NUXT_DATABASE_URL=pglite://memory \
             -e NUXT_APP_SECRET="$app_secret" \
             kairos:ci
-          for attempt in $(seq 1 30); do
+          curl -fsS --retry 45 --retry-delay 2 --retry-connrefused http://localhost:3000/api/health
+      - name: Check the image reports healthy
+        run: |
+          for attempt in $(seq 1 18); do
             health_status="$(docker inspect --format '{{.State.Health.Status}}' kairos-image-check)"
             if [ "$health_status" = "healthy" ]; then
-              break
+              exit 0
             fi
-            sleep 2
+            sleep 5
           done
-          if [ "$health_status" != "healthy" ]; then
-            docker logs kairos-image-check
-            exit 1
-          fi
-          curl -fsS http://localhost:3000/api/health
+          echo "container health is $health_status"
+          exit 1
+      - name: Check the admin creation command works in the image
+        run: |
+          admin_password="$(openssl rand -hex 16)"
+          echo "$admin_password" | docker exec -i kairos-image-check node .output/server/create-admin.mjs admin@example.test Admin
+      - name: Check the native modules load in the image
+        run: |
+          docker exec -w /app/.output/server kairos-image-check node --input-type=module -e "import 'onnxruntime-node'"
+          docker exec -w /app/.output/server kairos-image-check node --input-type=module -e "import 'sharp'"
+          docker exec -w /app/.output/server kairos-image-check node --input-type=module -e "import 'tesseract.js'"
       - name: Show container logs on failure
         if: failure()
         run: docker logs kairos-image-check
