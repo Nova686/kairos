@@ -12,6 +12,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     databaseUrl: 'pglite://.data/kairos',
     modelsDirectory: '.data/models',
+    tesseractDirectory: '.data/tesseract',
   },
   nitro: {
     experimental: { tasks: true },
