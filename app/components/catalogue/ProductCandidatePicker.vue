@@ -23,6 +23,7 @@
     <v-text-field
       v-model="searchText"
       label="Rechercher un produit"
+      :autofocus="focusSearch"
       prepend-inner-icon="mdi-magnify"
       :loading="isSearching"
       clearable
@@ -109,7 +110,8 @@ import type { ProductCandidate } from '~~/server/domain/catalogue/search-product
 withDefaults(defineProps<{
   identifiedCandidates?: ProductCandidate[]
   pendingBarcode?: string | null
-}>(), { identifiedCandidates: () => [], pendingBarcode: null })
+  focusSearch?: boolean
+}>(), { identifiedCandidates: () => [], pendingBarcode: null, focusSearch: false })
 
 const emit = defineEmits<{ picked: [product: ProductReference] }>()
 

@@ -45,16 +45,26 @@
         >
           {{ noticeMessage }}
         </v-alert>
+        <v-alert
+          v-if="isUnknownCode"
+          type="info"
+          class="my-4"
+          role="status"
+        >
+          Code inconnu : cherchez le produit par son nom, le code-barres lui sera associé.
+        </v-alert>
         <p
-          v-if="unavailableSources.length > 0"
+          v-if="unavailableSourcesMessage"
           class="text-medium-emphasis"
         >
-          Sources indisponibles : {{ unavailableSources.join(', ') }}
+          {{ unavailableSourcesMessage }}
         </p>
         <ProductCandidatePicker
           v-if="identifiedCandidates.length > 0 || pendingBarcode !== null"
+          :key="pendingBarcode ?? 'psa-scan'"
           :identified-candidates="identifiedCandidates"
           :pending-barcode="pendingBarcode"
+          :focus-search="isUnknownCode"
           @picked="pickProduct"
         />
       </v-tabs-window-item>
@@ -90,7 +100,7 @@ const addPickedProduct = (product: ProductReference, prefill: ScanProductPrefill
 const photoCapture = useTemplateRef('photoCapture')
 
 const confirmPhotoAutoPick = (purchasedProductIds: string[]) => {
-  photoCapture.value?.confirmAutoPick(purchasedProductIds)
+  photoCapture.value?.confirmPurchasedPick(purchasedProductIds)
 }
 
 const removePickedProduct = (productId: string) => {
@@ -103,7 +113,8 @@ const {
   errorMessage: scanErrorMessage,
   noticeMessage,
   identifiedCandidates,
-  unavailableSources,
+  unavailableSourcesMessage,
+  isUnknownCode,
   pendingBarcode,
   identify,
   pickProduct,

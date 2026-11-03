@@ -43,6 +43,7 @@ export const usePhotoIdentification = (
   const errorMessage = ref('')
   const candidates = ref<ProductCandidate[]>([])
   const autoPickedProduct = ref<ProductReference | null>(null)
+  const pickedProductIds = ref<string[]>([])
   const degradedMessages = ref<string[]>([])
   const unavailableSources = ref<string[]>([])
   const uploadFingerprint = ref<string | null>(null)
@@ -53,6 +54,7 @@ export const usePhotoIdentification = (
     errorMessage.value = ''
     candidates.value = []
     autoPickedProduct.value = null
+    pickedProductIds.value = []
     degradedMessages.value = []
     unavailableSources.value = []
     uploadFingerprint.value = null
@@ -73,6 +75,7 @@ export const usePhotoIdentification = (
       hasAnalysed.value = true
       if (outcome.autoPicked?.productId) {
         autoPickedProduct.value = toProductReference(outcome.autoPicked)
+        pickedProductIds.value = [autoPickedProduct.value.id]
         handlers.onProductReady(autoPickedProduct.value)
       }
     }
@@ -93,6 +96,7 @@ export const usePhotoIdentification = (
       return
     }
     handlers.onProductWithdrawn(autoPickedProduct.value.id)
+    pickedProductIds.value = pickedProductIds.value.filter(productId => productId !== autoPickedProduct.value?.id)
     autoPickedProduct.value = null
   }
 
@@ -112,14 +116,17 @@ export const usePhotoIdentification = (
   }
 
   const pickProduct = async (product: ProductReference): Promise<void> => {
-    await confirmPhoto(product.id)
+    pickedProductIds.value = [...pickedProductIds.value.filter(productId => productId !== product.id), product.id]
     handlers.onProductReady(product)
   }
 
-  const confirmAutoPick = async (purchasedProductIds: string[]): Promise<void> => {
-    if (autoPickedProduct.value !== null && purchasedProductIds.includes(autoPickedProduct.value.id)) {
-      await confirmPhoto(autoPickedProduct.value.id)
+  const confirmPurchasedPick = async (purchasedProductIds: string[]): Promise<void> => {
+    const purchasedPickedProductId = pickedProductIds.value.find(productId => purchasedProductIds.includes(productId))
+    if (purchasedPickedProductId === undefined) {
+      return
     }
+    pickedProductIds.value = []
+    await confirmPhoto(purchasedPickedProductId)
   }
 
   return {
@@ -133,6 +140,6 @@ export const usePhotoIdentification = (
     analyse,
     rejectAutoPick,
     pickProduct,
-    confirmAutoPick,
+    confirmPurchasedPick,
   }
 }

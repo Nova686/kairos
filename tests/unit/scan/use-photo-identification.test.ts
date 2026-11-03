@@ -67,33 +67,90 @@ describe('usePhotoIdentification', () => {
     expect(photo.candidates.value).toEqual(candidates)
   })
 
-  it('confirms the photo for a product picked among the candidates, then hands it over', async () => {
+  it('hands a picked candidate over without confirming it before a purchase', async () => {
     const sendRequest = vi.fn()
       .mockResolvedValueOnce(outcomeWith({ candidates: [candidateFor(coffret.id, coffret.name)] }))
-      .mockResolvedValueOnce({ confirmed: true })
     const { photo, onProductReady } = buildComposable(sendRequest)
     await photo.analyse(photoFile)
 
     await photo.pickProduct(coffret)
+    await photo.confirmPurchasedPick([])
 
+    expect(onProductReady).toHaveBeenCalledWith(coffret)
+    expect(sendRequest).toHaveBeenCalledTimes(1)
+  })
+
+  it('confirms only the purchased product after a mis-tap then a correct pick', async () => {
+    const display = { id: 'product-2', name: 'Display', category: 'pokemon-sealed' as const }
+    const sendRequest = vi.fn()
+      .mockResolvedValueOnce(outcomeWith({ candidates: [candidateFor(coffret.id, coffret.name), candidateFor(display.id, display.name)] }))
+      .mockResolvedValueOnce({ confirmed: true })
+    const { photo } = buildComposable(sendRequest)
+    await photo.analyse(photoFile)
+
+    await photo.pickProduct(coffret)
+    await photo.pickProduct(display)
+    await photo.confirmPurchasedPick([display.id])
+
+    expect(sendRequest).toHaveBeenCalledTimes(2)
+    expect(sendRequest).toHaveBeenLastCalledWith('/api/scan/photo/confirm', {
+      method: 'POST',
+      body: { uploadFingerprint: 'fingerprint-1', productId: display.id },
+    })
+  })
+
+  it('confirms the first picked product when several picked products were purchased', async () => {
+    const display = { id: 'product-2', name: 'Display', category: 'pokemon-sealed' as const }
+    const sendRequest = vi.fn()
+      .mockResolvedValueOnce(outcomeWith({ autoPicked: candidateFor(coffret.id, coffret.name) }))
+      .mockResolvedValueOnce({ confirmed: true })
+    const { photo } = buildComposable(sendRequest)
+    await photo.analyse(photoFile)
+    await photo.pickProduct(display)
+
+    await photo.confirmPurchasedPick([display.id, coffret.id])
+
+    expect(sendRequest).toHaveBeenCalledTimes(2)
     expect(sendRequest).toHaveBeenLastCalledWith('/api/scan/photo/confirm', {
       method: 'POST',
       body: { uploadFingerprint: 'fingerprint-1', productId: coffret.id },
     })
-    expect(onProductReady).toHaveBeenCalledWith(coffret)
   })
 
-  it('still hands the product over when the confirmation fails', async () => {
+  it('confirms nothing when no picked product was purchased', async () => {
+    const sendRequest = vi.fn().mockResolvedValue(outcomeWith({ candidates: [candidateFor(coffret.id, coffret.name)] }))
+    const { photo } = buildComposable(sendRequest)
+    await photo.analyse(photoFile)
+    await photo.pickProduct(coffret)
+
+    await photo.confirmPurchasedPick(['another-product'])
+
+    expect(sendRequest).toHaveBeenCalledTimes(1)
+  })
+
+  it('forgets earlier picks when a new photo is analysed', async () => {
+    const sendRequest = vi.fn().mockResolvedValue(outcomeWith({ candidates: [candidateFor(coffret.id, coffret.name)] }))
+    const { photo } = buildComposable(sendRequest)
+    await photo.analyse(photoFile)
+    await photo.pickProduct(coffret)
+    await photo.analyse(photoFile)
+
+    await photo.confirmPurchasedPick([coffret.id])
+
+    expect(sendRequest).toHaveBeenCalledTimes(2)
+  })
+
+  it('still confirms without surfacing an error when the confirmation fails', async () => {
     const sendRequest = vi.fn()
       .mockResolvedValueOnce(outcomeWith({ candidates: [candidateFor(coffret.id, coffret.name)] }))
       .mockRejectedValueOnce({ statusCode: 404 })
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const { photo, onProductReady } = buildComposable(sendRequest)
+    const { photo } = buildComposable(sendRequest)
     await photo.analyse(photoFile)
-
     await photo.pickProduct(coffret)
 
-    expect(onProductReady).toHaveBeenCalledWith(coffret)
+    await photo.confirmPurchasedPick([coffret.id])
+
     expect(photo.errorMessage.value).toBe('')
     expect(warning).toHaveBeenCalledTimes(1)
     warning.mockRestore()
@@ -107,9 +164,9 @@ describe('usePhotoIdentification', () => {
     await photo.analyse(photoFile)
 
     expect(sendRequest).toHaveBeenCalledTimes(1)
-    await photo.confirmAutoPick(['another-product'])
+    await photo.confirmPurchasedPick(['another-product'])
     expect(sendRequest).toHaveBeenCalledTimes(1)
-    await photo.confirmAutoPick([coffret.id])
+    await photo.confirmPurchasedPick([coffret.id])
 
     expect(sendRequest).toHaveBeenLastCalledWith('/api/scan/photo/confirm', {
       method: 'POST',
@@ -123,7 +180,7 @@ describe('usePhotoIdentification', () => {
     await photo.analyse(photoFile)
     photo.rejectAutoPick()
 
-    await photo.confirmAutoPick([coffret.id])
+    await photo.confirmPurchasedPick([coffret.id])
 
     expect(sendRequest).toHaveBeenCalledTimes(1)
   })

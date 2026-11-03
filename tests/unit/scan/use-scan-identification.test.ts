@@ -64,6 +64,20 @@ describe('useScanIdentification', () => {
     expect(onProductReady).toHaveBeenCalledWith(kinderProduct, null)
   })
 
+  it('flags an unknown code only when the barcode has neither a known product nor candidates', async () => {
+    const sendRequest = vi.fn()
+      .mockResolvedValueOnce({ barcode: '3017620422003', knownProduct: null, candidates: [], unavailableSources: ['upcitemdb'] })
+      .mockResolvedValueOnce({ barcode: '3017620422003', knownProduct: null, candidates: [candidateFor('Nutella')], unavailableSources: [] })
+    const scan = useScanIdentification(vi.fn(), sendRequest)
+    expect(scan.isUnknownCode.value).toBe(false)
+
+    await scan.identify('3017620422003')
+    expect(scan.isUnknownCode.value).toBe(true)
+
+    await scan.identify('3017620422003')
+    expect(scan.isUnknownCode.value).toBe(false)
+  })
+
   it('still hands over the product when linking fails and says so', async () => {
     const sendRequest = vi.fn()
       .mockResolvedValueOnce({ barcode: '3017620422003', knownProduct: null, candidates: [], unavailableSources: [] })

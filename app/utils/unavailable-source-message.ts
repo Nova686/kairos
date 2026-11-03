@@ -20,3 +20,14 @@ export const describeRefreshOutcome = (unavailableSources: UnavailableSource[]):
   unavailableSources.length === 0
     ? 'Prix relevés.'
     : `Prix relevés. ${unavailableSources.map(describeUnavailableSource).join(' ; ')}.`
+
+const identificationSourceLabels: Record<string, string> = {
+  openbeautyfacts: 'Open Beauty Facts',
+  upcitemdb: 'UPCitemdb',
+  psa: 'PSA',
+}
+
+export const describeUnavailableIdentificationSources = (sourceNames: string[]): string =>
+  sourceNames.length === 0
+    ? ''
+    : `Sources indisponibles : ${sourceNames.map(sourceName => identificationSourceLabels[sourceName] ?? sourceName).join(', ')}`

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { describeRefreshOutcome, describeUnavailableSource } from '../../../app/utils/unavailable-source-message.ts'
+import { describeRefreshOutcome, describeUnavailableIdentificationSources, describeUnavailableSource } from '../../../app/utils/unavailable-source-message.ts'
 
 describe('describeUnavailableSource', () => {
   it('names a source whose key is missing', () => {
@@ -33,5 +33,16 @@ describe('describeRefreshOutcome', () => {
       { source: 'ebay', kind: 'missing-key', reason: 'EBAY_CLIENT_ID is not set' },
       { source: 'pokemontcg', kind: 'error', reason: 'error: timeout' },
     ])).toBe('Prix relevés. eBay indisponible : clé manquante ; Pokémon TCG indisponible : erreur.')
+  })
+})
+
+describe('describeUnavailableIdentificationSources', () => {
+  it('names identification sources in French and keeps unknown ids', () => {
+    expect(describeUnavailableIdentificationSources(['openbeautyfacts', 'upcitemdb', 'mystery']))
+      .toBe('Sources indisponibles : Open Beauty Facts, UPCitemdb, mystery')
+  })
+
+  it('says nothing when every source answered', () => {
+    expect(describeUnavailableIdentificationSources([])).toBe('')
   })
 })

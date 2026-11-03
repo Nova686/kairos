@@ -24,7 +24,10 @@
       class="my-4"
       role="alert"
     >
-      Autorisez l’appareil photo dans Réglages › Safari, ou saisissez le code ci-dessous.
+      Autorisez l’appareil photo dans Réglages › Safari, saisissez le code ci-dessous
+      <NuxtLink :to="{ query: { onglet: 'photo' } }">
+        ou prenez une photo
+      </NuxtLink>.
     </v-alert>
     <v-alert
       v-else-if="cameraState === 'unavailable'"
@@ -32,7 +35,10 @@
       class="my-4"
       role="alert"
     >
-      L’appareil photo n’est pas disponible : saisissez le code ci-dessous.
+      L’appareil photo n’est pas disponible : saisissez le code ci-dessous
+      <NuxtLink :to="{ query: { onglet: 'photo' } }">
+        ou prenez une photo
+      </NuxtLink>.
     </v-alert>
     <v-btn
       v-if="cameraState === 'scanning' || cameraState === 'starting'"

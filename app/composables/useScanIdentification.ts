@@ -1,7 +1,8 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ProductCandidate } from '../../server/domain/catalogue/search-product-candidates.ts'
 import type { ProductReference } from '../../shared/catalogue/product-reference.ts'
 import { classifyScannedCode } from '../utils/classify-scanned-code.ts'
+import { describeUnavailableIdentificationSources } from '../utils/unavailable-source-message.ts'
 
 export interface ScanProductPrefill {
   gradingCompany: string
@@ -42,6 +43,9 @@ export const useScanIdentification = (
   const pendingBarcode = ref<string | null>(null)
   const pendingPrefill = ref<ScanProductPrefill | null>(null)
   let latestIdentificationNumber = 0
+
+  const isUnknownCode = computed(() => pendingBarcode.value !== null && identifiedCandidates.value.length === 0)
+  const unavailableSourcesMessage = computed(() => describeUnavailableIdentificationSources(unavailableSources.value))
 
   const resetOutcome = () => {
     identifiedCandidates.value = []
@@ -129,6 +133,8 @@ export const useScanIdentification = (
     noticeMessage,
     identifiedCandidates,
     unavailableSources,
+    unavailableSourcesMessage,
+    isUnknownCode,
     pendingBarcode,
     identify,
     pickProduct,

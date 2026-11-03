@@ -106,7 +106,7 @@ const {
   analyse,
   rejectAutoPick,
   pickProduct,
-  confirmAutoPick,
+  confirmPurchasedPick,
 } = usePhotoIdentification(
   {
     onProductReady: product => emit('productReady', product),
@@ -116,7 +116,7 @@ const {
   resizePhoto,
 )
 
-defineExpose({ confirmAutoPick })
+defineExpose({ confirmPurchasedPick })
 
 const fileInput = useTemplateRef('fileInput')
 const previewUrl = ref<string | null>(null)
