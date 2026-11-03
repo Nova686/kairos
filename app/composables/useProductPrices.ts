@@ -1,6 +1,7 @@
 import { conditionCodesFor, conditionLabel } from '~~/shared/catalogue/condition-scale'
 import { isProductCategory, type ProductCategory } from '~~/shared/catalogue/product-category'
 import type { PriceOverviewCellView, ProductPriceOverviewView } from '~/utils/price-overview-view'
+import type { UnavailableSource } from '~~/shared/prices/unavailable-source'
 
 export interface PricedProductView {
   id: string
@@ -108,11 +109,8 @@ export const useProductPrices = async (productId: string, preferredCondition: st
       refreshMessage.value = ''
       isRefreshing.value = true
       try {
-        const outcome = await sendRequest(`/api/products/${productId}/refresh-prices`, { method: 'POST' }) as { unavailableSources?: string[] }
-        const unavailableSources = outcome.unavailableSources ?? []
-        refreshMessage.value = unavailableSources.length === 0
-          ? 'Prix relevés.'
-          : `Prix relevés. Sources indisponibles : ${unavailableSources.join(', ')}.`
+        const outcome = await sendRequest(`/api/products/${productId}/refresh-prices`, { method: 'POST' }) as { unavailableSources?: UnavailableSource[] }
+        refreshMessage.value = describeRefreshOutcome(outcome.unavailableSources ?? [])
         await reloadScreen()
       }
       catch (failure) {

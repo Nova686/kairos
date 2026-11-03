@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { estimateStockItemValue } from '../../../shared/valuation/estimate-stock-item-value.ts'
 import { eq } from 'drizzle-orm'
 import { excludedListings, priceRefreshRequests, priceSnapshotListings, priceSnapshots, products, users } from '../../../server/database/schema/index.ts'
 import type { KairosDatabase } from '../../../server/database/open-database.ts'
 import { listProductChanges } from '../../../server/domain/catalogue/catalogue-journal.ts'
 import { excludeListing, restoreListing } from '../../../server/domain/prices/listing-exclusions.ts'
+import { productPriceOverview } from '../../../server/domain/prices/product-price-overview.ts'
 import { refreshProductPrices } from '../../../server/domain/prices/refresh-product-prices.ts'
+import { loadValuationSnapshots } from '../../../server/domain/valuation/load-valuation-snapshots.ts'
+import { SourceDisabledError } from '../../../src/price-sources/price-source-types.ts'
 import type { PriceSourceGateway } from '../../../server/domain/prices/refresh-product-prices.ts'
 import type { ListingObservation } from '../../../src/price-sources/price-source-types.ts'
 import { createTestDatabase } from '../../support/create-test-database.ts'
@@ -125,5 +129,45 @@ describe('excludeListing and restoreListing', () => {
       .rejects.toMatchObject({ statusCode: 404 })
     await expect(restoreListing(database, memberId, 'not-a-uuid', 'https://ebay.test/itm/2', now))
       .rejects.toMatchObject({ statusCode: 404 })
+  })
+})
+
+describe('exclusion of the only listing of a condition', () => {
+  const usedListing = listing('Display EV1 occasion', 4000, 'https://ebay.test/itm/9')
+  const later = new Date(now.getTime() + 60 * 60_000)
+
+  it('leaves no eBay figure for that condition after the next refresh', async () => {
+    const database = await createTestDatabase()
+    const { memberId, product } = await insertProduct(database)
+    await refreshProductPrices(database, gatewayWith([keptListing, { ...usedListing, sourceCondition: 'Occasion' }]), product.id, now)
+
+    await excludeListing(database, memberId, product.id, usedListing.url, later)
+    await refreshProductPrices(database, gatewayWith([keptListing, { ...usedListing, sourceCondition: 'Occasion' }]), product.id, later)
+
+    const snapshots = (await loadValuationSnapshots(database, [product.id], later)).get(product.id)!
+    const ebayConditions = snapshots.filter(snapshot => snapshot.source === 'ebay').map(snapshot => snapshot.kairosCondition)
+    expect(ebayConditions).toEqual(['sealed-new'])
+    const valuation = estimateStockItemValue({ category: 'pokemon-sealed', condition: 'opened-complete', gradingCompany: null, grade: null }, snapshots, later)
+    expect(valuation).toMatchObject({ valueCents: 5000, approximate: true, usedCondition: 'sealed-new' })
+    const overview = await productPriceOverview(database, product.id, later)
+    expect(overview.bySourceAndCondition.filter(cell => cell.source === 'ebay').map(cell => cell.condition)).toEqual(['sealed-new'])
+  })
+
+  it('keeps the previous eBay figures when eBay was unavailable at the next refresh', async () => {
+    const database = await createTestDatabase()
+    const { memberId, product } = await insertProduct(database)
+    await refreshProductPrices(database, gatewayWith([keptListing, { ...usedListing, sourceCondition: 'Occasion' }]), product.id, now)
+
+    await excludeListing(database, memberId, product.id, usedListing.url, later)
+    const disabledGateway: PriceSourceGateway = {
+      ...gatewayWith([]),
+      searchEbay: async () => { throw new SourceDisabledError('ebay', 'EBAY_CLIENT_ID') },
+    }
+    await refreshProductPrices(database, disabledGateway, product.id, later)
+
+    const snapshots = (await loadValuationSnapshots(database, [product.id], later)).get(product.id)!
+    expect(snapshots.map(snapshot => snapshot.kairosCondition).sort()).toEqual(['opened-complete', 'sealed-new'])
+    const [request] = await database.select().from(priceRefreshRequests).where(eq(priceRefreshRequests.productId, product.id))
+    expect(request!.lastEbayRefreshAt).toEqual(now)
   })
 })

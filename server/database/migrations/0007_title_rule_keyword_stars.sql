@@ -1,0 +1,2 @@
+UPDATE "title_condition_rules" SET "keywords" = ARRAY['vide', 'empty', 'sans cartes', 'incompl*'] WHERE "category" = 'pokemon-sealed' AND "keywords" = ARRAY['vide', 'empty', 'sans cartes', 'incompl'];--> statement-breakpoint
+UPDATE "title_condition_rules" SET "keywords" = ARRAY['abîm*', 'abim*', 'cabossé*', 'dented', 'damaged', 'enfonc*'] WHERE "category" = 'pokemon-sealed' AND "keywords" = ARRAY['abîm', 'abim', 'cabossé', 'dented', 'damaged', 'enfonc'];

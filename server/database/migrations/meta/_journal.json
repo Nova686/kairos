@@ -36,6 +36,27 @@
       "when": 1793624617957,
       "tag": "0004_price_refresh_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793629418238,
+      "tag": "0005_last_ebay_refresh",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793629707410,
+      "tag": "0006_valued_purchase_cost",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793629886782,
+      "tag": "0007_title_rule_keyword_stars",
+      "breakpoints": true
     }
   ]
 }

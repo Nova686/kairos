@@ -9,6 +9,7 @@ export interface StockItemValuationView {
 export interface StockValueHistoryPointView {
   snapshotOn: string
   purchaseCostCents: number
+  valuedPurchaseCostCents: number
   estimatedValueCents: number
 }
 
@@ -64,8 +65,8 @@ export const buildStockValueChartData = (history: StockValueHistoryPointView[]):
   return {
     datasets: [
       {
-        label: 'Coût',
-        data: sortedHistory.map(historyPoint => ({ x: dayNumberOf(historyPoint.snapshotOn), y: historyPoint.purchaseCostCents / 100 })),
+        label: 'Coût des exemplaires valorisés',
+        data: sortedHistory.map(historyPoint => ({ x: dayNumberOf(historyPoint.snapshotOn), y: historyPoint.valuedPurchaseCostCents / 100 })),
         borderColor: costLineColor,
         backgroundColor: costLineColor,
         spanGaps: false,

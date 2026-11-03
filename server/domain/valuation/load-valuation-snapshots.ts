@@ -3,6 +3,7 @@ import type { ConditionCode } from '../../../shared/catalogue/condition-scale.ts
 import type { ValuationSnapshot, ValuationSnapshotKind } from '../../../shared/valuation/estimate-stock-item-value.ts'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { priceSnapshots } from '../../database/schema/index.ts'
+import { isSupersededEbaySnapshot, loadLastEbayRefreshes } from '../prices/superseded-ebay-snapshots.ts'
 
 const freshnessWindowMilliseconds = 7 * 24 * 60 * 60 * 1000
 
@@ -29,7 +30,8 @@ export const loadValuationSnapshots = async (
       inArray(priceSnapshots.productId, productIds),
       gte(priceSnapshots.observedAt, new Date(now.getTime() - freshnessWindowMilliseconds)),
     ))
-  for (const row of rows) {
+  const lastEbayRefreshes = await loadLastEbayRefreshes(database, productIds)
+  for (const row of rows.filter(candidate => !isSupersededEbaySnapshot(candidate, lastEbayRefreshes.get(candidate.productId)))) {
     snapshotsByProduct.get(row.productId)!.push({
       source: row.source,
       kind: row.kind as ValuationSnapshotKind,

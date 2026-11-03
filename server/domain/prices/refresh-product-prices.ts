@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { compileTitleRules } from '../../../shared/prices/resolve-kairos-condition.ts'
 import type { CompiledTitleRules, ConditionMappingEntry, TitleConditionRuleEntry } from '../../../shared/prices/resolve-kairos-condition.ts'
 import { downloadCardmarketPriceGuide, pokemonGameId } from '../../../src/price-sources/cardmarket/cardmarket-files.ts'
@@ -21,6 +21,8 @@ import type { PriceSnapshotDraft } from './price-snapshot-drafts.ts'
 import { buildCardReferenceSnapshotDrafts } from './record-card-reference-snapshots.ts'
 import { buildCardmarketSnapshotDrafts } from './record-cardmarket-snapshots.ts'
 import { buildEbaySnapshotDrafts, normalizeListingUrl } from './record-ebay-snapshots.ts'
+import { parisCalendarDateOf } from './start-of-paris-day.ts'
+import type { UnavailableSource } from '../../../shared/prices/unavailable-source.ts'
 
 export type PriceSourceGateway = {
   searchEbay(query: string): Promise<ListingObservation[]>
@@ -29,7 +31,7 @@ export type PriceSourceGateway = {
   pokemontcgAggregate(cardId: string): Promise<SourceAggregate | null>
 }
 
-export type UnavailableSource = { source: string; reason: string }
+export type { UnavailableSource }
 
 export type RefreshOutcome = { snapshotIds: string[]; unavailableSources: UnavailableSource[] }
 
@@ -38,28 +40,37 @@ export type RefreshRulesContext = {
   compiledRules: CompiledTitleRules
 }
 
-const calendarDayOf = (moment: Date): string => moment.toISOString().slice(0, 10)
+const ebaySource = 'ebay'
 
-export const createPriceSourceGateway = (): PriceSourceGateway => {
-  let cachedGuide: { day: string; aggregates: Map<number, SourceAggregate> } | null = null
-  return {
-    searchEbay: query => searchEbayListings(query),
-    cardmarketAggregates: async () => {
-      const today = calendarDayOf(new Date())
-      if (cachedGuide?.day !== today) {
-        const downloadedAt = new Date()
-        const rawGuide = await downloadCardmarketPriceGuide(pokemonGameId)
-        cachedGuide = {
-          day: calendarDayOf(downloadedAt),
-          aggregates: parseCardmarketPriceGuide(rawGuide, downloadedAt.toISOString()),
-        }
-      }
-      return cachedGuide.aggregates
-    },
-    tcgdexAggregate: cardId => fetchTcgdexCardAggregate(cardId),
-    pokemontcgAggregate: cardId => fetchPokemontcgCardAggregate(cardId),
+type CachedCardmarketGuide = { parisDay: string; aggregates: Promise<Map<number, SourceAggregate>> }
+
+let cachedCardmarketGuide: CachedCardmarketGuide | null = null
+
+const downloadCardmarketAggregates = async (downloadedAt: Date): Promise<Map<number, SourceAggregate>> =>
+  parseCardmarketPriceGuide(await downloadCardmarketPriceGuide(pokemonGameId), downloadedAt.toISOString())
+
+const cardmarketAggregatesOfToday = (): Promise<Map<number, SourceAggregate>> => {
+  const now = new Date()
+  const parisDay = parisCalendarDateOf(now)
+  if (cachedCardmarketGuide?.parisDay === parisDay) {
+    return cachedCardmarketGuide.aggregates
   }
+  const pendingGuide: CachedCardmarketGuide = { parisDay, aggregates: downloadCardmarketAggregates(now) }
+  cachedCardmarketGuide = pendingGuide
+  pendingGuide.aggregates.catch(() => {
+    if (cachedCardmarketGuide === pendingGuide) {
+      cachedCardmarketGuide = null
+    }
+  })
+  return pendingGuide.aggregates
 }
+
+export const createPriceSourceGateway = (): PriceSourceGateway => ({
+  searchEbay: query => searchEbayListings(query),
+  cardmarketAggregates: cardmarketAggregatesOfToday,
+  tcgdexAggregate: cardId => fetchTcgdexCardAggregate(cardId),
+  pokemontcgAggregate: cardId => fetchPokemontcgCardAggregate(cardId),
+})
 
 export const loadRefreshRulesContext = async (database: KairosDatabase): Promise<RefreshRulesContext> => {
   const mappings = await database.select().from(conditionMappings)
@@ -68,8 +79,10 @@ export const loadRefreshRulesContext = async (database: KairosDatabase): Promise
   return { mappings: mappings as ConditionMappingEntry[], compiledRules }
 }
 
-const describeUnavailability = (error: SourceDisabledError | SourceBlockedError): string =>
-  error instanceof SourceDisabledError ? `${error.missingSetting} is not set` : error.reason
+const describeUnavailability = (error: SourceDisabledError | SourceBlockedError): Omit<UnavailableSource, 'source'> =>
+  error instanceof SourceDisabledError
+    ? { kind: 'missing-key', reason: `${error.missingSetting} is not set` }
+    : { kind: 'blocked', reason: error.reason }
 
 const collectFromSource = async (
   sourceName: string,
@@ -81,11 +94,12 @@ const collectFromSource = async (
   }
   catch (error) {
     if (error instanceof SourceDisabledError || error instanceof SourceBlockedError) {
-      unavailableSources.push({ source: sourceName, reason: describeUnavailability(error) })
+      unavailableSources.push({ source: sourceName, ...describeUnavailability(error) })
       return []
     }
     unavailableSources.push({
       source: sourceName,
+      kind: 'error',
       reason: `error: ${error instanceof Error ? error.message : String(error)}`,
     })
     return []
@@ -109,7 +123,7 @@ export const refreshProductPrices = async (
   const unavailableSources: UnavailableSource[] = []
   const { cardmarketProductId, tcgdexCardId, pokemontcgCardId } = product
 
-  const ebayDrafts = await collectFromSource('ebay', unavailableSources, async () => {
+  const ebayDrafts = await collectFromSource(ebaySource, unavailableSources, async () => {
     const listings = await gateway.searchEbay(product.ebayQuery ?? product.name)
     return buildEbaySnapshotDrafts(listings, {
       category: product.category,
@@ -133,13 +147,22 @@ export const refreshProductPrices = async (
     : await collectFromSource('pokemontcg', unavailableSources, async () =>
         buildCardReferenceSnapshotDrafts([await gateway.pokemontcgAggregate(pokemontcgCardId)]))
 
+  const isEbayUnavailable = unavailableSources.some(unavailableSource => unavailableSource.source === ebaySource)
   const drafts = [...ebayDrafts, ...cardmarketDrafts, ...tcgdexDrafts, ...pokemontcgDrafts]
   const snapshotIds = await database.transaction(async (transaction) => {
     const insertedIds = await insertPriceSnapshotDrafts(transaction as unknown as KairosDatabase, productId, drafts)
+    const ebayRefresh = isEbayUnavailable ? {} : { lastEbayRefreshAt: now }
     await transaction
       .insert(priceRefreshRequests)
-      .values({ productId, requestedAt: null, lastRefreshedAt: now })
-      .onConflictDoUpdate({ target: priceRefreshRequests.productId, set: { lastRefreshedAt: now } })
+      .values({ productId, requestedAt: null, lastRefreshedAt: now, ...ebayRefresh })
+      .onConflictDoUpdate({
+        target: priceRefreshRequests.productId,
+        set: {
+          lastRefreshedAt: now,
+          requestedAt: sql`case when ${priceRefreshRequests.requestedAt} <= ${now.toISOString()}::timestamptz then null else ${priceRefreshRequests.requestedAt} end`,
+          ...ebayRefresh,
+        },
+      })
     return insertedIds
   })
   return { snapshotIds, unavailableSources }

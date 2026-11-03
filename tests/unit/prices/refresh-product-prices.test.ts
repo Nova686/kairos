@@ -169,7 +169,7 @@ describe('refreshProductPrices', () => {
       cardmarketAggregates: async () => new Map([[42, aggregate('cardmarket')]]),
     })
     const outcome = await refreshProductPrices(database, gateway, product.id, now)
-    expect(outcome.unavailableSources[0]!.source).toBe('ebay')
+    expect(outcome.unavailableSources).toEqual([{ source: 'ebay', kind: 'missing-key', reason: 'EBAY_CLIENT_ID is not set' }])
     const snapshots = await database.select().from(priceSnapshots)
     expect(snapshots).toHaveLength(1)
     expect(snapshots[0]).toMatchObject({
@@ -206,7 +206,7 @@ describe('refreshProductPrices', () => {
       pokemontcgAggregate: async () => aggregate('pokemontcg'),
     })
     const outcome = await refreshProductPrices(database, gateway, product.id, now)
-    expect(outcome.unavailableSources).toEqual([{ source: 'tcgdex', reason: 'error: HTTP 500' }])
+    expect(outcome.unavailableSources).toEqual([{ source: 'tcgdex', kind: 'error', reason: 'error: HTTP 500' }])
     const snapshots = await database.select().from(priceSnapshots)
     expect(snapshots.map(snapshot => snapshot.source)).toEqual(['pokemontcg'])
   })

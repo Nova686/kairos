@@ -64,6 +64,7 @@ describe('valueStock', () => {
 
     expect(stockValuation).toMatchObject({
       purchaseCostCents: 13000,
+      valuedPurchaseCostCents: 10000,
       estimatedValueCents: 15000,
       latentGainCents: 5000,
       valuedItemCount: 2,
@@ -97,7 +98,9 @@ describe('recordStockValueSnapshots', () => {
     const ownerId = await insertOwner(database, 'a@x.fr')
     const emptyOwnerId = await insertOwner(database, 'b@x.fr')
     const productId = await insertProduct(database, ownerId, 10000)
+    const unvaluedProductId = await insertProduct(database, ownerId, null)
     await buy(database, ownerId, 6000, [line(productId, 6000)])
+    await buy(database, ownerId, 2500, [line(unvaluedProductId, 2500)])
 
     await recordStockValueSnapshots(database, now)
     await recordStockValueSnapshots(database, new Date('2026-11-02T18:00:00Z'))
@@ -106,12 +109,15 @@ describe('recordStockValueSnapshots', () => {
     expect(rows).toHaveLength(2)
     expect(rows.find(row => row.ownerId === ownerId)).toMatchObject({
       snapshotOn: '2026-11-02',
-      purchaseCostCents: 6000,
+      purchaseCostCents: 8500,
+      valuedPurchaseCostCents: 6000,
       estimatedValueCents: 10000,
       valuedItemCount: 1,
+      unvaluedItemCount: 1,
     })
     expect(rows.find(row => row.ownerId === emptyOwnerId)).toMatchObject({
       purchaseCostCents: 0,
+      valuedPurchaseCostCents: 0,
       estimatedValueCents: 0,
       valuedItemCount: 0,
       unvaluedItemCount: 0,

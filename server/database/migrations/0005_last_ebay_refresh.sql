@@ -1,0 +1,1 @@
+ALTER TABLE "price_refresh_requests" ADD COLUMN "last_ebay_refresh_at" timestamp with time zone;

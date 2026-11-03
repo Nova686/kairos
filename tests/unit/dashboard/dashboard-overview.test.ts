@@ -100,8 +100,8 @@ describe('dashboardOverview', () => {
       createdOn: '2026-11-02',
     })
     await database.insert(stockValueSnapshots).values([
-      { ownerId, snapshotOn: '2026-10-01', purchaseCostCents: 100, estimatedValueCents: 200, valuedItemCount: 1, approximateItemCount: 0, unvaluedItemCount: 0 },
-      { ownerId: otherOwnerId, snapshotOn: '2026-10-01', purchaseCostCents: 1, estimatedValueCents: 2, valuedItemCount: 1, approximateItemCount: 0, unvaluedItemCount: 0 },
+      { ownerId, snapshotOn: '2026-10-01', purchaseCostCents: 100, valuedPurchaseCostCents: 100, estimatedValueCents: 200, valuedItemCount: 1, approximateItemCount: 0, unvaluedItemCount: 0 },
+      { ownerId: otherOwnerId, snapshotOn: '2026-10-01', purchaseCostCents: 1, valuedPurchaseCostCents: 1, estimatedValueCents: 2, valuedItemCount: 1, approximateItemCount: 0, unvaluedItemCount: 0 },
     ])
 
     const overview = await dashboardOverview(database, ownerId, now)
@@ -145,6 +145,7 @@ describe('dashboardOverview', () => {
     expect(await dashboardOverview(database, ownerId, now)).toEqual({
       stockValue: {
         purchaseCostCents: 0,
+        valuedPurchaseCostCents: 0,
         estimatedValueCents: 0,
         latentGainCents: 0,
         valuedItemCount: 0,

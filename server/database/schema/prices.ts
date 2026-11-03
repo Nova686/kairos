@@ -66,12 +66,14 @@ export const priceRefreshRequests = pgTable('price_refresh_requests', {
   requestedByUserId: uuid('requested_by_user_id').references(() => users.id, { onDelete: 'restrict' }),
   lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }),
   attempts: integer('attempts').notNull().default(0),
+  lastEbayRefreshAt: timestamp('last_ebay_refresh_at', { withTimezone: true }),
 })
 
 export const stockValueSnapshots = pgTable('stock_value_snapshots', {
   ownerId: uuid('owner_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
   snapshotOn: date('snapshot_on', { mode: 'string' }).notNull(),
   purchaseCostCents: integer('purchase_cost_cents').notNull(),
+  valuedPurchaseCostCents: integer('valued_purchase_cost_cents').notNull(),
   estimatedValueCents: integer('estimated_value_cents').notNull(),
   valuedItemCount: integer('valued_item_count').notNull(),
   approximateItemCount: integer('approximate_item_count').notNull(),

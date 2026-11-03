@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNotNull, notExists, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, isNotNull, notExists, or, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { priceRefreshRequests, stockItems } from '../../database/schema/index.ts'
@@ -61,10 +61,24 @@ export const enqueueUserHeldProducts = async (
   userId: string,
   now: Date,
 ): Promise<number> => {
+  const refreshedTodayOrQueued = database
+    .select({ productId: priceRefreshRequests.productId })
+    .from(priceRefreshRequests)
+    .where(and(
+      eq(priceRefreshRequests.productId, stockItems.productId),
+      or(
+        gte(priceRefreshRequests.lastRefreshedAt, startOfParisDay(now)),
+        isNotNull(priceRefreshRequests.requestedAt),
+      ),
+    ))
   const heldProducts = await database
     .selectDistinct({ productId: stockItems.productId })
     .from(stockItems)
-    .where(and(eq(stockItems.ownerId, userId), inArray(stockItems.status, heldStatuses)))
+    .where(and(
+      eq(stockItems.ownerId, userId),
+      inArray(stockItems.status, heldStatuses),
+      notExists(refreshedTodayOrQueued),
+    ))
   const productIds = heldProducts.map(heldProduct => heldProduct.productId)
   await enqueueProducts(database, productIds, userId, now)
   return productIds.length
@@ -172,12 +186,23 @@ const recordFailedRefresh = async (database: KairosDatabase, productId: string, 
     .where(eq(priceRefreshRequests.productId, productId))
 }
 
+type QueueLogger = (...details: unknown[]) => void
+
+export type ProcessQueueDependencies = {
+  refreshProduct?: RefreshProduct
+  logFailure?: QueueLogger
+  logUnavailableSources?: QueueLogger
+}
+
 export const processRefreshQueue = async (
   database: KairosDatabase,
   gateway: PriceSourceGateway,
   now: Date,
-  refreshProduct: RefreshProduct = refreshProductPrices,
-  logFailure: (...details: unknown[]) => void = console.error,
+  {
+    refreshProduct = refreshProductPrices,
+    logFailure = console.error,
+    logUnavailableSources = console.warn,
+  }: ProcessQueueDependencies = {},
 ): Promise<ProcessQueueOutcome> => {
   const productIds = await takeNextRefreshBatch(database)
   if (productIds.length === 0) {
@@ -188,7 +213,10 @@ export const processRefreshQueue = async (
   let failedProductCount = 0
   for (const productId of productIds) {
     try {
-      await refreshProduct(database, gateway, productId, now, rulesContext)
+      const { unavailableSources } = await refreshProduct(database, gateway, productId, now, rulesContext)
+      if (unavailableSources.length > 0) {
+        logUnavailableSources('Price sources unavailable', productId, unavailableSources)
+      }
       refreshedProductCount += 1
     }
     catch (error) {

@@ -153,6 +153,72 @@ describe('enqueueUserHeldProducts', () => {
   })
 })
 
+describe('enqueueUserHeldProducts quota guard', () => {
+  it('skips products refreshed since the start of the Paris day and products already queued', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const refreshedToday = await insertProduct(database, member.id, 'Refreshed today')
+    const refreshedYesterday = await insertProduct(database, member.id, 'Refreshed yesterday')
+    const alreadyQueued = await insertProduct(database, member.id, 'Already queued')
+    const neverRefreshed = await insertProduct(database, member.id, 'Never refreshed')
+    for (const product of [refreshedToday, refreshedYesterday, alreadyQueued, neverRefreshed]) {
+      await insertStockItem(database, member.id, product.id, 'in-stock')
+    }
+    const earlierQueueing = new Date(now.getTime() - 60 * 60_000)
+    await database.insert(priceRefreshRequests).values([
+      { productId: refreshedToday.id, requestedAt: null, lastRefreshedAt: startOfParisDay(now) },
+      { productId: refreshedYesterday.id, requestedAt: null, lastRefreshedAt: new Date(startOfParisDay(now).getTime() - 1000) },
+      { productId: alreadyQueued.id, requestedAt: earlierQueueing, requestedByUserId: null },
+    ])
+
+    const queuedProductCount = await enqueueUserHeldProducts(database, member.id, now)
+
+    expect(queuedProductCount).toBe(2)
+    const rows = await database.select().from(priceRefreshRequests)
+    const requestedAtByProduct = new Map(rows.map(row => [row.productId, row.requestedAt]))
+    expect(requestedAtByProduct.get(refreshedToday.id)).toBeNull()
+    expect(requestedAtByProduct.get(refreshedYesterday.id)).toEqual(now)
+    expect(requestedAtByProduct.get(alreadyQueued.id)).toEqual(earlierQueueing)
+    expect(requestedAtByProduct.get(neverRefreshed.id)).toEqual(now)
+    expect(rows.find(row => row.productId === alreadyQueued.id)!.requestedByUserId).toBeNull()
+  })
+})
+
+describe('refreshProductNow and the queue', () => {
+  it('clears the pending queue row of the refreshed product', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await insertProduct(database, member.id)
+    await enqueueProducts(database, [product.id], member.id, new Date(now.getTime() - 60_000))
+    const { gateway } = countingGateway()
+
+    await refreshProductNow(database, gateway, product.id, member.id, now)
+
+    const [row] = await database.select().from(priceRefreshRequests)
+    expect(row!.requestedAt).toBeNull()
+  })
+
+  it('keeps a queue request made after the refresh started', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await insertProduct(database, member.id)
+    const laterRequest = new Date(now.getTime() + 1000)
+    const { gateway } = countingGateway()
+    const queuingGateway: PriceSourceGateway = {
+      ...gateway,
+      searchEbay: async (query) => {
+        await enqueueProducts(database, [product.id], member.id, laterRequest)
+        return gateway.searchEbay(query)
+      },
+    }
+
+    await refreshProductNow(database, queuingGateway, product.id, member.id, now)
+
+    const [row] = await database.select().from(priceRefreshRequests)
+    expect(row!.requestedAt).toEqual(laterRequest)
+  })
+})
+
 describe('takeNextRefreshBatch', () => {
   it('takes the 20 oldest of 25 and leaves 5 queued', async () => {
     const database = await createTestDatabase()
@@ -327,7 +393,7 @@ describe('processRefreshQueue', () => {
     const logFailure = (...details: unknown[]) => { logged.push(details) }
 
     for (const expectedQueued of [true, true, false]) {
-      await processRefreshQueue(database, gateway, now, failingRefresh, logFailure)
+      await processRefreshQueue(database, gateway, now, { refreshProduct: failingRefresh, logFailure })
       const [row] = await database.select().from(priceRefreshRequests).where(eq(priceRefreshRequests.productId, product.id))
       expect(row!.requestedAt !== null).toBe(expectedQueued)
     }
@@ -337,6 +403,36 @@ describe('processRefreshQueue', () => {
     const [row] = await database.select().from(priceRefreshRequests)
     expect(row!.attempts).toBe(3)
     expect(await takeNextRefreshBatch(database)).toEqual([])
+  })
+
+  it('warns with the product id when a source is unavailable', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await queuedProduct(database, member.id, 'Key expired')
+    const { gateway } = countingGateway()
+    const unavailableSources = [{ source: 'ebay', kind: 'missing-key' as const, reason: 'EBAY_CLIENT_ID is not set' }]
+    const warnings: unknown[][] = []
+
+    await processRefreshQueue(database, gateway, now, {
+      refreshProduct: async () => ({ snapshotIds: [], unavailableSources }),
+      logUnavailableSources: (...details: unknown[]) => { warnings.push(details) },
+    })
+
+    expect(warnings).toEqual([['Price sources unavailable', product.id, unavailableSources]])
+  })
+
+  it('does not warn when every source answered', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    await queuedProduct(database, member.id, 'All good')
+    const { gateway } = countingGateway()
+    const warnings: unknown[][] = []
+
+    await processRefreshQueue(database, gateway, now, {
+      logUnavailableSources: (...details: unknown[]) => { warnings.push(details) },
+    })
+
+    expect(warnings).toEqual([])
   })
 
   it('lets the daily enqueue reset the attempts', async () => {

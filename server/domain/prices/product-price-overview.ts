@@ -6,6 +6,7 @@ import type { KairosDatabase } from '../../database/open-database.ts'
 import { excludedListings, priceRefreshRequests, priceSnapshotListings, priceSnapshots, users } from '../../database/schema/index.ts'
 import { findProductOr404 } from '../catalogue/catalogue-service.ts'
 import { normalizeListingUrl } from './record-ebay-snapshots.ts'
+import { isSupersededEbaySnapshot } from './superseded-ebay-snapshots.ts'
 import { parisCalendarDateOf } from './start-of-paris-day.ts'
 
 const millisecondsPerDay = 24 * 60 * 60 * 1000
@@ -216,8 +217,19 @@ export const productPriceOverview = async (
       figuredSnapshots.push({ row, condition, figureCents })
     }
   }
+  const [refreshRequest] = await database
+    .select({
+      lastRefreshedAt: priceRefreshRequests.lastRefreshedAt,
+      lastEbayRefreshAt: priceRefreshRequests.lastEbayRefreshAt,
+      requestedAt: priceRefreshRequests.requestedAt,
+    })
+    .from(priceRefreshRequests)
+    .where(eq(priceRefreshRequests.productId, product.id))
+  const lastEbayRefreshAt = refreshRequest?.lastEbayRefreshAt ?? undefined
   const seriesList = groupBySeries(figuredSnapshots)
-  const cellSummaries = seriesList.map(series => summariseCell(series, now))
+  const cellSummaries = seriesList
+    .map(series => summariseCell(series, now))
+    .filter(summary => !isSupersededEbaySnapshot(summary.representative.row, lastEbayRefreshAt))
   const listedSnapshots = cellSummaries.flatMap(summary => summary.listedSnapshots)
   const listingsBySnapshot = await loadListingsBySnapshot(database, listedSnapshots.map(snapshot => snapshot.row.id))
   const authorIds = [...new Set(listedSnapshots.map(snapshot => snapshot.row.createdByUserId).filter((authorId): authorId is string => authorId !== null))]
@@ -270,11 +282,6 @@ export const productPriceOverview = async (
     isStale: isStaleAt(summary.representative.row.observedAt, now),
     listings: listingsOfCell(summary),
   }))
-
-  const [refreshRequest] = await database
-    .select({ lastRefreshedAt: priceRefreshRequests.lastRefreshedAt, requestedAt: priceRefreshRequests.requestedAt })
-    .from(priceRefreshRequests)
-    .where(eq(priceRefreshRequests.productId, product.id))
 
   return {
     bySourceAndCondition,

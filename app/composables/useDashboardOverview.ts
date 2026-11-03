@@ -2,6 +2,7 @@ import type { StockValueHistoryPointView } from '~/utils/stock-value-view'
 
 export interface DashboardStockValueView {
   purchaseCostCents: number
+  valuedPurchaseCostCents: number
   estimatedValueCents: number
   latentGainCents: number
   valuedItemCount: number

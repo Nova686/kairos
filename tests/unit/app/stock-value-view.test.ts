@@ -60,13 +60,13 @@ describe('describeStockItemValue', () => {
 
 describe('buildStockValueChartData', () => {
   const history: StockValueHistoryPointView[] = [
-    { snapshotOn: '2026-10-02', purchaseCostCents: 5000, estimatedValueCents: 6000 },
-    { snapshotOn: '2026-10-01', purchaseCostCents: 4000, estimatedValueCents: 4500 },
+    { snapshotOn: '2026-10-02', purchaseCostCents: 9000, valuedPurchaseCostCents: 5000, estimatedValueCents: 6000 },
+    { snapshotOn: '2026-10-01', purchaseCostCents: 8000, valuedPurchaseCostCents: 4000, estimatedValueCents: 4500 },
   ]
 
-  it('builds a cost line and a value line on a day axis sorted by date', () => {
+  it('plots the cost of the valued items against their value on a day axis sorted by date', () => {
     const chartData = buildStockValueChartData(history)
-    expect(chartData.datasets.map(dataset => dataset.label)).toEqual(['Coût', 'Valeur'])
+    expect(chartData.datasets.map(dataset => dataset.label)).toEqual(['Coût des exemplaires valorisés', 'Valeur'])
     expect(chartData.datasets[0]!.data.map(point => point.y)).toEqual([40, 50])
     expect(chartData.datasets[1]!.data.map(point => point.y)).toEqual([45, 60])
     expect(chartData.datasets[0]!.data[1]!.x - chartData.datasets[0]!.data[0]!.x).toBe(1)

@@ -17,6 +17,7 @@ export type ValuableItem = {
 
 export type StockValuation = {
   purchaseCostCents: number
+  valuedPurchaseCostCents: number
   estimatedValueCents: number
   latentGainCents: number
   valuedItemCount: number
@@ -73,6 +74,7 @@ export const valueStock = async (database: KairosDatabase, ownerId: string, now:
   const valuedPurchaseCostCents = valuedPositions.reduce((sum, position) => sum + heldItems[position]!.allocatedPurchaseCents, 0)
   return {
     purchaseCostCents: heldItems.reduce((sum, heldItem) => sum + heldItem.allocatedPurchaseCents, 0),
+    valuedPurchaseCostCents,
     estimatedValueCents,
     latentGainCents: estimatedValueCents - valuedPurchaseCostCents,
     valuedItemCount: valuedPositions.length,
@@ -89,6 +91,7 @@ export const recordStockValueSnapshots = async (database: KairosDatabase, now: D
     const stockValuation = await valueStock(database, owner.id, now)
     const figures = {
       purchaseCostCents: stockValuation.purchaseCostCents,
+      valuedPurchaseCostCents: stockValuation.valuedPurchaseCostCents,
       estimatedValueCents: stockValuation.estimatedValueCents,
       valuedItemCount: stockValuation.valuedItemCount,
       approximateItemCount: stockValuation.approximateItemCount,
