@@ -8,6 +8,7 @@ import { allocateCents } from '../../../shared/money/allocate-cents.ts'
 import { estimateItemValues } from '../valuation/value-stock.ts'
 import { findProductOr404 } from '../catalogue/catalogue-service.ts'
 import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
+import { canonicalCompanyName } from '../../../shared/prices/grading-company.ts'
 
 export type Purchase = typeof purchases.$inferSelect
 export type StockItem = typeof stockItems.$inferSelect
@@ -137,7 +138,7 @@ export const createPurchase = async (
         productId: line.productId,
         purchaseId: purchase!.id,
         condition: line.condition,
-        gradingCompany: line.gradingCompany,
+        gradingCompany: line.gradingCompany === null ? null : canonicalCompanyName(line.gradingCompany),
         grade: line.grade,
         certificateNumber: line.certificateNumber,
         allocatedPurchaseCents: allocations[lineIndex]!,

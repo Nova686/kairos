@@ -6,6 +6,7 @@ import type { KairosDatabase } from '../../database/open-database.ts'
 import { priceSnapshotListings, priceSnapshots } from '../../database/schema/index.ts'
 import { findProductOr404 } from '../catalogue/catalogue-service.ts'
 import { parisCalendarDateOf, parisNoonOf } from './start-of-paris-day.ts'
+import { canonicalCompanyName } from '../../../shared/prices/grading-company.ts'
 
 const manualListingTitle = 'Relevé manuel'
 
@@ -38,7 +39,7 @@ export const recordManualPrice = async (
         kind: 'manual',
         sourceCondition: null,
         kairosCondition: draft.kairosCondition,
-        gradingCompany: isGradedCard ? draft.gradingCompany! : null,
+        gradingCompany: isGradedCard ? canonicalCompanyName(draft.gradingCompany!) : null,
         grade: isGradedCard ? draft.grade! : null,
         observedAt: parisNoonOf(draft.observedOn),
         averageCents: draft.priceCents,

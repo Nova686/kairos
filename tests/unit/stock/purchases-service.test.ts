@@ -204,6 +204,20 @@ describe('createPurchase', () => {
     expect(createdStockItems[0]).toMatchObject({ gradingCompany: 'PSA', grade: '10', certificateNumber: '123456' })
   })
 
+  it('stores the canonical grading company name', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'graded-card')
+    const draft = buildDraft(productId, 1)
+    draft.lines[0]!.condition = 'graded'
+    draft.lines[0]!.gradingCompany = ' psa '
+    draft.lines[0]!.grade = '10'
+
+    const { stockItems: createdStockItems } = await createPurchase(database, ownerId, draft)
+
+    expect(createdStockItems[0]).toMatchObject({ gradingCompany: 'PSA' })
+  })
+
   it('answers 422 when a non-graded product carries grading fields', async () => {
     const database = await createTestDatabase()
     const ownerId = await insertOwner(database, 'a@example.com')

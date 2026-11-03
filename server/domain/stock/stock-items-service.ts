@@ -7,6 +7,7 @@ import { isConditionAllowed, type ConditionCode } from '../../../shared/catalogu
 import type { StockItemStatus } from '../../../shared/stock/stock-item-status.ts'
 import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
 import type { StockItem } from './purchases-service.ts'
+import { canonicalCompanyName } from '../../../shared/prices/grading-company.ts'
 
 export type StockItemChanges = {
   condition?: ConditionCode
@@ -150,7 +151,7 @@ export const updateStockItem = async (
     .update(stockItems)
     .set({
       condition: nextCondition,
-      gradingCompany: nextGradingCompany,
+      gradingCompany: nextGradingCompany === null ? null : canonicalCompanyName(nextGradingCompany),
       grade: nextGrade,
       certificateNumber: nextCertificateNumber,
       locationId: changes.locationId === undefined ? currentStockItem.locationId : changes.locationId,

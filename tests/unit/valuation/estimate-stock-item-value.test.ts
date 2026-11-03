@@ -113,6 +113,13 @@ describe('estimateStockItemValue', () => {
     expect(tie.usedCondition).toBe('PSA 8')
   })
 
+  it('matches the grading company whatever its case or spacing', () => {
+    const valuation = estimateStockItemValue(gradedCard('psa', '10'), [
+      snapshot({ kairosCondition: 'graded', gradingCompany: 'PSA', grade: '10', figureCents: 90000 }),
+    ], now)
+    expect(valuation).toMatchObject({ valueCents: 90000, approximate: false })
+  })
+
   it('compares grades numerically and matches an exact grade without approximation', () => {
     const valuation = estimateStockItemValue(gradedCard('BGS', '9.5'), [
       snapshot({ kairosCondition: 'graded', gradingCompany: 'BGS', grade: '10', figureCents: 90000 }),

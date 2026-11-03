@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { conditionCodes, isConditionAllowed } from '../catalogue/condition-scale.ts'
 import { isProductCategory, productCategories } from '../catalogue/product-category.ts'
+import { keywordPrefixMarker } from './resolve-kairos-condition.ts'
 
 const categorySchema = z.enum(productCategories)
 const conditionSchema = z.enum(conditionCodes)
@@ -19,9 +20,20 @@ export const conditionMappingDraftSchema = conditionMappingKeySchema
   .extend({ kairosCondition: conditionSchema })
   .refine(conditionBelongsToCategory, { message: 'Condition hors de l\'échelle de la catégorie', path: ['kairosCondition'] })
 
+const keywordStem = (keyword: string): string =>
+  keyword.endsWith(keywordPrefixMarker) ? keyword.slice(0, -keywordPrefixMarker.length).trim() : keyword
+
+const hasValidPrefixMarker = (keyword: string): boolean => {
+  const stem = keywordStem(keyword)
+  return !stem.includes(keywordPrefixMarker) && stem.length >= 2
+}
+
+const keywordSchema = z.string().trim().min(2).max(40)
+  .refine(hasValidPrefixMarker, { message: 'Une étoile n\'est permise qu\'à la fin, après au moins deux caractères' })
+
 const titleRuleFieldsSchema = z.object({
   category: categorySchema,
-  keywords: z.array(z.string().trim().min(2).max(40)).min(1).max(20),
+  keywords: z.array(keywordSchema).min(1).max(20),
   kairosCondition: conditionSchema,
   priority: z.number().int().min(0).max(1000),
 })

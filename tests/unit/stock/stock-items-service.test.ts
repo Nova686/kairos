@@ -172,6 +172,17 @@ describe('updateStockItem', () => {
     })
   })
 
+  it('stores the canonical grading company name on update', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'Dracaufeu', 'graded-card')
+    const stockItem = await buyOne(database, ownerId, productId, { condition: 'graded' })
+
+    const updatedStockItem = await updateStockItem(database, ownerId, stockItem.id, { gradingCompany: 'cgc' })
+
+    expect(updatedStockItem).toMatchObject({ gradingCompany: 'CGC' })
+  })
+
   it('answers 422 when grading fields are set on a non-graded product', async () => {
     const database = await createTestDatabase()
     const ownerId = await insertOwner(database, 'a@example.com')

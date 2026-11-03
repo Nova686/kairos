@@ -24,9 +24,18 @@ export interface ConditionResolutionInput {
 
 export const maximumTitleLengthTested = 120
 
+export const keywordPrefixMarker = '*'
+
+export const negationWords = ['non', 'jamais', 'pas', 'never', 'not']
+
+export interface CompiledKeyword {
+  words: string[]
+  isPrefix: boolean
+}
+
 export interface CompiledTitleRule {
   category: string
-  keywordWordSequences: string[][]
+  compiledKeywords: CompiledKeyword[]
   kairosCondition: ConditionCode
   priority: number
 }
@@ -41,23 +50,40 @@ const foldForMatching = (text: string): string =>
 const splitIntoWords = (text: string): string[] =>
   foldForMatching(text).split(/[^\p{L}\p{N}]+/u).filter(word => word.length > 0)
 
+const foldedNegationWords = new Set(negationWords.map(foldForMatching))
+
+const compileKeyword = (keyword: string): CompiledKeyword => {
+  const trimmedKeyword = keyword.trim()
+  return { words: splitIntoWords(trimmedKeyword), isPrefix: trimmedKeyword.endsWith(keywordPrefixMarker) }
+}
+
 export const compileTitleRules = (rules: TitleConditionRuleEntry[]): CompiledTitleRules => ({
   rules: rules
     .map(rule => ({
       category: rule.category,
-      keywordWordSequences: rule.keywords.map(splitIntoWords).filter(sequence => sequence.length > 0),
+      compiledKeywords: rule.keywords.map(compileKeyword).filter(compiledKeyword => compiledKeyword.words.length > 0),
       kairosCondition: rule.kairosCondition,
       priority: rule.priority,
     }))
     .sort((first, second) => second.priority - first.priority),
 })
 
-const sequenceStartsAt = (titleWords: string[], sequence: string[], startIndex: number): boolean =>
-  sequence.every((keywordWord, offset) => titleWords[startIndex + offset]?.startsWith(keywordWord) === true)
+const wordMatches = (titleWord: string | undefined, keywordWord: string, isPrefix: boolean): boolean =>
+  titleWord !== undefined && (isPrefix ? titleWord.startsWith(keywordWord) : titleWord === keywordWord)
 
-const titleMatchesSequence = (titleWords: string[], sequence: string[]): boolean => {
-  for (let startIndex = 0; startIndex + sequence.length <= titleWords.length; startIndex++) {
-    if (sequenceStartsAt(titleWords, sequence, startIndex)) return true
+const keywordStartsAt = (titleWords: string[], compiledKeyword: CompiledKeyword, startIndex: number): boolean =>
+  compiledKeyword.words.every((keywordWord, offset) => wordMatches(
+    titleWords[startIndex + offset],
+    keywordWord,
+    compiledKeyword.isPrefix && offset === compiledKeyword.words.length - 1,
+  ))
+
+const isNegatedAt = (titleWords: string[], startIndex: number): boolean =>
+  startIndex > 0 && foldedNegationWords.has(titleWords[startIndex - 1]!)
+
+const titleMatchesKeyword = (titleWords: string[], compiledKeyword: CompiledKeyword): boolean => {
+  for (let startIndex = 0; startIndex + compiledKeyword.words.length <= titleWords.length; startIndex++) {
+    if (keywordStartsAt(titleWords, compiledKeyword, startIndex) && !isNegatedAt(titleWords, startIndex)) return true
   }
   return false
 }
@@ -70,7 +96,7 @@ export const resolveKairosConditionWithCompiledRules = (
   const titleWords = splitIntoWords(input.title.slice(0, maximumTitleLengthTested))
   const matchingRule = compiledRules.rules.find(rule =>
     rule.category === input.category
-    && rule.keywordWordSequences.some(sequence => titleMatchesSequence(titleWords, sequence)))
+    && rule.compiledKeywords.some(compiledKeyword => titleMatchesKeyword(titleWords, compiledKeyword)))
   if (matchingRule) {
     return matchingRule.kairosCondition
   }

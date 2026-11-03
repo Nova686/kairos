@@ -113,6 +113,16 @@ describe('recordManualPrice', () => {
     expect(snapshot).toMatchObject({ gradingCompany: 'PSA', grade: '10' })
   })
 
+  it('stores the canonical grading company name', async () => {
+    const database = await createTestDatabase()
+    const { memberId, product } = await insertProduct(database, 'graded-card')
+
+    await recordManualPrice(database, memberId, product.id, draft({ kairosCondition: 'graded', gradingCompany: 'psa', grade: '10' }))
+
+    const [snapshot] = await database.select().from(priceSnapshots)
+    expect(snapshot).toMatchObject({ gradingCompany: 'PSA' })
+  })
+
   it('answers 404 for an unknown product', async () => {
     const database = await createTestDatabase()
     const { memberId } = await insertProduct(database, 'toy')

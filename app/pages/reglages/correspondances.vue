@@ -84,6 +84,11 @@
     <h2 class="text-h6 mt-6 mb-2">
       Règles sur le titre
     </h2>
+    <p class="text-body-2 text-medium-emphasis mb-2">
+      Un mot-clé reconnaît un mot entier du titre, sans tenir compte des majuscules ni des accents.
+      Terminez-le par * pour reconnaître tous les mots qui commencent ainsi : abîm* trouve « abîmée ».
+      Un mot-clé précédé de non, jamais, pas, never ou not est ignoré : « jamais ouvert » ne compte pas comme ouvert.
+    </p>
     <v-form
       class="d-flex flex-wrap ga-2 mb-4"
       @submit.prevent="addRule"
@@ -96,7 +101,7 @@
       />
       <v-combobox
         v-model="newRule.keywords"
-        label="Mots-clés (début de mot)"
+        label="Mots-clés"
         multiple
         chips
         closable-chips
@@ -137,7 +142,7 @@
         >
           <v-combobox
             v-model="editedRule.keywords"
-            label="Mots-clés (début de mot)"
+            label="Mots-clés"
             multiple
             chips
             closable-chips

@@ -34,6 +34,35 @@ describe('resolveKairosCondition', () => {
     })).toBe('opened-incomplete')
   })
 
+  it.each([
+    ['Display jamais ouvert', 'sealed-new'],
+    ['Display non ouvert', 'sealed-new'],
+    ['Pokémon video game display', 'sealed-new'],
+    ['Display opening day', 'sealed-new'],
+    ['ETB boîte abîmée', 'sealed-damaged-box'],
+    ['ETB box dented', 'sealed-damaged-box'],
+    ['ETB enfoncée sur un coin', 'sealed-damaged-box'],
+    ['ETB ouvert', 'opened-complete'],
+    ['Booster box opened', 'opened-complete'],
+    ['Coffret incomplet', 'opened-incomplete'],
+    ['ETB sans cartes', 'opened-incomplete'],
+  ])('reads the seeded rules on « %s »', (title, expectedCondition) => {
+    expect(resolveKairosCondition(mappings, rules, {
+      category: 'pokemon-sealed',
+      source: 'ebay',
+      sourceCondition: 'Neuf',
+      title,
+    })).toBe(expectedCondition)
+  })
+
+  it('seeds the keyword lists of the three sealed rules', () => {
+    expect(titleConditionRuleSeeds.map(rule => [rule.priority, rule.keywords])).toEqual([
+      [30, ['vide', 'empty', 'sans cartes', 'incompl*']],
+      [20, ['ouvert', 'opened', 'open']],
+      [10, ['abîm*', 'abim*', 'cabossé*', 'dented', 'damaged', 'enfonc*']],
+    ])
+  })
+
   it('maps the source condition when no rule matches', () => {
     expect(resolveKairosCondition(mappings, rules, {
       category: 'toy',

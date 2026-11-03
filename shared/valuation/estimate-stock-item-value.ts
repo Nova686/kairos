@@ -2,6 +2,7 @@ import type { ConditionCode } from '../catalogue/condition-scale.ts'
 import { conditionCodesFor } from '../catalogue/condition-scale.ts'
 import type { ProductCategory } from '../catalogue/product-category.ts'
 import { medianCents } from './median.ts'
+import { isSameGradingCompany } from '../prices/grading-company.ts'
 
 export type ValuationSnapshotKind = 'active' | 'sold' | 'source-aggregate' | 'manual'
 
@@ -54,7 +55,8 @@ const locateCondition = (
 ): ConditionPosition | null => {
   if (stockItem.category === 'graded-card') {
     if (snapshot.kind === aggregateKind || snapshot.kairosCondition !== 'graded') return null
-    if (snapshot.gradingCompany !== stockItem.gradingCompany || snapshot.grade === null) return null
+    if (snapshot.gradingCompany === null || snapshot.grade === null) return null
+    if (!isSameGradingCompany(snapshot.gradingCompany, stockItem.gradingCompany!)) return null
     const gradeNumber = Number(snapshot.grade)
     if (Number.isNaN(gradeNumber)) return null
     return { key: String(gradeNumber), position: gradeNumber, label: `${snapshot.gradingCompany} ${snapshot.grade}` }
