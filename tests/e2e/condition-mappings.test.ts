@@ -65,4 +65,26 @@ describe('condition mappings API', async () => {
     expect((await sendJson(`/api/condition-mappings/title-rules/${createdRule.id}`, 'DELETE', cookie)).status).toBe(204)
     expect((await sendJson(`/api/condition-mappings/title-rules/${createdRule.id}`, 'DELETE', cookie)).status).toBe(404)
   })
+
+  it('answers 409 for a second rule with the same category and keywords', async () => {
+    const cookie = await logIn('member@example.com', memberPassword)
+    const rule = { category: 'makeup', keywords: ['entamé'], kairosCondition: 'good', priority: 1 }
+    const first = await sendJson('/api/condition-mappings/title-rules', 'POST', cookie, rule)
+    const duplicate = await sendJson('/api/condition-mappings/title-rules', 'POST', cookie, { ...rule, keywords: ['ENTAME'] })
+    expect(first.status).toBe(200)
+    expect(duplicate.status).toBe(409)
+  })
+
+  it('answers 422 for a patch mixing a category and a condition of another scale', async () => {
+    const cookie = await logIn('member@example.com', memberPassword)
+    const createdRule = await $fetch<{ id: string }>('/api/condition-mappings/title-rules', {
+      method: 'POST',
+      body: { category: 'toy', keywords: ['scellé'], kairosCondition: 'new-with-tags', priority: 1 },
+      headers: { cookie },
+    })
+    const mixedPatch = await sendJson(`/api/condition-mappings/title-rules/${createdRule.id}`, 'PATCH', cookie, {
+      category: 'toy', kairosCondition: 'sealed-new',
+    })
+    expect(mixedPatch.status).toBe(422)
+  })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { titleRuleDraftSchema } from '../../../shared/prices/condition-mapping-schemas.ts'
+import { titleRuleChangesSchema, titleRuleDraftSchema } from '../../../shared/prices/condition-mapping-schemas.ts'
 import { compileTitleRules, resolveKairosConditionWithCompiledRules } from '../../../shared/prices/resolve-kairos-condition.ts'
 
 const rule = (keywords: string[], priority = 1) => ({
@@ -96,5 +96,20 @@ describe('title rule draft schema', () => {
     [['**']],
   ])('rejects %j', (keywords) => {
     expect(titleRuleDraftSchema.safeParse(draft(keywords)).success).toBe(false)
+  })
+})
+
+describe('title rule changes schema', () => {
+  it('accepts partial changes', () => {
+    expect(titleRuleChangesSchema.safeParse({ priority: 3 }).success).toBe(true)
+    expect(titleRuleChangesSchema.safeParse({ category: 'toy', kairosCondition: 'good' }).success).toBe(true)
+  })
+
+  it('rejects a category and a condition that do not belong together', () => {
+    expect(titleRuleChangesSchema.safeParse({ category: 'toy', kairosCondition: 'sealed-new' }).success).toBe(false)
+  })
+
+  it('rejects a misplaced star', () => {
+    expect(titleRuleChangesSchema.safeParse({ keywords: ['ab*c'] }).success).toBe(false)
   })
 })

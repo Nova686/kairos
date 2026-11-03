@@ -159,6 +159,7 @@ export const refreshProductPrices = async (
         target: priceRefreshRequests.productId,
         set: {
           lastRefreshedAt: now,
+          claimedAt: null,
           requestedAt: sql`case when ${priceRefreshRequests.requestedAt} <= ${now.toISOString()}::timestamptz then null else ${priceRefreshRequests.requestedAt} end`,
           ...ebayRefresh,
         },

@@ -1,3 +1,4 @@
+import { describeConditionUsed } from './condition-in-category.ts'
 import { dayNumberOf, type PriceChartData } from './price-overview-view.ts'
 
 export interface StockItemValuationView {
@@ -42,7 +43,7 @@ export const describeStockItemValue = (
     gainCents: valuation.valueCents - allocatedPurchaseCents,
     isApproximate: valuation.approximate,
     approximateTooltip: valuation.approximate && valuation.usedCondition !== null
-      ? `estimé à partir de l’état ${valuation.usedCondition}`
+      ? `estimé à partir de l’état ${describeConditionUsed(valuation.usedCondition)}`
       : null,
   }
 }

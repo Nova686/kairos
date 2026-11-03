@@ -32,6 +32,16 @@ describe('describeStockItemValue', () => {
     expect(description.approximateTooltip).toBe('estimé à partir de l’état neuf scellé')
   })
 
+  it('names the condition used by its label', () => {
+    const description = describeStockItemValue(valuation({ approximate: true, usedCondition: 'opened-complete' }), 15000, true)
+    expect(description.approximateTooltip).toBe('estimé à partir de l’état ouvert complet')
+  })
+
+  it('keeps the grading company and grade used for a graded card', () => {
+    const description = describeStockItemValue(valuation({ approximate: true, usedCondition: 'PSA 9' }), 15000, true)
+    expect(description.approximateTooltip).toBe('estimé à partir de l’état PSA 9')
+  })
+
   it('reports no price instead of zero when nothing is valued', () => {
     expect(describeStockItemValue(valuation({ valueCents: null, usedCondition: null }), 10000, true)).toMatchObject({
       hasPrice: false,

@@ -4,6 +4,7 @@ import { catalogueChanges, conditionMappings, titleConditionRules, users } from 
 import { seedConditionMappings } from '../../../server/database/seeds/condition-mappings.ts'
 import {
   ConditionMappingConditionNotAllowedError,
+  DuplicateTitleRuleError,
   createTitleRule,
   deleteConditionMapping,
   deleteTitleRule,
@@ -97,5 +98,35 @@ describe('condition mappings store', () => {
     const journal = await database.select().from(catalogueChanges)
     expect(journal.map(change => change.subject)).toEqual(['title-rule', 'title-rule', 'title-rule'])
     expect((await listConditionMappings(database)).rules).toHaveLength(3)
+  })
+
+  it('refuses a second rule with the same category and keywords, whatever their order, case or accents', async () => {
+    const database = await createTestDatabase()
+    const memberId = await insertMember(database)
+    await createTitleRule(database, memberId, {
+      category: 'toy', keywords: ['Abîmé', 'cassé'], kairosCondition: 'satisfactory', priority: 5,
+    })
+
+    await expect(createTitleRule(database, memberId, {
+      category: 'toy', keywords: ['casse', 'abime'], kairosCondition: 'good', priority: 1,
+    })).rejects.toBeInstanceOf(DuplicateTitleRuleError)
+    await expect(createTitleRule(database, memberId, {
+      category: 'makeup', keywords: ['casse', 'abime'], kairosCondition: 'good', priority: 1,
+    })).resolves.toMatchObject({ category: 'makeup' })
+  })
+
+  it('refuses an update that duplicates another rule but lets a rule keep its own keywords', async () => {
+    const database = await createTestDatabase()
+    const memberId = await insertMember(database)
+    const firstRule = await createTitleRule(database, memberId, {
+      category: 'toy', keywords: ['abime'], kairosCondition: 'satisfactory', priority: 5,
+    })
+    const secondRule = await createTitleRule(database, memberId, {
+      category: 'toy', keywords: ['casse'], kairosCondition: 'satisfactory', priority: 4,
+    })
+
+    await expect(updateTitleRule(database, memberId, secondRule.id, { keywords: ['ABIME'] }))
+      .rejects.toBeInstanceOf(DuplicateTitleRuleError)
+    await expect(updateTitleRule(database, memberId, firstRule.id, { priority: 9 })).resolves.toMatchObject({ priority: 9 })
   })
 })

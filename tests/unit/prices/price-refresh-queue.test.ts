@@ -16,6 +16,7 @@ import {
   refreshProductNow,
   takeNextRefreshBatch,
 } from '../../../server/domain/prices/price-refresh-queue.ts'
+import { refreshProductPrices } from '../../../server/domain/prices/refresh-product-prices.ts'
 import { startOfParisDay } from '../../../server/domain/prices/start-of-paris-day.ts'
 import type { PriceSourceGateway } from '../../../server/domain/prices/refresh-product-prices.ts'
 import { createTestDatabase } from '../../support/create-test-database.ts'
@@ -230,13 +231,26 @@ describe('takeNextRefreshBatch', () => {
       await enqueueProducts(database, [product.id], member.id, new Date(now.getTime() + index * 1000))
     }
 
-    const batch = await takeNextRefreshBatch(database)
+    const batch = await takeNextRefreshBatch(database, now)
 
     expect(batch).toEqual(productIds.slice(0, 20))
-    const stillQueued = (await database.select().from(priceRefreshRequests)).filter(row => row.requestedAt !== null)
-    expect(stillQueued.map(row => row.productId).sort()).toEqual(productIds.slice(20).sort())
-    expect(await takeNextRefreshBatch(database)).toEqual(productIds.slice(20))
-    expect(await takeNextRefreshBatch(database)).toEqual([])
+    const unclaimed = (await database.select().from(priceRefreshRequests)).filter(row => row.claimedAt === null)
+    expect(unclaimed.map(row => row.productId).sort()).toEqual(productIds.slice(20).sort())
+    expect(await takeNextRefreshBatch(database, now)).toEqual(productIds.slice(20))
+    expect(await takeNextRefreshBatch(database, now)).toEqual([])
+  })
+
+  it('keeps taken products queued until processed and hands them out again once the claim expires', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const product = await insertProduct(database, member.id)
+    await enqueueProducts(database, [product.id], member.id, now)
+
+    expect(await takeNextRefreshBatch(database, now)).toEqual([product.id])
+    const [claimedRow] = await database.select().from(priceRefreshRequests)
+    expect(claimedRow).toMatchObject({ requestedAt: now, claimedAt: now })
+    expect(await takeNextRefreshBatch(database, new Date(now.getTime() + 29 * 60_000))).toEqual([])
+    expect(await takeNextRefreshBatch(database, new Date(now.getTime() + 31 * 60_000))).toEqual([product.id])
   })
 
   it('keeps lastRefreshedAt of taken products', async () => {
@@ -246,10 +260,10 @@ describe('takeNextRefreshBatch', () => {
     const refreshedAt = new Date('2026-11-01T22:30:00Z')
     await database.insert(priceRefreshRequests).values({ productId: product.id, requestedAt: now, lastRefreshedAt: refreshedAt })
 
-    await takeNextRefreshBatch(database)
+    await takeNextRefreshBatch(database, now)
 
     const [row] = await database.select().from(priceRefreshRequests)
-    expect(row!.requestedAt).toBeNull()
+    expect(row!.claimedAt).toEqual(now)
     expect(row!.lastRefreshedAt).toEqual(refreshedAt)
   })
 })
@@ -402,7 +416,33 @@ describe('processRefreshQueue', () => {
     expect(logged[0]).toContain(product.id)
     const [row] = await database.select().from(priceRefreshRequests)
     expect(row!.attempts).toBe(3)
-    expect(await takeNextRefreshBatch(database)).toEqual([])
+    expect(await takeNextRefreshBatch(database, new Date(now.getTime() + 60 * 60_000))).toEqual([])
+  })
+
+  it('dequeues a product once refreshed and leaves the products of a crashed run to the next one', async () => {
+    const database = await createTestDatabase()
+    const member = await insertMember(database)
+    const refreshedProduct = await queuedProduct(database, member.id, 'Refreshed')
+    const crashedProduct = await insertProduct(database, member.id, 'Crashed')
+    await enqueueProducts(database, [crashedProduct.id], member.id, new Date(now.getTime() + 1000))
+    const { gateway } = countingGateway()
+    const crashingRefresh = async (...parameters: Parameters<typeof refreshProductPrices>) => {
+      if (parameters[2] === crashedProduct.id) {
+        throw new Error('worker killed')
+      }
+      return refreshProductPrices(...parameters)
+    }
+
+    await expect(processRefreshQueue(database, gateway, now, {
+      refreshProduct: crashingRefresh,
+      logFailure: () => { throw new Error('process died') },
+    })).rejects.toThrow('process died')
+
+    const rows = await database.select().from(priceRefreshRequests)
+    const rowOf = (productId: string) => rows.find(row => row.productId === productId)!
+    expect(rowOf(refreshedProduct.id)).toMatchObject({ requestedAt: null, claimedAt: null })
+    expect(rowOf(crashedProduct.id).requestedAt).not.toBeNull()
+    expect(await takeNextRefreshBatch(database, new Date(now.getTime() + 31 * 60_000))).toEqual([crashedProduct.id])
   })
 
   it('warns with the product id when a source is unavailable', async () => {

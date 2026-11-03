@@ -28,29 +28,47 @@ export type StockValuation = {
 
 const heldStatuses = ['in-transit', 'in-stock']
 
+type ValuationLogger = (...details: unknown[]) => void
+
+const unvalued: StockItemValuation = { valueCents: null, approximate: false, usedCondition: null, perSource: [] }
+
+const valuedStockItemOf = (valuableItem: ValuableItem, category: ProductCategory) => ({
+  category,
+  condition: valuableItem.condition as ConditionCode,
+  gradingCompany: valuableItem.gradingCompany,
+  grade: valuableItem.grade,
+})
+
 export const estimateItemValues = async (
   database: KairosDatabase,
   valuableItems: ValuableItem[],
   now: Date,
+  logUnknownCategory: ValuationLogger = console.error,
 ): Promise<StockItemValuation[]> => {
   const snapshotsByProduct = await loadValuationSnapshots(
     database,
     [...new Set(valuableItems.map(valuableItem => valuableItem.productId))],
     now,
   )
-  return valuableItems.map(valuableItem => estimateStockItemValue(
-    {
-      category: (isProductCategory(valuableItem.category) ? valuableItem.category : 'other') as ProductCategory,
-      condition: valuableItem.condition as ConditionCode,
-      gradingCompany: valuableItem.gradingCompany,
-      grade: valuableItem.grade,
-    },
-    snapshotsByProduct.get(valuableItem.productId) ?? [],
-    now,
-  ))
+  return valuableItems.map((valuableItem) => {
+    if (!isProductCategory(valuableItem.category)) {
+      logUnknownCategory('Unknown product category, item left unvalued', valuableItem.productId, valuableItem.category)
+      return unvalued
+    }
+    return estimateStockItemValue(
+      valuedStockItemOf(valuableItem, valuableItem.category),
+      snapshotsByProduct.get(valuableItem.productId) ?? [],
+      now,
+    )
+  })
 }
 
-export const valueStock = async (database: KairosDatabase, ownerId: string, now: Date): Promise<StockValuation> => {
+export const valueStock = async (
+  database: KairosDatabase,
+  ownerId: string,
+  now: Date,
+  logUnknownCategory: ValuationLogger = console.error,
+): Promise<StockValuation> => {
   const heldItems = await database
     .select({
       stockItemId: stockItems.id,
@@ -64,7 +82,7 @@ export const valueStock = async (database: KairosDatabase, ownerId: string, now:
     .from(stockItems)
     .innerJoin(products, eq(products.id, stockItems.productId))
     .where(and(eq(stockItems.ownerId, ownerId), inArray(stockItems.status, heldStatuses)))
-  const valuations = await estimateItemValues(database, heldItems, now)
+  const valuations = await estimateItemValues(database, heldItems, now, logUnknownCategory)
   const items = heldItems.map((heldItem, position) => ({
     stockItemId: heldItem.stockItemId,
     valuation: valuations[position]!,
@@ -84,23 +102,47 @@ export const valueStock = async (database: KairosDatabase, ownerId: string, now:
   }
 }
 
-export const recordStockValueSnapshots = async (database: KairosDatabase, now: Date): Promise<number> => {
-  const snapshotOn = parisCalendarDateOf(now)
-  const owners = await database.select({ id: users.id }).from(users)
-  for (const owner of owners) {
-    const stockValuation = await valueStock(database, owner.id, now)
-    const figures = {
-      purchaseCostCents: stockValuation.purchaseCostCents,
-      valuedPurchaseCostCents: stockValuation.valuedPurchaseCostCents,
-      estimatedValueCents: stockValuation.estimatedValueCents,
-      valuedItemCount: stockValuation.valuedItemCount,
-      approximateItemCount: stockValuation.approximateItemCount,
-      unvaluedItemCount: stockValuation.unvaluedItemCount,
-    }
-    await database
-      .insert(stockValueSnapshots)
-      .values({ ownerId: owner.id, snapshotOn, ...figures })
-      .onConflictDoUpdate({ target: [stockValueSnapshots.ownerId, stockValueSnapshots.snapshotOn], set: figures })
+export type RecordStockValueDependencies = {
+  valueOwnerStock?: (database: KairosDatabase, ownerId: string, now: Date) => Promise<StockValuation>
+  logFailure?: ValuationLogger
+}
+
+const recordOwnerStockValue = async (
+  database: KairosDatabase,
+  ownerId: string,
+  now: Date,
+  valueOwnerStock: NonNullable<RecordStockValueDependencies['valueOwnerStock']>,
+): Promise<void> => {
+  const stockValuation = await valueOwnerStock(database, ownerId, now)
+  const figures = {
+    purchaseCostCents: stockValuation.purchaseCostCents,
+    valuedPurchaseCostCents: stockValuation.valuedPurchaseCostCents,
+    estimatedValueCents: stockValuation.estimatedValueCents,
+    valuedItemCount: stockValuation.valuedItemCount,
+    approximateItemCount: stockValuation.approximateItemCount,
+    unvaluedItemCount: stockValuation.unvaluedItemCount,
   }
-  return owners.length
+  await database
+    .insert(stockValueSnapshots)
+    .values({ ownerId, snapshotOn: parisCalendarDateOf(now), ...figures })
+    .onConflictDoUpdate({ target: [stockValueSnapshots.ownerId, stockValueSnapshots.snapshotOn], set: figures })
+}
+
+export const recordStockValueSnapshots = async (
+  database: KairosDatabase,
+  now: Date,
+  { valueOwnerStock = valueStock, logFailure = console.error }: RecordStockValueDependencies = {},
+): Promise<number> => {
+  const owners = await database.select({ id: users.id }).from(users)
+  let recordedOwnerCount = 0
+  for (const owner of owners) {
+    try {
+      await recordOwnerStockValue(database, owner.id, now, valueOwnerStock)
+      recordedOwnerCount += 1
+    }
+    catch (error) {
+      logFailure('Stock value snapshot failed', owner.id, error)
+    }
+  }
+  return recordedOwnerCount
 }

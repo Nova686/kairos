@@ -41,4 +41,10 @@ const titleRuleFieldsSchema = z.object({
 export const titleRuleDraftSchema = titleRuleFieldsSchema
   .refine(conditionBelongsToCategory, { message: 'Condition hors de l\'échelle de la catégorie', path: ['kairosCondition'] })
 
-export const titleRuleChangesSchema = titleRuleFieldsSchema.partial()
+const partialConditionBelongsToCategory = (changes: { category?: string, kairosCondition?: (typeof conditionCodes)[number] }): boolean =>
+  changes.category === undefined || changes.kairosCondition === undefined
+  || conditionBelongsToCategory({ category: changes.category, kairosCondition: changes.kairosCondition })
+
+export const titleRuleChangesSchema = titleRuleFieldsSchema
+  .partial()
+  .refine(partialConditionBelongsToCategory, { message: 'Condition hors de l\'échelle de la catégorie', path: ['kairosCondition'] })

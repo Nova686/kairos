@@ -67,6 +67,7 @@ export const priceRefreshRequests = pgTable('price_refresh_requests', {
   lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }),
   attempts: integer('attempts').notNull().default(0),
   lastEbayRefreshAt: timestamp('last_ebay_refresh_at', { withTimezone: true }),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
 })
 
 export const stockValueSnapshots = pgTable('stock_value_snapshots', {

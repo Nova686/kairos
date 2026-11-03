@@ -134,6 +134,50 @@ describe('recordStockValueSnapshots', () => {
   })
 })
 
+describe('recordStockValueSnapshots isolation', () => {
+  it('logs the failure of one user and still records the others', async () => {
+    const database = await createTestDatabase()
+    const failingOwnerId = await insertOwner(database, 'a@x.fr')
+    const otherOwnerId = await insertOwner(database, 'b@x.fr')
+    const failures: unknown[][] = []
+    const valueStockFailingForOneOwner = async (valuedDatabase: KairosDatabase, ownerId: string, moment: Date) => {
+      if (ownerId === failingOwnerId) {
+        throw new Error('valuation exploded')
+      }
+      return valueStock(valuedDatabase, ownerId, moment)
+    }
+
+    const recordedOwnerCount = await recordStockValueSnapshots(database, now, {
+      valueOwnerStock: valueStockFailingForOneOwner,
+      logFailure: (...details: unknown[]) => { failures.push(details) },
+    })
+
+    expect(recordedOwnerCount).toBe(1)
+    expect((await database.select().from(stockValueSnapshots)).map(row => row.ownerId)).toEqual([otherOwnerId])
+    expect(failures).toHaveLength(1)
+    expect(failures[0]).toContain(failingOwnerId)
+  })
+})
+
+describe('unknown product category', () => {
+  it('logs an error and leaves the item unvalued instead of valuing it as other', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@x.fr')
+    const productId = await insertProduct(database, ownerId, 10000)
+    await buy(database, ownerId, 6000, [line(productId, 6000)])
+    await database.update(products).set({ category: 'vintage-poster' }).where(eq(products.id, productId))
+    const errors: unknown[][] = []
+
+    const stockValuation = await valueStock(database, ownerId, now, (...details: unknown[]) => { errors.push(details) })
+
+    expect(stockValuation).toMatchObject({ estimatedValueCents: 0, valuedItemCount: 0, unvaluedItemCount: 1 })
+    expect(stockValuation.items[0]!.valuation.valueCents).toBeNull()
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toContain(productId)
+    expect(errors[0]).toContain('vintage-poster')
+  })
+})
+
 describe('value-based lot allocation', () => {
   it('splits a purchase by estimated value when every line has one', async () => {
     const database = await createTestDatabase()

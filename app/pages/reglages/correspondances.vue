@@ -178,7 +178,7 @@
         </v-form>
         <template v-else>
           <v-list-item-title>{{ categoryLabel(rule.category) }} · {{ rule.keywords.join(', ') }}</v-list-item-title>
-          <v-list-item-subtitle>{{ rule.kairosCondition }} · priorité {{ rule.priority }}</v-list-item-subtitle>
+          <v-list-item-subtitle>{{ kairosConditionLabel(rule.kairosCondition) }} · priorité {{ rule.priority }}</v-list-item-subtitle>
         </template>
         <template
           v-if="!editedRule || editedRule.id !== rule.id"
@@ -214,6 +214,7 @@ const {
   categoryOptions,
   conditionOptionsFor,
   categoryLabel,
+  kairosConditionLabel,
   addMapping,
   changeMappingCondition,
   deleteMapping,

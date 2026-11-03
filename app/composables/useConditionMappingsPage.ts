@@ -49,6 +49,13 @@ export const useConditionMappingsPage = () => {
   })
   const editedRule = ref<TitleRuleRow | null>(null)
 
+  watch(() => newMapping.category, (category) => {
+    newMapping.kairosCondition = conditionKeptInCategory(category, newMapping.kairosCondition)
+  })
+  watch(() => newRule.category, (category) => {
+    newRule.kairosCondition = conditionKeptInCategory(category, newRule.kairosCondition)
+  })
+
   const sendRequest = $fetch as (path: string, options: { method: string, body?: unknown, query?: unknown }) => Promise<unknown>
 
   const categoryOptions = productCategories.map(category => ({ value: category, title: productCategoryLabels[category] }))
@@ -57,6 +64,8 @@ export const useConditionMappingsPage = () => {
     conditionCodesFor(category).map(code => ({ value: code, title: conditionLabel(code) }))
 
   const categoryLabel = (category: ProductCategory): string => productCategoryLabels[category]
+
+  const kairosConditionLabel = (condition: ConditionCode): string => conditionLabel(condition)
 
   const runMutation = async (mutation: () => Promise<unknown>): Promise<boolean> => {
     errorMessage.value = ''
@@ -130,6 +139,7 @@ export const useConditionMappingsPage = () => {
     categoryOptions,
     conditionOptionsFor,
     categoryLabel,
+    kairosConditionLabel,
     addMapping,
     changeMappingCondition,
     deleteMapping,

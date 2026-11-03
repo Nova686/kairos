@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNotNull, notExists, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, notExists, or, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { priceRefreshRequests, stockItems } from '../../database/schema/index.ts'
@@ -11,6 +11,7 @@ const heldStatuses = ['in-transit', 'in-stock']
 const manualRefreshMinimumIntervalMilliseconds = 10 * 60_000
 const defaultBatchSize = 20
 const maximumDailyAttempts = 3
+const claimLeaseMilliseconds = 30 * 60_000
 
 export const enqueueProducts = async (
   database: KairosDatabase,
@@ -86,13 +87,18 @@ export const enqueueUserHeldProducts = async (
 
 export const takeNextRefreshBatch = (
   database: KairosDatabase,
+  now: Date,
   batchSize: number = defaultBatchSize,
 ): Promise<string[]> =>
   database.transaction(async (transaction) => {
+    const expiredClaimBefore = new Date(now.getTime() - claimLeaseMilliseconds)
     const queuedRows = await transaction
       .select({ productId: priceRefreshRequests.productId })
       .from(priceRefreshRequests)
-      .where(isNotNull(priceRefreshRequests.requestedAt))
+      .where(and(
+        isNotNull(priceRefreshRequests.requestedAt),
+        or(isNull(priceRefreshRequests.claimedAt), lte(priceRefreshRequests.claimedAt, expiredClaimBefore)),
+      ))
       .orderBy(asc(priceRefreshRequests.requestedAt))
       .limit(batchSize)
       .for('update', { skipLocked: true })
@@ -100,7 +106,7 @@ export const takeNextRefreshBatch = (
     if (productIds.length > 0) {
       await transaction
         .update(priceRefreshRequests)
-        .set({ requestedAt: null })
+        .set({ claimedAt: now })
         .where(inArray(priceRefreshRequests.productId, productIds))
     }
     return productIds
@@ -180,6 +186,7 @@ const recordFailedRefresh = async (database: KairosDatabase, productId: string, 
   await database
     .update(priceRefreshRequests)
     .set({
+      claimedAt: null,
       attempts: sql`${priceRefreshRequests.attempts} + 1`,
       requestedAt: sql`case when ${priceRefreshRequests.attempts} + 1 < ${maximumDailyAttempts} then ${now.toISOString()}::timestamptz else null end`,
     })
@@ -204,7 +211,7 @@ export const processRefreshQueue = async (
     logUnavailableSources = console.warn,
   }: ProcessQueueDependencies = {},
 ): Promise<ProcessQueueOutcome> => {
-  const productIds = await takeNextRefreshBatch(database)
+  const productIds = await takeNextRefreshBatch(database, now)
   if (productIds.length === 0) {
     return { refreshedProductCount: 0, failedProductCount: 0 }
   }

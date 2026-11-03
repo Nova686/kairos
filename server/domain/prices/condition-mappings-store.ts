@@ -21,6 +21,13 @@ export class ConditionMappingConditionNotAllowedError extends Error {
   }
 }
 
+export class DuplicateTitleRuleError extends Error {
+  constructor() {
+    super('Une règle avec ces mots-clés existe déjà pour cette catégorie')
+    this.name = 'DuplicateTitleRuleError'
+  }
+}
+
 export interface ConditionMappingKey {
   category: string
   source: string
@@ -120,6 +127,27 @@ const assertRuleDraftValid = (draft: Omit<TitleConditionRule, 'id'>): void => {
   assertConditionAllowed(draft.category, draft.kairosCondition)
 }
 
+const foldKeyword = (keyword: string): string =>
+  keyword.trim().normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+
+const keywordSetKey = (keywords: string[]): string =>
+  [...new Set(keywords.map(foldKeyword))].sort().join('\u0000')
+
+const assertNoDuplicateTitleRule = async (
+  database: KairosDatabase,
+  draft: Pick<TitleConditionRule, 'category' | 'keywords'>,
+  ignoredRuleId: string | null,
+): Promise<void> => {
+  const rulesOfCategory = await database
+    .select({ id: titleConditionRules.id, keywords: titleConditionRules.keywords })
+    .from(titleConditionRules)
+    .where(eq(titleConditionRules.category, draft.category))
+  const draftKey = keywordSetKey(draft.keywords)
+  if (rulesOfCategory.some(rule => rule.id !== ignoredRuleId && keywordSetKey(rule.keywords) === draftKey)) {
+    throw new DuplicateTitleRuleError()
+  }
+}
+
 const findTitleRuleOr404 = async (database: KairosDatabase, ruleId: string): Promise<TitleConditionRule> => {
   const [rule] = uuidPattern.test(ruleId)
     ? await database.select().from(titleConditionRules).where(eq(titleConditionRules.id, ruleId))
@@ -144,6 +172,7 @@ export const createTitleRule = async (
 ): Promise<TitleConditionRule> => {
   assertRuleDraftValid(draft)
   return database.transaction(async (transaction) => {
+    await assertNoDuplicateTitleRule(transaction as unknown as KairosDatabase, draft, null)
     const [createdRule] = await transaction.insert(titleConditionRules).values(draft).returning()
     await appendCatalogueChanges(transaction, [{
       productId: null,
@@ -167,6 +196,7 @@ export const updateTitleRule = async (
   const mergedDraft = { ...describeRule(previousRule), ...changes }
   assertRuleDraftValid(mergedDraft)
   return database.transaction(async (transaction) => {
+    await assertNoDuplicateTitleRule(transaction as unknown as KairosDatabase, mergedDraft, ruleId)
     const [updatedRule] = await transaction
       .update(titleConditionRules)
       .set(mergedDraft)
