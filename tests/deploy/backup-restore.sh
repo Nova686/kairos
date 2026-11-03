@@ -23,6 +23,14 @@ run_sql "insert into backup_check values ('kept-by-backup')" >/dev/null
 dump_path="$("${compose[@]}" exec -T backup sh -c 'ls -1t /backups/kairos-*.dump | head -n 1' | tr -d '\r')"
 test -n "$dump_path"
 
+"${compose[@]}" exec -T backup cp "$dump_path" /backups/kairos-2000-01-01.dump
+"${compose[@]}" exec -T -e RETAINED_DUMP_COUNT=1 backup bash /backup/backup-database.sh
+retained_dumps="$("${compose[@]}" exec -T backup sh -c 'ls -1 /backups/kairos-*.dump' | tr -d '\r')"
+if [ "$retained_dumps" != "$dump_path" ]; then
+  echo "retention failed: expected only $dump_path, got '$retained_dumps'" >&2
+  exit 1
+fi
+
 run_sql "drop table backup_check" >/dev/null
 
 COMPOSE_PROJECT_NAME="$check_project" KAIROS_ENV_FILE="$repository_root/deploy/env.example" \

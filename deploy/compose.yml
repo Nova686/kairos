@@ -5,6 +5,8 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+      labels:
+        com.docker.compose.project: kairos
     environment:
       NUXT_APP_SECRET: ${NUXT_APP_SECRET:?set NUXT_APP_SECRET in deploy/.env}
       NUXT_PHOTO_RECOGNITION: ${NUXT_PHOTO_RECOGNITION:-on}
@@ -20,9 +22,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(response => process.exit(response.ok ? 0 : 1), () => process.exit(1))"]
-      interval: 30s
+      interval: 10s
       timeout: 5s
-      start_period: 40s
+      start_period: 60s
+      start_interval: 2s
       retries: 3
     restart: unless-stopped
 

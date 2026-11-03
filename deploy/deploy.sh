@@ -6,7 +6,7 @@ compose_project="kairos"
 app_service="app"
 app_image="kairos-app"
 previous_tag="previous"
-health_attempts=30
+health_attempts="${KAIROS_DEPLOY_HEALTH_ATTEMPTS:-60}"
 health_interval_seconds=2
 
 compose() {
@@ -34,10 +34,25 @@ wait_until_healthy() {
   return 1
 }
 
+roll_back() {
+  echo "$1" >&2
+  git checkout --detach "$previous_commit" >&2
+  if [ "$has_previous_image" = true ]; then
+    docker tag "$app_image:$previous_tag" "$app_image:latest"
+    compose up -d --no-deps --no-build "$app_service" >&2 || echo "Restarting the previous image failed." >&2
+    echo "Rolled back to commit $previous_commit and the previous image." >&2
+  else
+    echo "No previous image to roll back to; code restored to commit $previous_commit." >&2
+  fi
+  exit 1
+}
+
 if [ ! -f "$compose_file" ]; then
   echo "Run this script from the repository root (missing $compose_file)." >&2
   exit 2
 fi
+
+previous_commit="$(git rev-parse HEAD)"
 
 has_previous_image=false
 if docker image inspect "$app_image:latest" >/dev/null 2>&1; then
@@ -49,20 +64,16 @@ git fetch origin
 git checkout --detach origin/main
 
 compose build "$app_service"
-compose up -d --no-deps "$app_service"
+
+if ! compose up -d --no-deps "$app_service"; then
+  roll_back "Starting the new release failed."
+fi
 
 if wait_until_healthy; then
-  docker image prune -f
+  docker image prune -f --filter "label=com.docker.compose.project=$compose_project"
+  docker builder prune -f --filter until=168h
   echo "Deployment succeeded."
   exit 0
 fi
 
-echo "The new release did not become healthy after $health_attempts checks." >&2
-if [ "$has_previous_image" = true ]; then
-  docker tag "$app_image:$previous_tag" "$app_image:latest"
-  compose up -d --no-deps --no-build "$app_service"
-  echo "Rolled back to the previous image." >&2
-else
-  echo "No previous image to roll back to." >&2
-fi
-exit 1
+roll_back "The new release did not become healthy after $health_attempts checks."
