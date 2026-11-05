@@ -197,6 +197,27 @@ const chipColors: Record<ConditionChipTone, string | undefined> = {
   background: transparent;
 }
 
+.stock-item-list__table :deep(th),
+.stock-item-list__table :deep(td) {
+  padding: 0 10px;
+}
+
+.stock-item-list__table :deep(th) {
+  white-space: nowrap;
+}
+
+.stock-item-list__table :deep(.v-chip),
+.stock-item-list__table :deep(.stock-item-value),
+.stock-item-list__table :deep(.signed-amount) {
+  white-space: nowrap;
+}
+
+@media (max-width: 1279.98px) {
+  .stock-item-list__table :deep(.stock-item-list__location-column) {
+    display: none;
+  }
+}
+
 .stock-item-list__product {
   display: flex;
   align-items: center;
@@ -205,14 +226,14 @@ const chipColors: Record<ConditionChipTone, string | undefined> = {
 }
 
 .stock-item-list__link {
-  display: block;
-  max-width: 340px;
+  display: -webkit-box;
   overflow: hidden;
   font-weight: 600;
+  line-height: 1.3;
   color: inherit;
   text-decoration: none;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .stock-item-list__link:hover {

@@ -267,6 +267,7 @@ const categoryChipColor = computed(() => {
 <style scoped>
 .product-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-content: start;
 }
@@ -302,11 +303,14 @@ const categoryChipColor = computed(() => {
 .product-page__actions {
   display: flex;
   flex: 1 1 100%;
+  flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .product-page__actions > .v-btn {
-  flex: 1;
+  flex: 1 1 auto;
+  max-width: 100%;
 }
 
 .product-page__kpis {

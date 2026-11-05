@@ -27,7 +27,7 @@ export interface StockItemListRow {
 const tableHeaders = [
   { title: 'Produit', key: 'productName' },
   { title: 'État', key: 'conditionText' },
-  { title: 'Lieu', key: 'locationText' },
+  { title: 'Lieu', key: 'locationText', headerProps: { class: 'stock-item-list__location-column' }, cellProps: { class: 'stock-item-list__location-column' } },
   { title: 'Statut', key: 'statusText' },
   { title: 'Achat', key: 'purchasePriceCents', align: 'end' as const },
   { title: 'Valeur estimée', key: 'valueCents', align: 'end' as const },

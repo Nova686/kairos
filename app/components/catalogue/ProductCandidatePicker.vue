@@ -112,6 +112,7 @@
     >
       <v-text-field
         v-model="newProductName"
+        class="product-candidate-picker__name"
         label="Nom du nouveau produit"
         hide-details
       />
@@ -171,6 +172,10 @@ const { errorMessage, isCreating, newProductName, newProductCategory, pickCandid
 .product-candidate-picker__creation {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.product-candidate-picker__name {
+  grid-column: 1 / -1;
 }
 </style>
