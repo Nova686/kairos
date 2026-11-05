@@ -1,8 +1,10 @@
 <template>
-  <div>
-    <h1 class="text-h5 mb-4">
+  <div class="kairos-page">
+    <h1 class="kairos-page-title">
       Nouvelle vente
     </h1>
-    <SaleForm />
+    <v-card class="kairos-panel">
+      <SaleForm />
+    </v-card>
   </div>
 </template>

@@ -1,42 +1,49 @@
 <template>
-  <div>
-    <h1 class="text-h5 mb-4">
+  <div class="kairos-page">
+    <h1 class="kairos-page-title">
       Dettes
     </h1>
     <DebtBalances :balances="balances" />
 
-    <h2 class="text-h6 mt-6 mb-2">
-      Nouvelle dette
-    </h2>
-    <DebtForm
-      :persons="persons"
-      :create-debt="createDebt"
-    />
+    <v-card class="kairos-panel">
+      <h2 class="kairos-panel__title">
+        Nouvelle dette
+      </h2>
+      <DebtForm
+        :persons="persons"
+        :create-debt="createDebt"
+      />
+    </v-card>
 
-    <h2 class="text-h6 mb-2">
+    <h2 class="kairos-label">
       Dettes ouvertes
     </h2>
     <v-alert
       v-if="errorMessage"
       type="error"
-      class="mb-4"
       role="alert"
     >
       {{ errorMessage }}
     </v-alert>
-    <p v-if="openDebts.length === 0">
+    <p
+      v-if="openDebts.length === 0"
+      class="kairos-empty"
+    >
       Aucune dette ouverte.
     </p>
     <v-card
       v-for="openDebt in openDebts"
       :key="openDebt.id"
-      class="debts-page__card"
+      class="kairos-row-card"
     >
       <div>
-        <div class="text-subtitle-1">
-          {{ openDebt.personName }} · {{ debtDirectionLabels[openDebt.direction] }} {{ formatEuros(openDebt.amountCents) }}
+        <div class="kairos-row-card__title">
+          {{ openDebt.personName }} · {{ debtDirectionLabels[openDebt.direction] }}
+          <span class="kairos-figure">{{ formatEuros(openDebt.amountCents) }}</span>
         </div>
-        <div>{{ openDebt.reason }} · {{ openDebt.createdOn }}</div>
+        <div class="kairos-row-card__detail">
+          {{ openDebt.reason }} · {{ openDebt.createdOn }}
+        </div>
       </div>
       <v-btn
         color="primary"
@@ -46,7 +53,7 @@
       </v-btn>
     </v-card>
 
-    <v-expansion-panels class="mt-6">
+    <v-expansion-panels>
       <v-expansion-panel title="Historique des dettes réglées">
         <v-expansion-panel-text>
           <p v-if="settledDebts.length === 0">
@@ -70,13 +77,3 @@
 const { balances, openDebts, settledDebts, persons, errorMessage, settleDebt, createDebt } = useDebts()
 </script>
 
-<style scoped>
-.debts-page__card {
-  align-items: center;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 12px;
-}
-</style>

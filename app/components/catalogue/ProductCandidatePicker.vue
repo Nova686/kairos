@@ -1,25 +1,39 @@
 <template>
-  <div>
-    <v-list v-if="identifiedCandidates.length > 0">
-      <v-list-subheader>Résultats du scan</v-list-subheader>
-      <v-list-item
-        v-for="candidate in identifiedCandidates"
-        :key="`identified-${candidate.origin}-${candidate.label}`"
-        :title="candidate.label"
-        :subtitle="pendingBarcode ? 'Lier ce code-barres à ce produit' : undefined"
-        @click="pickCandidate(candidate)"
+  <div class="product-candidate-picker">
+    <div v-if="identifiedCandidates.length > 0">
+      <div class="kairos-label product-candidate-picker__group">
+        Résultats du scan
+      </div>
+      <v-list
+        bg-color="transparent"
+        class="pa-0"
       >
-        <template
-          v-if="candidate.imageUrl"
-          #prepend
+        <v-list-item
+          v-for="candidate in identifiedCandidates"
+          :key="`identified-${candidate.origin}-${candidate.label}`"
+          :title="candidate.label"
+          :subtitle="describeCandidate(candidate)"
+          rounded="lg"
+          @click="pickCandidate(candidate)"
         >
-          <v-avatar
-            :image="candidate.imageUrl"
-            rounded
-          />
-        </template>
-      </v-list-item>
-    </v-list>
+          <template #prepend>
+            <ProductThumbnail
+              class="mr-3"
+              :category="candidate.draft.category"
+              :image-url="candidate.imageUrl"
+            />
+          </template>
+          <template #append>
+            <v-chip
+              color="primary"
+              prepend-icon="mdi-plus"
+            >
+              Ajouter
+            </v-chip>
+          </template>
+        </v-list-item>
+      </v-list>
+    </div>
     <v-text-field
       v-model="searchText"
       label="Rechercher un produit"
@@ -27,11 +41,11 @@
       prepend-inner-icon="mdi-magnify"
       :loading="isSearching"
       clearable
+      hide-details
     />
     <v-alert
       v-if="searchErrorMessage"
       type="error"
-      class="mb-4"
       role="alert"
     >
       {{ searchErrorMessage }}
@@ -43,33 +57,51 @@
     >
       {{ unavailableMessage }}
     </p>
-    <v-list
+    <div
       v-for="candidateGroup in candidateGroups"
       :key="candidateGroup.origin"
     >
-      <v-list-subheader>{{ candidateGroup.title }}</v-list-subheader>
-      <v-list-item
-        v-for="candidate in candidateGroup.candidates"
-        :key="`${candidate.origin}-${candidate.label}`"
-        :title="candidate.label"
-        :subtitle="pendingBarcode ? 'Lier ce code-barres à ce produit' : undefined"
-        @click="pickCandidate(candidate)"
+      <div class="kairos-label product-candidate-picker__group">
+        {{ candidateGroup.title }}
+      </div>
+      <v-list
+        bg-color="transparent"
+        class="pa-0"
       >
-        <template
-          v-if="candidate.imageUrl"
-          #prepend
+        <v-list-item
+          v-for="candidate in candidateGroup.candidates"
+          :key="`${candidate.origin}-${candidate.label}`"
+          :title="candidate.label"
+          :subtitle="describeCandidate(candidate)"
+          rounded="lg"
+          @click="pickCandidate(candidate)"
         >
-          <v-avatar
-            :image="candidate.imageUrl"
-            rounded
-          />
-        </template>
-      </v-list-item>
-    </v-list>
+          <template #prepend>
+            <ProductThumbnail
+              class="mr-3"
+              :category="candidate.draft.category"
+              :image-url="candidate.imageUrl"
+            />
+          </template>
+          <template #append>
+            <v-icon
+              v-if="candidate.origin === 'catalogue'"
+              icon="mdi-check-circle"
+              color="primary"
+            />
+            <v-chip
+              v-else
+              prepend-icon="mdi-plus"
+            >
+              Créer
+            </v-chip>
+          </template>
+        </v-list-item>
+      </v-list>
+    </div>
     <v-alert
       v-if="errorMessage"
       type="error"
-      class="mb-4"
       role="alert"
     >
       {{ errorMessage }}
@@ -107,13 +139,16 @@ import type { ProductReference } from '~~/shared/catalogue/product-reference'
 
 import type { ProductCandidate } from '~~/server/domain/catalogue/search-product-candidates'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   identifiedCandidates?: ProductCandidate[]
   pendingBarcode?: string | null
   focusSearch?: boolean
 }>(), { identifiedCandidates: () => [], pendingBarcode: null, focusSearch: false })
 
 const emit = defineEmits<{ picked: [product: ProductReference] }>()
+
+const describeCandidate = (candidate: ProductCandidate): string =>
+  props.pendingBarcode ? 'Lier ce code-barres à ce produit' : productCategoryLabels[candidate.draft.category]
 
 const categoryOptions = productCategories.map(category => ({ value: category, title: productCategoryLabels[category] }))
 
@@ -124,6 +159,15 @@ const { errorMessage, isCreating, newProductName, newProductCategory, pickCandid
 </script>
 
 <style scoped>
+.product-candidate-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.product-candidate-picker__group {
+  padding: 4px 0 6px;
+}
+
 .product-candidate-picker__creation {
   display: grid;
   gap: 12px;

@@ -1,7 +1,9 @@
 <template>
-  <v-card>
-    <v-card-title>Connexion</v-card-title>
-    <v-card-text>
+  <v-card class="kairos-auth__card">
+    <h1 class="kairos-panel__title">
+      Connexion
+    </h1>
+    <div>
       <v-form @submit.prevent="submitLogin">
         <v-text-field
           v-model="email"
@@ -33,7 +35,7 @@
           Se connecter
         </v-btn>
       </v-form>
-    </v-card-text>
+    </div>
   </v-card>
 </template>
 

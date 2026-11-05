@@ -2,12 +2,18 @@
   <v-alert
     v-if="isInvitationUnavailable"
     type="error"
+    class="kairos-auth__card"
   >
     Cette invitation est invalide, déjà utilisée ou expirée.
   </v-alert>
-  <v-card v-else>
-    <v-card-title>Créer votre compte</v-card-title>
-    <v-card-text>
+  <v-card
+    v-else
+    class="kairos-auth__card"
+  >
+    <h1 class="kairos-panel__title">
+      Créer votre compte
+    </h1>
+    <div>
       <v-form @submit.prevent="submitAcceptance">
         <v-text-field
           v-model="displayName"
@@ -45,7 +51,7 @@
           Créer mon compte
         </v-btn>
       </v-form>
-    </v-card-text>
+    </div>
   </v-card>
 </template>
 

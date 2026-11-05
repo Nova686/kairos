@@ -1,14 +1,16 @@
 <template>
-  <div>
-    <h1 class="text-h5 mb-4">
+  <div class="kairos-page">
+    <h1 class="kairos-page-title">
       Réglages
     </h1>
     <v-card
       v-if="user?.isAdmin"
-      class="mb-4"
+      class="kairos-panel"
     >
-      <v-card-title>Inviter quelqu'un</v-card-title>
-      <v-card-text>
+      <h2 class="kairos-panel__title">
+        Inviter quelqu'un
+      </h2>
+      <div>
         <v-btn
           color="primary"
           :loading="isCreating"
@@ -45,21 +47,24 @@
         >
           Lien copié.
         </p>
-      </v-card-text>
+      </div>
     </v-card>
-    <v-btn
-      variant="outlined"
-      class="mr-2"
-      to="/reglages/correspondances"
-    >
-      Correspondances d'états
-    </v-btn>
-    <v-btn
-      variant="outlined"
-      @click="signOut"
-    >
-      Se déconnecter
-    </v-btn>
+    <div class="d-flex flex-wrap ga-2">
+      <v-btn
+        variant="outlined"
+        prepend-icon="mdi-swap-horizontal"
+        to="/reglages/correspondances"
+      >
+        Correspondances d'états
+      </v-btn>
+      <v-btn
+        variant="outlined"
+        prepend-icon="mdi-logout"
+        @click="signOut"
+      >
+        Se déconnecter
+      </v-btn>
+    </div>
   </div>
 </template>
 

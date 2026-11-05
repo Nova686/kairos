@@ -1,12 +1,11 @@
 <template>
-  <div>
-    <h1 class="text-h5 mb-4">
+  <div class="kairos-page">
+    <h1 class="kairos-page-title">
       Correspondances d'états
     </h1>
     <v-alert
       v-if="errorMessage"
       type="error"
-      class="mb-4"
       role="alert"
     >
       {{ errorMessage }}
@@ -16,7 +15,8 @@
       indeterminate
     />
 
-    <h2 class="text-h6 mb-2">
+    <v-card class="kairos-panel">
+    <h2 class="kairos-panel__title">
       États des sources
     </h2>
     <v-form
@@ -53,10 +53,17 @@
         Ajouter
       </v-btn>
     </v-form>
-    <p v-if="!pending && mappings.length === 0">
+    <p
+      v-if="!pending && mappings.length === 0"
+      class="kairos-empty"
+    >
       Aucune correspondance.
     </p>
-    <v-list v-else>
+    <v-list
+      v-else
+      bg-color="transparent"
+      class="pa-0"
+    >
       <v-list-item
         v-for="mapping in mappings"
         :key="`${mapping.category}/${mapping.source}/${mapping.sourceCondition}`"
@@ -81,7 +88,10 @@
       </v-list-item>
     </v-list>
 
-    <h2 class="text-h6 mt-6 mb-2">
+    </v-card>
+
+    <v-card class="kairos-panel">
+    <h2 class="kairos-panel__title">
       Règles sur le titre
     </h2>
     <p class="text-body-2 text-medium-emphasis mb-2">
@@ -127,10 +137,17 @@
         Ajouter
       </v-btn>
     </v-form>
-    <p v-if="!pending && rules.length === 0">
+    <p
+      v-if="!pending && rules.length === 0"
+      class="kairos-empty"
+    >
       Aucune règle.
     </p>
-    <v-list v-else>
+    <v-list
+      v-else
+      bg-color="transparent"
+      class="pa-0"
+    >
       <v-list-item
         v-for="rule in rules"
         :key="rule.id"
@@ -199,6 +216,7 @@
         </template>
       </v-list-item>
     </v-list>
+    </v-card>
   </div>
 </template>
 

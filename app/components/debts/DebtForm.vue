@@ -69,6 +69,5 @@ const { personId, direction, amountText, reason, createdOn, errorMessage, person
 .debt-form {
   display: grid;
   gap: 12px;
-  margin-bottom: 24px;
 }
 </style>

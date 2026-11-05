@@ -1,10 +1,10 @@
 <template>
-  <div>
-    <h1 class="text-h5 mb-4">
+  <div class="kairos-page">
+    <h1 class="kairos-page-title">
       {{ title }}
     </h1>
     <v-form
-      class="d-flex ga-2 mb-4"
+      class="d-flex ga-2"
       @submit.prevent="addRow"
     >
       <v-text-field
@@ -23,7 +23,6 @@
     <v-alert
       v-if="errorMessage"
       type="error"
-      class="mb-4"
       role="alert"
     >
       {{ errorMessage }}
@@ -34,14 +33,22 @@
     />
     <p
       v-else-if="labelledRows.length === 0"
+      class="kairos-empty"
     >
       {{ emptyMessage }}
     </p>
-    <v-list v-else>
-      <v-list-item
-        v-for="labelledRow in labelledRows"
-        :key="labelledRow.id"
+    <v-card
+      v-else
+      class="kairos-panel"
+    >
+      <v-list
+        bg-color="transparent"
+        class="pa-0"
       >
+        <v-list-item
+          v-for="labelledRow in labelledRows"
+          :key="labelledRow.id"
+        >
         <v-form
           v-if="editedRowId === labelledRow.id"
           class="d-flex ga-2"
@@ -85,8 +92,9 @@
             />
           </template>
         </template>
-      </v-list-item>
-    </v-list>
+        </v-list-item>
+      </v-list>
+    </v-card>
   </div>
 </template>
 

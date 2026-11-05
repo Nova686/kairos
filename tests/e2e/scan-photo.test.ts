@@ -47,14 +47,14 @@ describe('photo identification API', async () => {
     expect(await response.text()).toContain('Photo illisible, réessayez avec une autre photo.')
   })
 
-  it('renders the photo tab of the add page', async () => {
+  it('renders the text search variant of the add page on the server and leaves the photo tab to phones', async () => {
     const cookie = await logIn('scanner@example.com', scannerPassword)
 
     const page = await fetch('/ajouter?onglet=photo', { headers: { cookie } })
     const pageHtml = await page.text()
 
     expect(page.status).toBe(200)
-    expect(pageHtml).toContain('capture="environment"')
+    expect(pageHtml).toContain('Le scan par code-barres et par photo se fait depuis l’iPhone.')
     expect(pageHtml).not.toContain('arrive bientôt')
   })
 

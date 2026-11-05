@@ -9,7 +9,7 @@ export interface CandidateGroup {
 const searchDebounceMilliseconds = 400
 
 const originTitles: Record<ProductCandidate['origin'], string> = {
-  catalogue: 'Catalogue',
+  catalogue: 'Dans votre catalogue',
   cardmarket: 'Cardmarket',
   tcgdex: 'TCGdex',
   ebay: 'eBay',

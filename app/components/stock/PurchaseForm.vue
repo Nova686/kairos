@@ -1,16 +1,36 @@
 <template>
-  <v-form
-    v-if="lines.length > 0"
-    :readonly="isLocked"
-    @submit.prevent="submitAndLeave"
-  >
-    <v-card
+  <v-card class="purchase-form">
+    <h2 class="kairos-card-title purchase-form__title">
+      Achat en cours
+      <v-chip
+        v-if="lines.length > 0"
+        size="small"
+      >
+        {{ pluralizeFrench(lines.length, 'ligne') }}
+      </v-chip>
+    </h2>
+    <p
+      v-if="lines.length === 0"
+      class="purchase-form__empty"
+    >
+      Choisissez un produit pour commencer l’achat.
+    </p>
+    <v-form
+      v-else
+      :readonly="isLocked"
+      @submit.prevent="submitAndLeave"
+    >
+    <div
       v-for="line in lines"
       :key="line.lineKey"
       class="purchase-form__line"
     >
       <div class="purchase-form__line-header">
-        <span class="text-subtitle-1">{{ line.product.name }}</span>
+        <ProductThumbnail
+          :category="line.product.category"
+          :size="40"
+        />
+        <span class="purchase-form__product-name">{{ line.product.name }}</span>
         <v-btn
           icon="mdi-delete"
           variant="text"
@@ -51,7 +71,7 @@
           />
         </template>
       </div>
-    </v-card>
+    </div>
 
     <div class="purchase-form__grid">
       <v-text-field
@@ -125,7 +145,8 @@
     >
       {{ isLocked ? "Réessayer de créer la dette" : "Enregistrer l’achat" }}
     </v-btn>
-  </v-form>
+    </v-form>
+  </v-card>
 </template>
 
 <script setup lang="ts">
@@ -169,7 +190,26 @@ defineExpose({ addLine, removeLatestLineOfProduct })
 </script>
 
 <style scoped>
+.purchase-form {
+  padding: 18px;
+}
+
+.purchase-form__title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.purchase-form__empty {
+  color: var(--kairos-text-secondary);
+  margin: 0;
+}
+
 .purchase-form__line {
+  background: var(--kairos-surface-variant);
+  border: 1px solid var(--kairos-border);
+  border-radius: calc(var(--kairos-radius) - 4px);
   margin-bottom: 12px;
   padding: 12px;
 }
@@ -177,7 +217,14 @@ defineExpose({ addLine, removeLatestLineOfProduct })
 .purchase-form__line-header {
   align-items: center;
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.purchase-form__product-name {
+  flex: 1;
+  font-weight: 600;
+  min-width: 0;
 }
 
 .purchase-form__grid {

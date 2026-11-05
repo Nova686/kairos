@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="delivery-list">
     <v-alert
       v-if="errorMessage"
       type="error"
@@ -13,22 +13,27 @@
       indeterminate
     />
 
-    <h2 class="text-h6 mb-2">
+    <h2 class="kairos-label">
       À recevoir
     </h2>
-    <p v-if="incoming.length === 0">
+    <p
+      v-if="incoming.length === 0"
+      class="kairos-empty"
+    >
       Aucun colis en attente de réception.
     </p>
     <v-card
       v-for="incomingDelivery in incoming"
       :key="incomingDelivery.stockItemId"
-      class="delivery-list__card"
+      class="kairos-row-card"
     >
       <div>
-        <div class="text-subtitle-1">
+        <div class="kairos-row-card__title">
           {{ incomingDelivery.productName }}
         </div>
-        <div>Acheté le {{ incomingDelivery.purchasedOn }}</div>
+        <div class="kairos-row-card__detail">
+          Acheté le {{ incomingDelivery.purchasedOn }}
+        </div>
         <TrackingReference :tracking-reference="incomingDelivery.trackingReference" />
       </div>
       <v-btn
@@ -40,22 +45,27 @@
       </v-btn>
     </v-card>
 
-    <h2 class="text-h6 mt-6 mb-2">
+    <h2 class="kairos-label delivery-list__section">
       À livrer
     </h2>
-    <p v-if="outgoing.length === 0">
+    <p
+      v-if="outgoing.length === 0"
+      class="kairos-empty"
+    >
       Aucun colis en cours de livraison.
     </p>
     <v-card
       v-for="outgoingDelivery in outgoing"
       :key="outgoingDelivery.saleId"
-      class="delivery-list__card"
+      class="kairos-row-card"
     >
       <div>
-        <div class="text-subtitle-1">
+        <div class="kairos-row-card__title">
           {{ outgoingDelivery.productNames.join(', ') }}
         </div>
-        <div>Vendu le {{ outgoingDelivery.soldOn }}</div>
+        <div class="kairos-row-card__detail">
+          Vendu le {{ outgoingDelivery.soldOn }}
+        </div>
         <TrackingReference :tracking-reference="outgoingDelivery.trackingReference" />
       </div>
       <v-btn
@@ -74,12 +84,12 @@ const { incoming, outgoing, pending, errorMessage, isActionPending, markReceived
 </script>
 
 <style scoped>
-.delivery-list__card {
-  align-items: center;
-  display: flex;
+.delivery-list {
+  display: grid;
   gap: 12px;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 12px;
+}
+
+.delivery-list__section {
+  margin-top: 8px;
 }
 </style>

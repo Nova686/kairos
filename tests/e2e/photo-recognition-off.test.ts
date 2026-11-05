@@ -43,7 +43,7 @@ describe('photo recognition switched off', async () => {
     expect(confirmation.status).toBe(503)
   })
 
-  it('hides the photo tab and explains why', async () => {
+  it('renders the text search variant on the server whatever the requested tab', async () => {
     const cookie = await logIn('scanner@example.com', scannerPassword)
 
     const page = await fetch('/ajouter?onglet=photo', { headers: { cookie } })
@@ -51,6 +51,6 @@ describe('photo recognition switched off', async () => {
 
     expect(page.status).toBe(200)
     expect(pageHtml).not.toContain('capture="environment"')
-    expect(pageHtml).toContain('Reconnaissance photo désactivée sur ce serveur')
+    expect(pageHtml).toContain('Le scan par code-barres et par photo se fait depuis l’iPhone.')
   })
 })

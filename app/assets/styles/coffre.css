@@ -199,3 +199,83 @@ h1,
     padding-top: env(safe-area-inset-top, 0px);
   }
 }
+
+.kairos-page {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.kairos-page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kairos-panel {
+  padding: 18px;
+}
+
+.kairos-panel__title {
+  margin: 0 0 12px;
+  font-family: var(--kairos-display-font);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.kairos-row-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+}
+
+.kairos-row-card__title {
+  font-weight: 600;
+}
+
+.kairos-row-card__detail {
+  color: var(--kairos-text-secondary);
+  font-size: 13px;
+}
+
+.kairos-empty {
+  margin: 0;
+  color: var(--kairos-text-secondary);
+}
+
+.kairos-link {
+  color: var(--kairos-primary);
+}
+
+.kairos-auth {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding-top: 8vh;
+}
+
+.kairos-auth__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kairos-auth__brand-name {
+  margin: 0;
+  font-family: var(--kairos-display-font);
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.kairos-auth__card {
+  width: 100%;
+  padding: 20px;
+}

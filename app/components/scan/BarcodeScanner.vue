@@ -17,6 +17,17 @@
         muted
         aria-label="Aperçu de l’appareil photo"
       />
+      <div
+        class="barcode-scanner__frame"
+        aria-hidden="true"
+      />
+      <div
+        class="barcode-scanner__laser"
+        aria-hidden="true"
+      />
+      <p class="barcode-scanner__hint">
+        Placez le code-barres dans le cadre
+      </p>
     </div>
     <v-alert
       v-if="cameraState === 'denied'"
@@ -43,6 +54,7 @@
     <v-btn
       v-if="cameraState === 'scanning' || cameraState === 'starting'"
       class="my-4"
+      block
       prepend-icon="mdi-stop"
       :loading="cameraState === 'starting'"
       @click="stop"
@@ -100,18 +112,74 @@ const submitManualCode = () => {
 
 <style scoped>
 .barcode-scanner__viewport {
+  position: relative;
   aspect-ratio: 4 / 3;
-  background: #000;
-  border-radius: 8px;
+  max-width: 100%;
   margin-top: 12px;
-  max-width: 480px;
   overflow: hidden;
+  border-radius: var(--kairos-radius);
+  background: radial-gradient(120% 90% at 30% 20%, #3b4552, #14181e 70%);
 }
 
 .barcode-scanner__video {
+  position: absolute;
+  inset: 0;
   height: 100%;
   object-fit: cover;
   width: 100%;
+}
+
+.barcode-scanner__frame {
+  position: absolute;
+  inset: 24% 14%;
+  border-radius: 12px;
+}
+
+.barcode-scanner__frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--kairos-accent);
+  border-radius: 12px;
+  clip-path: polygon(0 0, 22% 0, 22% 100%, 0 100%, 0 0, 100% 0, 100% 100%, 78% 100%, 78% 0);
+}
+
+.barcode-scanner__laser {
+  position: absolute;
+  top: 50%;
+  right: 16%;
+  left: 16%;
+  height: 2px;
+  background: var(--kairos-accent);
+  box-shadow: 0 0 12px var(--kairos-accent);
+}
+
+.barcode-scanner__hint {
+  position: absolute;
+  right: 0;
+  bottom: 12px;
+  left: 0;
+  margin: 0;
+  color: #e8edf2;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .barcode-scanner__laser {
+    animation: barcode-scanner-sweep 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes barcode-scanner-sweep {
+  0%,
+  100% {
+    transform: translateY(-36px);
+  }
+
+  50% {
+    transform: translateY(36px);
+  }
 }
 
 .barcode-scanner__manual {

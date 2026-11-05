@@ -1,5 +1,8 @@
 <template>
-  <p v-if="sales.length === 0">
+  <p
+    v-if="sales.length === 0"
+    class="kairos-empty"
+  >
     Aucune vente pour le moment.
   </p>
   <div
@@ -9,27 +12,27 @@
     <v-card
       v-for="sale in sales"
       :key="sale.id"
-      class="sale-list__card"
+      class="kairos-row-card"
     >
       <div>
-        <div class="text-subtitle-1">
+        <div class="kairos-row-card__title">
           {{ sale.platform }} · {{ sale.soldOn }}
         </div>
-        <div>{{ sale.items.length }} exemplaire(s) · {{ formatEuros(sale.totalPriceCents) }}</div>
+        <div class="kairos-row-card__detail">
+          {{ sale.items.length }} exemplaire(s) · <span class="kairos-figure">{{ formatEuros(sale.totalPriceCents) }}</span>
+        </div>
         <div v-if="sale.trackingReference">
           <TrackingReference :tracking-reference="sale.trackingReference" />
         </div>
       </div>
       <div class="text-right">
-        <div class="text-caption">
+        <div class="kairos-label">
           Bénéfice net
         </div>
-        <div
-          class="text-h6"
-          :class="sale.netProfitCents < 0 ? 'text-error' : 'text-success'"
-        >
-          {{ formatEuros(sale.netProfitCents) }}
-        </div>
+        <SignedAmount
+          class="sale-list__profit"
+          :cents="sale.netProfitCents"
+        />
       </div>
     </v-card>
   </div>
@@ -50,11 +53,7 @@ defineProps({
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
-.sale-list__card {
-  align-items: center;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  padding: 12px;
+.sale-list__profit {
+  font-size: 18px;
 }
 </style>
