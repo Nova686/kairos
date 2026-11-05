@@ -3,10 +3,12 @@ import {
   buildHistoryChartData,
   buildPriceColumns,
   buildPriceRows,
-  describeRetainedPrice,
+  findRetainedCellSnapshotId,
+  findRetainedValue,
   formatParisDateTime,
   type PriceHistoryPointView,
   type PriceOverviewCellView,
+  type RetainedValueView,
 } from '../../../app/utils/price-overview-view.ts'
 
 const cell = (overrides: Partial<PriceOverviewCellView>): PriceOverviewCellView => ({
@@ -33,34 +35,50 @@ const point = (overrides: Partial<PriceHistoryPointView>): PriceHistoryPointView
   ...overrides,
 })
 
-describe('describeRetainedPrice', () => {
+const retained = (overrides: Partial<RetainedValueView>): RetainedValueView => ({
+  condition: 'sealed-new',
+  gradingCompany: null,
+  grade: null,
+  valueCents: 15000,
+  approximate: false,
+  usedCondition: 'sealed-new',
+  ...overrides,
+})
+
+describe('findRetainedValue', () => {
+  it('finds the server retained value of the selected column, graded ones by company and grade', () => {
+    const sealedColumns = buildPriceColumns('pokemon-sealed', [])
+    expect(findRetainedValue([retained({ condition: 'opened-complete', valueCents: 1 }), retained({})], sealedColumns[0]!)?.valueCents).toBe(15000)
+
+    const gradedCell = cell({ condition: 'graded', gradingCompany: 'PSA', grade: '10' })
+    const gradedColumns = buildPriceColumns('graded-card', [gradedCell])
+    expect(findRetainedValue([retained({ condition: 'graded', gradingCompany: 'PSA', grade: '10', valueCents: 50000 })], gradedColumns[0]!)?.valueCents).toBe(50000)
+  })
+
+  it('finds nothing without a selected column or a matching entry', () => {
+    expect(findRetainedValue([retained({})], null)).toBeNull()
+    expect(findRetainedValue([], buildPriceColumns('pokemon-sealed', [])[0]!)).toBeNull()
+  })
+})
+
+describe('findRetainedCellSnapshotId', () => {
   const columns = buildPriceColumns('pokemon-sealed', [])
+  const rows = buildPriceRows([
+    cell({ source: 'ebay', figureCents: 15000, snapshotId: 'ebay-cell' }),
+    cell({ source: 'cardmarket', figureCents: 17000, snapshotId: 'cardmarket-cell' }),
+    cell({ source: 'vinted', figureCents: 15100, snapshotId: 'stale-cell', isStale: true }),
+  ], columns)
 
-  it('retains the median of the fresh source figures of the column and highlights the closest cell', () => {
-    const rows = buildPriceRows([
-      cell({ source: 'ebay', figureCents: 15000, snapshotId: 'ebay-cell' }),
-      cell({ source: 'cardmarket', figureCents: 17000, snapshotId: 'cardmarket-cell' }),
-      cell({ source: 'vinted', figureCents: 14000, snapshotId: 'vinted-cell' }),
-    ], columns)
-
-    expect(describeRetainedPrice(rows, 0)).toEqual({ retainedCents: 15000, sourceCount: 3, highlightedSnapshotId: 'ebay-cell' })
+  it('highlights the fresh cell closest to the retained value', () => {
+    expect(findRetainedCellSnapshotId(rows, 0, retained({ valueCents: 16000 }))).toBe('ebay-cell')
+    expect(findRetainedCellSnapshotId(rows, 0, retained({ valueCents: 16600 }))).toBe('cardmarket-cell')
   })
 
-  it('ignores stale cells', () => {
-    const rows = buildPriceRows([
-      cell({ source: 'ebay', figureCents: 15000, snapshotId: 'ebay-cell' }),
-      cell({ source: 'cardmarket', figureCents: 90000, snapshotId: 'cardmarket-cell', isStale: true }),
-    ], columns)
-
-    expect(describeRetainedPrice(rows, 0)).toEqual({ retainedCents: 15000, sourceCount: 1, highlightedSnapshotId: 'ebay-cell' })
-  })
-
-  it('retains nothing when the column has no fresh price', () => {
-    const rows = buildPriceRows([cell({ isStale: true })], columns)
-
-    expect(describeRetainedPrice(rows, 0)).toBeNull()
-    expect(describeRetainedPrice(rows, 3)).toBeNull()
-    expect(describeRetainedPrice(rows, -1)).toBeNull()
+  it('highlights nothing for an approximate, missing or absent retained value', () => {
+    expect(findRetainedCellSnapshotId(rows, 0, retained({ approximate: true }))).toBeNull()
+    expect(findRetainedCellSnapshotId(rows, 0, retained({ valueCents: null }))).toBeNull()
+    expect(findRetainedCellSnapshotId(rows, 0, null)).toBeNull()
+    expect(findRetainedCellSnapshotId(rows, 3, retained({}))).toBeNull()
   })
 })
 

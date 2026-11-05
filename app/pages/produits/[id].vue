@@ -78,16 +78,12 @@
     >
       <v-card class="product-page__kpi product-page__kpi--hero kairos-holo">
         <span class="kairos-label">Valeur retenue{{ selectedColumn ? ` · ${selectedColumn.label}` : '' }}</span>
-        <span
-          v-if="retainedPrice"
-          class="product-page__figure product-page__figure--hero kairos-figure"
-        >{{ formatEuros(retainedPrice.retainedCents) }}</span>
-        <span
-          v-else
-          class="product-page__figure product-page__figure--hero product-page__figure--empty kairos-figure"
-        >—</span>
+        <StockItemValue
+          class="product-page__figure product-page__figure--hero"
+          :value-description="retainedValueDescription"
+        />
         <span class="product-page__kpi-foot">
-          {{ retainedPrice ? `médiane de ${pluralizeFrench(retainedPrice.sourceCount, 'source')}` : 'Aucun prix récent pour cet état' }}
+          {{ retainedValueDescription.hasPrice ? 'valeur retenue, comme dans le stock' : 'Aucun prix récent pour cet état' }}
         </span>
       </v-card>
       <v-card class="product-page__kpi">
@@ -105,7 +101,7 @@
         </span>
       </v-card>
       <v-card class="product-page__kpi">
-        <span class="kairos-label">Plus-value par exemplaire</span>
+        <span class="kairos-label">Plus-value</span>
         <SignedAmount
           v-if="gainPerItemCents !== null"
           class="product-page__figure"
@@ -115,7 +111,7 @@
           v-else
           class="product-page__figure product-page__figure--empty kairos-figure"
         >—</span>
-        <span class="product-page__kpi-foot">par rapport au prix d’achat moyen</span>
+        <span class="product-page__kpi-foot">par exemplaire (coût moyen)</span>
       </v-card>
     </section>
 
@@ -162,7 +158,7 @@
         :rows="rows"
         :card-references="cardReferences"
         :selected-column-index="selectedColumnIndex"
-        :highlighted-snapshot-id="retainedPrice?.highlightedSnapshotId ?? null"
+        :highlighted-snapshot-id="highlightedSnapshotId"
         @open-cell="openListings"
       />
     </v-card>
@@ -237,7 +233,8 @@ const {
   selectedColumnKey,
   selectedColumn,
   selectedColumnIndex,
-  retainedPrice,
+  retainedValueDescription,
+  highlightedSnapshotId,
   chartData,
   errorMessage,
   refreshMessage,
@@ -256,7 +253,7 @@ const {
 const { holdings, gainPerItemCents } = useProductHoldings(
   String(route.params.id),
   () => selectedColumnKey.value,
-  () => retainedPrice.value?.retainedCents ?? null,
+  () => retainedValueDescription.value.valueCents,
 )
 
 const isManualPriceOpen = ref(false)

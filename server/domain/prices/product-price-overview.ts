@@ -1,6 +1,8 @@
 import { eq, inArray } from 'drizzle-orm'
 import type { ConditionCode } from '../../../shared/catalogue/condition-scale.ts'
 import { isProductCategory, type ProductCategory } from '../../../shared/catalogue/product-category.ts'
+import { conditionCodesFor } from '../../../shared/catalogue/condition-scale.ts'
+import { estimateStockItemValue } from '../../../shared/valuation/estimate-stock-item-value.ts'
 import { medianCents } from '../../../shared/valuation/median.ts'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { excludedListings, priceRefreshRequests, priceSnapshotListings, priceSnapshots, users } from '../../database/schema/index.ts'
@@ -8,6 +10,7 @@ import { findProductOr404 } from '../catalogue/catalogue-service.ts'
 import { normalizeListingUrl } from './record-ebay-snapshots.ts'
 import { isSupersededEbaySnapshot } from './superseded-ebay-snapshots.ts'
 import { parisCalendarDateOf } from './start-of-paris-day.ts'
+import { loadValuationSnapshots } from '../valuation/load-valuation-snapshots.ts'
 
 const millisecondsPerDay = 24 * 60 * 60 * 1000
 const staleAfterMilliseconds = 7 * millisecondsPerDay
@@ -61,7 +64,17 @@ export interface CardReferenceView {
   snapshotId: string
 }
 
+export interface RetainedValue {
+  condition: ConditionCode
+  gradingCompany: string | null
+  grade: string | null
+  valueCents: number | null
+  approximate: boolean
+  usedCondition: string | null
+}
+
 export interface ProductPriceOverview {
+  retainedValues: RetainedValue[]
   bySourceAndCondition: PriceOverviewCell[]
   history: PriceHistoryPoint[]
   cardReferences: CardReferenceView[]
@@ -196,6 +209,34 @@ const buildCardReferences = (rows: PriceSnapshotRow[]): CardReferenceView[] => {
   }))
 }
 
+const gradedCondition: ConditionCode = 'graded'
+
+const compareGradedColumns = (left: RetainedValue, right: RetainedValue): number =>
+  (left.gradingCompany ?? '').localeCompare(right.gradingCompany ?? '') || Number(right.grade) - Number(left.grade)
+
+const buildRetainedValues = async (
+  database: KairosDatabase,
+  productId: string,
+  category: ProductCategory | null,
+  cells: PriceOverviewCell[],
+  now: Date,
+): Promise<RetainedValue[]> => {
+  if (category === null) {
+    return []
+  }
+  const snapshots = (await loadValuationSnapshots(database, [productId], now)).get(productId) ?? []
+  const columns: Pick<RetainedValue, 'condition' | 'gradingCompany' | 'grade'>[] = category === 'graded-card'
+    ? [...new Map(cells
+        .filter(cell => cell.condition === gradedCondition && cell.gradingCompany !== null && cell.grade !== null)
+        .map(cell => [`${cell.gradingCompany}|${cell.grade}`, { condition: gradedCondition, gradingCompany: cell.gradingCompany, grade: cell.grade }])).values()]
+    : conditionCodesFor(category).map(condition => ({ condition, gradingCompany: null, grade: null }))
+  const retainedValues = columns.map((column): RetainedValue => {
+    const valuation = estimateStockItemValue({ category, ...column }, snapshots, now)
+    return { ...column, valueCents: valuation.valueCents, approximate: valuation.approximate, usedCondition: valuation.usedCondition }
+  })
+  return category === 'graded-card' ? retainedValues.sort(compareGradedColumns) : retainedValues
+}
+
 export const productPriceOverview = async (
   database: KairosDatabase,
   productId: string,
@@ -284,6 +325,7 @@ export const productPriceOverview = async (
   }))
 
   return {
+    retainedValues: await buildRetainedValues(database, product.id, category, bySourceAndCondition, now),
     bySourceAndCondition,
     history: buildHistory(seriesList),
     cardReferences: buildCardReferences(recentRows),

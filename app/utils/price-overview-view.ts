@@ -1,6 +1,5 @@
 import { conditionCodesFor, conditionLabel, type ConditionCode } from '../../shared/catalogue/condition-scale.ts'
 import type { ProductCategory } from '../../shared/catalogue/product-category.ts'
-import { medianCents } from '~~/shared/valuation/median.ts'
 
 export interface RetainedListingView {
   title: string
@@ -47,6 +46,7 @@ export interface CardReferenceRowView {
 
 export interface ProductPriceOverviewView {
   bySourceAndCondition: PriceOverviewCellView[]
+  retainedValues: RetainedValueView[]
   history: PriceHistoryPointView[]
   cardReferences: CardReferenceRowView[]
   lastRefreshedAt: string | null
@@ -69,10 +69,13 @@ export interface PriceRow {
   cells: (PriceOverviewCellView | null)[]
 }
 
-export interface RetainedPriceView {
-  retainedCents: number
-  sourceCount: number
-  highlightedSnapshotId: string
+export interface RetainedValueView {
+  condition: ConditionCode
+  gradingCompany: string | null
+  grade: string | null
+  valueCents: number | null
+  approximate: boolean
+  usedCondition: string | null
 }
 
 export interface PriceChartPoint {
@@ -170,17 +173,24 @@ export const buildPriceRows = (cells: PriceOverviewCellView[], columns: PriceCol
       cells.find(priceCell => priceCell.source === source && columnKeyOfCell(priceCell) === column.key) ?? null),
   }))
 
-export const describeRetainedPrice = (rows: PriceRow[], columnIndex: number): RetainedPriceView | null => {
+export const findRetainedValue = (retainedValues: RetainedValueView[], column: PriceColumn | null): RetainedValueView | null =>
+  column === null ? null : retainedValues.find(retainedValue => columnKeyOfCell(retainedValue) === column.key) ?? null
+
+export const findRetainedCellSnapshotId = (
+  rows: PriceRow[],
+  columnIndex: number,
+  retainedValue: RetainedValueView | null,
+): string | null => {
+  if (retainedValue === null || retainedValue.valueCents === null || retainedValue.approximate) {
+    return null
+  }
+  const retainedCents = retainedValue.valueCents
   const freshCells = rows
     .map(row => row.cells[columnIndex])
     .filter((priceCell): priceCell is PriceOverviewCellView => priceCell !== undefined && priceCell !== null && !priceCell.isStale)
-  const retainedCents = medianCents(freshCells.map(priceCell => priceCell.figureCents))
-  if (retainedCents === null) {
-    return null
-  }
-  const closestCell = freshCells.reduce((closest, candidate) =>
-    Math.abs(candidate.figureCents - retainedCents) < Math.abs(closest.figureCents - retainedCents) ? candidate : closest)
-  return { retainedCents, sourceCount: freshCells.length, highlightedSnapshotId: closestCell.snapshotId }
+  const closestCell = freshCells.reduce<PriceOverviewCellView | null>((closest, candidate) =>
+    closest === null || Math.abs(candidate.figureCents - retainedCents) < Math.abs(closest.figureCents - retainedCents) ? candidate : closest, null)
+  return closestCell?.snapshotId ?? null
 }
 
 const millisecondsPerDay =24 * 60 * 60 * 1000
