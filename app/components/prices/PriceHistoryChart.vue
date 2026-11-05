@@ -5,6 +5,12 @@
   >
     Aucun historique pour cet état.
   </p>
+  <p
+    v-else-if="!hasEnoughDays"
+    class="price-history-chart__empty"
+  >
+    {{ curveNeedsTwoDaysMessage }}
+  </p>
   <div
     v-else
     class="price-history-chart"
@@ -37,6 +43,7 @@ const props = defineProps({
   chartData: { type: Object as PropType<PriceChartData>, required: true },
 })
 
+const hasEnoughDays = computed(() => hasEnoughDaysToDrawCurve(props.chartData))
 const lineChartData = computed(() => ({ datasets: buildLineChartDatasets(props.chartData) }))
 const lineChartOptions = buildLineChartOptions()
 </script>

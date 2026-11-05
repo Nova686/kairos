@@ -1,6 +1,6 @@
 <template>
   <div class="price-by-source">
-    <v-table class="price-table d-none d-md-block">
+    <v-table class="price-table kairos-desktop-only">
       <thead>
         <tr>
           <th scope="col">
@@ -61,7 +61,7 @@
       </tbody>
     </v-table>
 
-    <ul class="price-source-rows d-md-none">
+    <ul class="price-source-rows kairos-phone-only">
       <li
         v-for="phoneRow in phoneRows"
         :key="phoneRow.row.source"

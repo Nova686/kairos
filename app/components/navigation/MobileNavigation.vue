@@ -1,6 +1,6 @@
 <template>
   <nav
-    class="mobile-navigation d-md-none"
+    class="mobile-navigation kairos-phone-only"
     aria-label="Navigation mobile"
   >
     <NuxtLink

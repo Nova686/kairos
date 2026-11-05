@@ -27,4 +27,9 @@ describe('resolveDisplayedAddTab', () => {
     expect(resolveDisplayedAddTab('code-barres', ['texte'])).toBe('texte')
     expect(resolveDisplayedAddTab('photo', ['texte'])).toBe('texte')
   })
+
+  it('opens on the first available tab when none is requested', () => {
+    expect(resolveDisplayedAddTab(null, ['code-barres', 'photo', 'texte'])).toBe('code-barres')
+    expect(resolveDisplayedAddTab(null, ['texte'])).toBe('texte')
+  })
 })

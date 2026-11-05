@@ -235,3 +235,17 @@ export const chooseDefaultColumnKey = (columns: PriceColumn[], preferredConditio
   const fallbackColumn = columns.find(column => column.key === fallbackConditionCode)
   return (fallbackColumn ?? columns[0])?.key ?? null
 }
+
+const minimumChartDayCount = 2
+
+export const curveNeedsTwoDaysMessage = 'La courbe apparaîtra après deux jours de relevés.'
+
+export const hasEnoughDaysToDrawCurve = (chartData: PriceChartData): boolean => {
+  const distinctDayNumbers = new Set<number>()
+  for (const dataset of chartData.datasets) {
+    for (const point of dataset.data) {
+      distinctDayNumbers.add(point.x)
+    }
+  }
+  return distinctDayNumbers.size >= minimumChartDayCount
+}

@@ -5,13 +5,13 @@
   >
     <header class="product-page__header">
       <ProductThumbnail
-        class="d-md-none"
+        class="kairos-phone-only"
         :category="product.category"
         :image-url="product.imageUrl"
         :size="64"
       />
       <ProductThumbnail
-        class="d-none d-md-grid"
+        class="kairos-desktop-only"
         :category="product.category"
         :image-url="product.imageUrl"
         :size="132"

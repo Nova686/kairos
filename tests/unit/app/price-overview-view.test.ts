@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  hasEnoughDaysToDrawCurve,
   buildHistoryChartData,
   dayNumberOf,
   formatDayNumber,
@@ -131,5 +132,26 @@ describe('chooseDefaultColumnKey', () => {
 
   it('has no default without columns', () => {
     expect(chooseDefaultColumnKey([], 'sealed-new')).toBeNull()
+  })
+})
+
+describe('hasEnoughDaysToDrawCurve', () => {
+  const datasetOf = (days: number[]) => ({
+    label: 'eBay',
+    data: days.map(day => ({ x: day, y: 10 })),
+    borderColor: '#000',
+    backgroundColor: '#000',
+    spanGaps: false,
+  })
+
+  it('refuses an empty chart and a single day', () => {
+    expect(hasEnoughDaysToDrawCurve({ datasets: [] })).toBe(false)
+    expect(hasEnoughDaysToDrawCurve({ datasets: [datasetOf([20000])] })).toBe(false)
+    expect(hasEnoughDaysToDrawCurve({ datasets: [datasetOf([20000]), datasetOf([20000])] })).toBe(false)
+  })
+
+  it('accepts two distinct days, within one series or across series', () => {
+    expect(hasEnoughDaysToDrawCurve({ datasets: [datasetOf([20000, 20001])] })).toBe(true)
+    expect(hasEnoughDaysToDrawCurve({ datasets: [datasetOf([20000]), datasetOf([20003])] })).toBe(true)
   })
 })

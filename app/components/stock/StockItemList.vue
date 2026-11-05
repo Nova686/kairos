@@ -9,7 +9,7 @@
     v-else
     class="stock-item-list__responsive"
   >
-    <div class="stock-item-list d-md-none">
+    <div class="stock-item-list kairos-phone-only">
       <v-card
         v-for="listRow in listRows"
         :key="listRow.id"
@@ -46,7 +46,7 @@
         </div>
       </v-card>
     </div>
-    <v-card class="stock-item-list__table-card d-none d-md-block">
+    <v-card class="stock-item-list__table-card kairos-desktop-only">
       <v-data-table
         class="stock-item-list__table"
         :headers="tableHeaders"

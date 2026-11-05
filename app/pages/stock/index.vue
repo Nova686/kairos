@@ -29,7 +29,7 @@
           to="/ajouter"
           color="primary"
           prepend-icon="mdi-plus"
-          class="d-none d-md-inline-flex"
+          class="kairos-desktop-only"
         >
           Ajouter un achat
         </v-btn>

@@ -14,5 +14,9 @@ export const buildAddModeTabs = (availability: AddModeAvailability): AddProductT
   return availability.photoRecognitionAvailable ? ['code-barres', 'photo', 'texte'] : ['code-barres', 'texte']
 }
 
-export const resolveDisplayedAddTab = (requestedTab: AddProductTab, availableTabs: AddProductTab[]): AddProductTab =>
-  availableTabs.includes(requestedTab) ? requestedTab : 'texte'
+export const resolveDisplayedAddTab = (requestedTab: AddProductTab | null, availableTabs: AddProductTab[]): AddProductTab => {
+  if (requestedTab === null) {
+    return availableTabs[0] ?? 'texte'
+  }
+  return availableTabs.includes(requestedTab) ? requestedTab : 'texte'
+}

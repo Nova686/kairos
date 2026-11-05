@@ -1,6 +1,6 @@
 <template>
   <nav
-    class="main-navigation d-none d-md-flex"
+    class="main-navigation kairos-desktop-only"
     aria-label="Navigation Kairos"
   >
     <div class="main-navigation__brand">

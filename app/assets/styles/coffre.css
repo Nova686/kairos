@@ -279,3 +279,15 @@ h1,
   width: 100%;
   padding: 20px;
 }
+
+@media (max-width: 959.98px) {
+  .kairos-desktop-only {
+    display: none !important;
+  }
+}
+
+@media (min-width: 960px) {
+  .kairos-phone-only {
+    display: none !important;
+  }
+}

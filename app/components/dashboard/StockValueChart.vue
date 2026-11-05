@@ -9,6 +9,12 @@
     >
       Pas encore d’historique : le premier relevé quotidien arrive à 6 h.
     </p>
+    <p
+      v-else-if="!hasEnoughDays"
+      class="stock-value-chart__empty"
+    >
+      {{ curveNeedsTwoDaysMessage }}
+    </p>
     <ClientOnly v-else>
       <div class="stock-value-chart__canvas">
         <Line
@@ -51,6 +57,7 @@ const props = defineProps({
   lastSnapshotOn: { type: String as PropType<string | null>, default: null },
 })
 
+const hasEnoughDays = computed(() => hasEnoughDaysToDrawCurve(props.chartData))
 const lineChartData = computed(() => ({ datasets: buildLineChartDatasets(props.chartData) }))
 const lineChartOptions = buildLineChartOptions()
 </script>
