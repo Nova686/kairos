@@ -14,7 +14,7 @@
       >
         <span
           class="stock-value-summary__pill"
-          :class="highlights.latentGainRatio >= 0 ? 'stock-value-summary__pill--gain' : 'stock-value-summary__pill--loss'"
+          :class="`stock-value-summary__pill--${describeGainRatioTone(highlights.latentGainRatio)}`"
         >
           {{ formatSignedPercent(highlights.latentGainRatio) }}
         </span>
@@ -108,6 +108,11 @@ const highlights = computed(() => describeStockValueHighlights(props.stockValue)
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.stock-value-summary__pill--neutral {
+  background: color-mix(in srgb, var(--kairos-text-secondary) 15%, transparent);
+  color: var(--kairos-text-secondary);
 }
 
 .stock-value-summary__pill--gain {

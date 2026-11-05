@@ -154,14 +154,6 @@ h1,
   display: none;
 }
 
-.kairos-gain {
-  color: var(--kairos-success);
-}
-
-.kairos-loss {
-  color: var(--kairos-error);
-}
-
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -246,10 +238,6 @@ h1,
 .kairos-empty {
   margin: 0;
   color: var(--kairos-text-secondary);
-}
-
-.kairos-link {
-  color: var(--kairos-primary);
 }
 
 .kairos-auth {

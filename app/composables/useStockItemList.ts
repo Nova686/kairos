@@ -3,6 +3,7 @@ import { heldStockItemStatuses, stockItemStatusLabels } from '~~/shared/stock/st
 import { describeStockItemValue, type StockItemValueDescription, type StockItemValuationView } from '~/utils/stock-value-view'
 import {
   describeConditionChipTone,
+  describeStockCardStatus,
   sortStockListRows,
   summarizeHeldStock,
   type ConditionChipTone,
@@ -18,6 +19,7 @@ export interface StockItemListRow {
   conditionTone: ConditionChipTone
   locationText: string
   statusText: string
+  cardStatusText: string | null
   purchasePriceCents: number
   valueCents: number | null
   gainCents: number | null
@@ -56,6 +58,7 @@ export const useStockItemList = (
         conditionTone: describeConditionChipTone(stockItem.productCategory),
         locationText: stockItem.locationId === null ? '—' : (locationLabelsById().get(stockItem.locationId) ?? '—'),
         statusText: stockItemStatusLabels[stockItem.status],
+        cardStatusText: describeStockCardStatus(stockItem.status),
         purchasePriceCents: stockItem.allocatedPurchaseCents,
         valueCents: valueDescription.valueCents,
         gainCents: valueDescription.gainCents,

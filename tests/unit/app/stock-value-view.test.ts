@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildStockValueChartData,
+  describeGainRatioTone,
   describeGainTone,
   describeStockItemValue,
   type StockItemValuationView,
@@ -93,5 +94,16 @@ describe('describeGainTone', () => {
     expect(describeGainTone(-1)).toBe('text-error')
     expect(describeGainTone(0)).toBe('')
     expect(describeGainTone(null)).toBe('')
+  })
+})
+
+describe('describeGainRatioTone', () => {
+  it('follows the sign of the ratio and stays neutral when it shows as 0,0 %', () => {
+    expect(describeGainRatioTone(0.25)).toBe('gain')
+    expect(describeGainRatioTone(-0.25)).toBe('loss')
+    expect(describeGainRatioTone(0)).toBe('neutral')
+    expect(describeGainRatioTone(0.0004)).toBe('neutral')
+    expect(describeGainRatioTone(-0.0004)).toBe('neutral')
+    expect(describeGainRatioTone(0.0006)).toBe('gain')
   })
 })

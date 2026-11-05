@@ -45,7 +45,7 @@ const props = defineProps({
 
 const hasEnoughDays = computed(() => hasEnoughDaysToDrawCurve(props.chartData))
 const lineChartData = computed(() => ({ datasets: buildLineChartDatasets(props.chartData) }))
-const lineChartOptions = buildLineChartOptions()
+const lineChartOptions = buildLineChartOptions('own-days')
 </script>
 
 <style scoped>

@@ -29,7 +29,7 @@
           <span
             v-else
             class="kairos-figure"
-            :class="balance.balanceCents < 0 ? 'kairos-loss' : 'kairos-gain'"
+            :class="describeGainTone(balance.balanceCents)"
           >
             {{ balance.balanceCents < 0 ? 'Je dois' : 'On me doit' }} {{ formatEuros(Math.abs(balance.balanceCents)) }}
           </span>

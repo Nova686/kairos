@@ -31,6 +31,14 @@
             >
               {{ listRow.conditionText }}
             </v-chip>
+            <v-chip
+              v-if="listRow.cardStatusText !== null"
+              size="small"
+              variant="outlined"
+              class="stock-item-list__status"
+            >
+              {{ listRow.cardStatusText }}
+            </v-chip>
             <span>{{ listRow.locationText }}</span>
           </div>
           <div class="stock-item-list__money">

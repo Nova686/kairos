@@ -41,6 +41,7 @@ const { mainNavigationEntries, isEntryActive } = useMainNavigation()
   inset: 0 auto 0 0;
   z-index: 1004;
   width: calc(var(--kairos-sidebar-width) + env(safe-area-inset-left, 0px));
+  display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 18px 12px 18px calc(12px + env(safe-area-inset-left, 0px));

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   describeConditionChipTone,
+  describeHeldStockSubtitle,
+  describeStockCardStatus,
   sortStockListRows,
   summarizeHeldStock,
   type StockListSortableRow,
@@ -52,13 +54,38 @@ describe('sortStockListRows', () => {
 })
 
 describe('summarizeHeldStock', () => {
-  it('counts held rows, sums their cost and sums only the valued ones', () => {
+  it('counts held rows and sums the value and the cost of the priced ones only', () => {
     const summary = summarizeHeldStock([
       row({ purchasePriceCents: 10000, valueCents: 12000 }),
       row({ purchasePriceCents: 5000, valueCents: null, valueDescription: valueDescription({ state: 'no-price', hasPrice: false, valueCents: null, gainCents: null }) }),
       row({ purchasePriceCents: 7000, valueCents: null, valueDescription: valueDescription({ state: 'not-applicable', hasPrice: false, valueCents: null, gainCents: null }) }),
     ])
-    expect(summary).toEqual({ heldCount: 2, unpricedCount: 1, investedCents: 15000, valuedCents: 12000 })
+    expect(summary).toEqual({ heldCount: 2, unpricedCount: 1, valuedCostCents: 10000, valuedCents: 12000 })
+  })
+})
+
+const withPlainSpaces = (text: string): string => text.replace(/\s/gu, ' ')
+
+describe('describeHeldStockSubtitle', () => {
+  it('relates the value to the cost of the same priced items', () => {
+    expect(withPlainSpaces(describeHeldStockSubtitle({ heldCount: 2, unpricedCount: 0, valuedCostCents: 15000, valuedCents: 18000 })))
+      .toBe('2 exemplaires · valeur 180,00 € pour 150,00 € investis')
+  })
+
+  it('says how many items have no price and are left out of both figures', () => {
+    expect(withPlainSpaces(describeHeldStockSubtitle({ heldCount: 3, unpricedCount: 1, valuedCostCents: 10000, valuedCents: 12000 })))
+      .toBe('3 exemplaires · valeur 120,00 € pour 100,00 € investis · 1 sans prix, non compté')
+    expect(withPlainSpaces(describeHeldStockSubtitle({ heldCount: 4, unpricedCount: 2, valuedCostCents: 10000, valuedCents: 12000 })))
+      .toBe('4 exemplaires · valeur 120,00 € pour 100,00 € investis · 2 sans prix, non comptés')
+  })
+})
+
+describe('describeStockCardStatus', () => {
+  it('shows the status of every item that is not simply in stock', () => {
+    expect(describeStockCardStatus('in-stock')).toBeNull()
+    expect(describeStockCardStatus('in-transit')).toBe('en livraison')
+    expect(describeStockCardStatus('sold-in-transit')).toBe('vendu – en livraison')
+    expect(describeStockCardStatus('sold')).toBe('vendu')
   })
 })
 

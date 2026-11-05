@@ -9,12 +9,7 @@
           v-if="heldStockSummary.heldCount > 0"
           class="kairos-page-subtitle"
         >
-          {{ pluralizeFrench(heldStockSummary.heldCount, 'exemplaire') }}
-          · {{ formatEuros(heldStockSummary.investedCents) }} investis
-          · valeur {{ formatEuros(heldStockSummary.valuedCents) }}
-          <template v-if="heldStockSummary.unpricedCount > 0">
-            · {{ heldStockSummary.unpricedCount }} sans prix
-          </template>
+          {{ describeHeldStockSubtitle(heldStockSummary) }}
         </p>
       </div>
       <div class="stock-page__actions">

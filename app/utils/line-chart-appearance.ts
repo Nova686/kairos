@@ -47,10 +47,17 @@ export const buildLineChartDatasets = (chartData: PriceChartData): ChartDataset<
     pointBorderWidth: 2,
   }))
 
-export const buildLineChartOptions = (): ChartOptions<'line'> => ({
+export type LineChartSeriesDays = 'shared-days' | 'own-days'
+
+const tooltipModeBySeriesDays: Record<LineChartSeriesDays, 'index' | 'x'> = {
+  'shared-days': 'index',
+  'own-days': 'x',
+}
+
+export const buildLineChartOptions = (seriesDays: LineChartSeriesDays): ChartOptions<'line'> => ({
   responsive: true,
   maintainAspectRatio: false,
-  interaction: { mode: 'index', intersect: false },
+  interaction: { mode: tooltipModeBySeriesDays[seriesDays], intersect: false },
   scales: {
     x: {
       type: 'linear',
@@ -94,7 +101,7 @@ export const buildLineChartOptions = (): ChartOptions<'line'> => ({
       titleFont: { family: bodyFontFamily },
       bodyFont: { family: figureFontFamily },
       callbacks: {
-        title: tooltipItems => tooltipItems.map(tooltipItem => formatDayNumber(Number(tooltipItem.parsed.x))).join(', '),
+        title: tooltipItems => [...new Set(tooltipItems.map(tooltipItem => formatDayNumber(Number(tooltipItem.parsed.x))))].join(', '),
         label: tooltipItem => `${tooltipItem.dataset.label} : ${euroAmountFormatter.format(Number(tooltipItem.parsed.y))}`,
       },
     },

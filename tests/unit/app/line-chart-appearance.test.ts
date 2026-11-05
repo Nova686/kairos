@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildLineChartDatasets } from '../../../app/utils/line-chart-appearance.ts'
-import type { PriceChartData } from '../../../app/utils/price-overview-view.ts'
+import { buildLineChartDatasets, buildLineChartOptions } from '../../../app/utils/line-chart-appearance.ts'
+import { formatDayNumber, type PriceChartData } from '../../../app/utils/price-overview-view.ts'
 
 const dataset = (overrides: Partial<PriceChartData['datasets'][number]>): PriceChartData['datasets'][number] => ({
   label: 'Valeur',
@@ -32,5 +32,23 @@ describe('buildLineChartDatasets', () => {
     const denseSeries = Array.from({ length: 60 }, (_, index) => ({ x: index, y: index }))
     const [lineDataset] = buildLineChartDatasets({ datasets: [dataset({ data: denseSeries })] })
     expect(lineDataset!.pointRadius).toBe(0)
+  })
+})
+
+describe('buildLineChartOptions', () => {
+  it('lists every series at the hovered index when the series share their days', () => {
+    expect(buildLineChartOptions('shared-days').interaction).toEqual({ mode: 'index', intersect: false })
+  })
+
+  it('lists only the points of the hovered day when each series has its own days', () => {
+    expect(buildLineChartOptions('own-days').interaction).toEqual({ mode: 'x', intersect: false })
+  })
+})
+
+describe('line chart tooltip title', () => {
+  it('names each hovered day once', () => {
+    const titleCallback = buildLineChartOptions('own-days').plugins!.tooltip!.callbacks!.title as unknown as (tooltipItems: { parsed: { x: number } }[]) => string
+    const dayNumber = 20000
+    expect(titleCallback([{ parsed: { x: dayNumber } }, { parsed: { x: dayNumber } }])).toBe(formatDayNumber(dayNumber))
   })
 })

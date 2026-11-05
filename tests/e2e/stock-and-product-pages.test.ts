@@ -51,4 +51,33 @@ describe('stock and product pages', async () => {
     expect(productPage).toMatch(/65,00/)
     expect(productPage).toMatch(/\+86,23/)
   })
+
+  it('shows on the phone stock card the status of an item that is not simply in stock', async () => {
+    const cookie = await logIn('member@example.com', memberPassword)
+    const product = await $fetch<{ id: string }>('/api/products', {
+      method: 'POST',
+      body: { name: 'Coffret Dracaufeu en route', category: 'pokemon-sealed' },
+      headers: { cookie },
+    })
+    await $fetch('/api/purchases', {
+      method: 'POST',
+      body: {
+        purchasedOn: parisCalendarDateDaysAgo(1),
+        totalPriceCents: 4200,
+        feesCents: 0,
+        inTransit: true,
+        lines: [{ productId: product.id, condition: 'sealed-new' }],
+      },
+      headers: { cookie },
+    })
+
+    const stockPage = await $fetch<string>('/stock', { headers: { cookie } })
+    const phoneListStart = stockPage.indexOf('stock-item-list kairos-phone-only')
+    const phoneCards = stockPage.slice(phoneListStart, stockPage.indexOf('stock-item-list__table-card', phoneListStart))
+    const cardsFromInTransitOne = phoneCards.slice(phoneCards.indexOf('Coffret Dracaufeu en route'))
+    const nextCardStart = cardsFromInTransitOne.indexOf('stock-item-list__card')
+    const inTransitCard = nextCardStart === -1 ? cardsFromInTransitOne : cardsFromInTransitOne.slice(0, nextCardStart)
+
+    expect(inTransitCard).toMatch(/stock-item-list__status[\s\S]*en livraison/)
+  })
 })

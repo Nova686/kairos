@@ -59,7 +59,7 @@ const props = defineProps({
 
 const hasEnoughDays = computed(() => hasEnoughDaysToDrawCurve(props.chartData))
 const lineChartData = computed(() => ({ datasets: buildLineChartDatasets(props.chartData) }))
-const lineChartOptions = buildLineChartOptions()
+const lineChartOptions = buildLineChartOptions('shared-days')
 </script>
 
 <style scoped>

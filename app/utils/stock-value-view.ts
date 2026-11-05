@@ -63,6 +63,18 @@ export const describeGainTone = (gainCents: number | null): string => {
   return gainCents > 0 ? 'text-success' : 'text-error'
 }
 
+export type GainRatioTone = 'gain' | 'loss' | 'neutral'
+
+const displayedPercentStepsPerUnit = 1000
+
+export const describeGainRatioTone = (ratio: number): GainRatioTone => {
+  const displayedRatioSteps = Math.round(ratio * displayedPercentStepsPerUnit)
+  if (displayedRatioSteps === 0) {
+    return 'neutral'
+  }
+  return displayedRatioSteps > 0 ? 'gain' : 'loss'
+}
+
 export interface StockValueHighlights {
   heldItemCount: number
   latentGainRatio: number | null
