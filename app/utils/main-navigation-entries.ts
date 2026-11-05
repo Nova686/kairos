@@ -4,16 +4,18 @@ export interface NavigationEntry {
   path: string
   icon: string
   placement: 'bottom-bar' | 'more-menu'
+  isPrimaryAction?: boolean
+  startsSecondGroup?: boolean
 }
 
 export const mainNavigationEntries: NavigationEntry[] = [
   { label: 'Tableau de bord', shortLabel: 'Accueil', path: '/', icon: 'mdi-view-dashboard-outline', placement: 'bottom-bar' },
   { label: 'Stock', shortLabel: 'Stock', path: '/stock', icon: 'mdi-archive-outline', placement: 'bottom-bar' },
-  { label: 'Ajouter', shortLabel: 'Ajouter', path: '/ajouter', icon: 'mdi-plus-box-outline', placement: 'bottom-bar' },
+  { label: 'Ajouter', shortLabel: 'Ajouter', path: '/ajouter', icon: 'mdi-plus-box-outline', placement: 'bottom-bar', isPrimaryAction: true },
   { label: 'Ventes', shortLabel: 'Ventes', path: '/ventes', icon: 'mdi-cash-multiple', placement: 'bottom-bar' },
   { label: 'Livraisons', shortLabel: 'Livraisons', path: '/livraisons', icon: 'mdi-truck-outline', placement: 'more-menu' },
   { label: 'Dettes', shortLabel: 'Dettes', path: '/dettes', icon: 'mdi-wallet-outline', placement: 'more-menu' },
-  { label: 'Lieux', shortLabel: 'Lieux', path: '/lieux', icon: 'mdi-map-marker-outline', placement: 'more-menu' },
+  { label: 'Lieux', shortLabel: 'Lieux', path: '/lieux', icon: 'mdi-map-marker-outline', placement: 'more-menu', startsSecondGroup: true },
   { label: 'Personnes', shortLabel: 'Personnes', path: '/personnes', icon: 'mdi-account-group-outline', placement: 'more-menu' },
   { label: 'Réglages', shortLabel: 'Réglages', path: '/reglages', icon: 'mdi-cog-outline', placement: 'more-menu' },
 ]

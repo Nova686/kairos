@@ -14,8 +14,9 @@
   --kairos-body-font: "IBM Plex Sans", system-ui, sans-serif;
   --kairos-figure-font: "IBM Plex Mono", ui-monospace, monospace;
   --kairos-holo: conic-gradient(from 140deg, #6fa8dc, #a993f0, #e889b8, #e3a44a, #5fd1c1, #6fa8dc);
+  --kairos-sidebar-background: #0e131a;
   --kairos-sidebar-width: 232px;
-  --kairos-bottom-bar-height: 64px;
+  --kairos-bottom-bar-height: 72px;
   --kairos-bottom-bar-clearance: calc(var(--kairos-bottom-bar-height) + env(safe-area-inset-bottom, 0px));
   color-scheme: dark;
 }
@@ -28,7 +29,6 @@ html {
 body,
 .v-application {
   font-family: var(--kairos-body-font);
-  font-variant-numeric: tabular-nums;
 }
 
 h1, h2, h3, h4, h5, h6,
@@ -149,15 +149,20 @@ h1,
   min-height: 100dvh;
 }
 
+.kairos-shell__main {
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
 @media (min-width: 960px) {
   .kairos-shell__main {
-    padding-left: var(--kairos-sidebar-width);
+    padding-left: calc(var(--kairos-sidebar-width) + env(safe-area-inset-left, 0px));
   }
 }
 
 @media (max-width: 959.98px) {
   .kairos-shell__main {
-    padding-bottom: var(--kairos-bottom-bar-clearance);
+    padding-bottom: calc(var(--kairos-bottom-bar-clearance) + 8px);
     padding-top: env(safe-area-inset-top, 0px);
   }
 }

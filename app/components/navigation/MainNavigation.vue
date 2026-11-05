@@ -12,7 +12,7 @@
       :key="navigationEntry.path"
     >
       <div
-        v-if="navigationEntry.path === separatorBeforePath"
+        v-if="navigationEntry.startsSecondGroup"
         class="main-navigation__separator"
       />
       <NuxtLink
@@ -33,7 +33,6 @@
 
 <script setup lang="ts">
 const { mainNavigationEntries, isEntryActive } = useMainNavigation()
-const separatorBeforePath = '/lieux'
 </script>
 
 <style scoped>
@@ -41,12 +40,12 @@ const separatorBeforePath = '/lieux'
   position: fixed;
   inset: 0 auto 0 0;
   z-index: 1004;
-  width: var(--kairos-sidebar-width);
+  width: calc(var(--kairos-sidebar-width) + env(safe-area-inset-left, 0px));
   flex-direction: column;
   gap: 4px;
-  padding: 18px 12px;
+  padding: 18px 12px 18px calc(12px + env(safe-area-inset-left, 0px));
   overflow-y: auto;
-  background: #0e131a;
+  background: var(--kairos-sidebar-background);
   border-right: 1px solid var(--kairos-border);
   scrollbar-width: none;
 }

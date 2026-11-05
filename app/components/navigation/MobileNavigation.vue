@@ -12,7 +12,7 @@
       :aria-current="isEntryActive(navigationEntry) ? 'page' : undefined"
     >
       <span
-        v-if="navigationEntry.path === addPath"
+        v-if="navigationEntry.isPrimaryAction"
         class="mobile-navigation__add"
       >
         <v-icon
@@ -32,6 +32,7 @@
       class="mobile-navigation__item"
       :class="{ 'mobile-navigation__item--active': isMoreMenuActive || isMoreMenuOpen }"
       aria-haspopup="dialog"
+      :aria-label="moreMenuButtonLabel"
       :aria-expanded="isMoreMenuOpen"
       @click="isMoreMenuOpen = true"
     >
@@ -41,11 +42,11 @@
       />
       Plus
     </button>
-    <v-bottom-sheet v-model="isMoreMenuOpen">
-      <v-card
-        class="mobile-navigation__sheet"
-        aria-label="Plus"
-      >
+    <v-bottom-sheet
+      v-model="isMoreMenuOpen"
+      aria-label="Plus"
+    >
+      <v-card class="mobile-navigation__sheet">
         <v-list
           bg-color="transparent"
           nav
@@ -75,7 +76,22 @@
 const { bottomBarEntries, moreMenuEntries, isEntryActive, isMoreMenuActive } = useMainNavigation()
 const { signOut } = useSignOut()
 const isMoreMenuOpen = ref(false)
-const addPath = '/ajouter'
+
+const activeMoreEntry = computed(() => moreMenuEntries.find(isEntryActive))
+const moreMenuButtonLabel = computed(() =>
+  activeMoreEntry.value ? `Plus, page active : ${activeMoreEntry.value.label}` : 'Plus',
+)
+
+onMounted(() => {
+  const desktopViewport = window.matchMedia('(min-width: 960px)')
+  const closeMoreMenuOnDesktop = (event: MediaQueryListEvent) => {
+    if (event.matches) {
+      isMoreMenuOpen.value = false
+    }
+  }
+  desktopViewport.addEventListener('change', closeMoreMenuOnDesktop)
+  onBeforeUnmount(() => desktopViewport.removeEventListener('change', closeMoreMenuOnDesktop))
+})
 
 const signOutFromMoreMenu = async () => {
   isMoreMenuOpen.value = false
@@ -90,9 +106,10 @@ const signOutFromMoreMenu = async () => {
   z-index: 1004;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  align-items: end;
-  padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
-  min-height: var(--kairos-bottom-bar-clearance);
+  align-items: center;
+  box-sizing: border-box;
+  height: var(--kairos-bottom-bar-clearance);
+  padding: 8px calc(6px + env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) calc(6px + env(safe-area-inset-left, 0px));
   background: var(--kairos-surface);
   border-top: 1px solid var(--kairos-border);
 }

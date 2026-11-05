@@ -20,6 +20,11 @@ describe('main navigation entries', () => {
     expect(moreMenuEntries.map(entry => entry.label)).toEqual(['Livraisons', 'Dettes', 'Lieux', 'Personnes', 'Réglages'])
   })
 
+  it('flags Ajouter as the primary action and Lieux as the start of the second group', () => {
+    expect(mainNavigationEntries.filter(entry => entry.isPrimaryAction).map(entry => entry.label)).toEqual(['Ajouter'])
+    expect(mainNavigationEntries.filter(entry => entry.startsSecondGroup).map(entry => entry.label)).toEqual(['Lieux'])
+  })
+
   it('keeps every entry either in the bottom bar or under Plus', () => {
     expect([...bottomBarEntries, ...moreMenuEntries]).toHaveLength(mainNavigationEntries.length)
   })
