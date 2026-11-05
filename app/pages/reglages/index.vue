@@ -57,20 +57,12 @@
       >
         Correspondances d'états
       </v-btn>
-      <v-btn
-        variant="outlined"
-        prepend-icon="mdi-logout"
-        @click="signOut"
-      >
-        Se déconnecter
-      </v-btn>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 const { user } = useUserSession()
-const { signOut } = useSignOut()
 const { invitationLink, errorMessage, hasCopiedLink, isCreating, createInvitationLink, copyInvitationLink }
   = useInvitationCreation()
 </script>

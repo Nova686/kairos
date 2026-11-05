@@ -47,6 +47,19 @@
       aria-label="Plus"
     >
       <v-card class="mobile-navigation__sheet">
+        <div
+          v-if="user"
+          class="mobile-navigation__identity"
+        >
+          <span
+            class="mobile-navigation__avatar"
+            aria-hidden="true"
+          >{{ userInitials }}</span>
+          <div class="mobile-navigation__names">
+            <span class="mobile-navigation__display-name">{{ user.displayName }}</span>
+            <span class="mobile-navigation__email">{{ user.email }}</span>
+          </div>
+        </div>
         <v-list
           bg-color="transparent"
           nav
@@ -63,7 +76,7 @@
           <v-divider class="my-2" />
           <v-list-item
             prepend-icon="mdi-logout"
-            title="Déconnexion"
+            title="Se déconnecter"
             @click="signOutFromMoreMenu"
           />
         </v-list>
@@ -75,6 +88,8 @@
 <script setup lang="ts">
 const { bottomBarEntries, moreMenuEntries, isEntryActive, isMoreMenuActive } = useMainNavigation()
 const { signOut } = useSignOut()
+const { user } = useUserSession()
+const userInitials = computed(() => describeUserInitials(user.value?.displayName ?? ''))
 const isMoreMenuOpen = ref(false)
 
 const activeMoreEntry = computed(() => moreMenuEntries.find(isEntryActive))
@@ -148,5 +163,48 @@ const signOutFromMoreMenu = async () => {
 
 .mobile-navigation__sheet {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobile-navigation__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--kairos-border);
+}
+
+.mobile-navigation__avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: var(--kairos-surface-variant);
+  border: 1px solid var(--kairos-border);
+  color: var(--kairos-accent);
+  font: 600 14px var(--kairos-display-font);
+}
+
+.mobile-navigation__names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mobile-navigation__display-name {
+  overflow: hidden;
+  color: var(--kairos-text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-navigation__email {
+  overflow: hidden;
+  color: var(--kairos-text-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

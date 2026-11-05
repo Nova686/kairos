@@ -80,4 +80,15 @@ describe('stock and product pages', async () => {
 
     expect(inTransitCard).toMatch(/stock-item-list__status[\s\S]*en livraison/)
   })
+
+  it('shows the signed-in member and the sign-out action in the side navigation', async () => {
+    const cookie = await logIn('member@example.com', memberPassword)
+    const dashboardHtml = await $fetch<string>('/', { headers: { cookie } })
+    const sideNavigationStart = dashboardHtml.indexOf('class="main-navigation')
+    const sideNavigationHtml = dashboardHtml.slice(sideNavigationStart, dashboardHtml.indexOf('</nav>', sideNavigationStart))
+
+    expect(sideNavigationHtml).toMatch(/signed-in-user-panel__display-name"[^>]*>Member</)
+    expect(sideNavigationHtml).toContain('member@example.com')
+    expect(sideNavigationHtml).toContain('Se déconnecter')
+  })
 })

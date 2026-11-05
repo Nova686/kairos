@@ -27,6 +27,7 @@
         {{ navigationEntry.label }}
       </NuxtLink>
     </template>
+    <SignedInUserPanel />
   </nav>
 </template>
 
