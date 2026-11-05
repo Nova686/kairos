@@ -47,7 +47,7 @@ describe('photo identification API', async () => {
     expect(await response.text()).toContain('Photo illisible, réessayez avec une autre photo.')
   })
 
-  it('renders the text search variant of the add page on the server and leaves the photo tab to phones', async () => {
+  it('serves the add page in its text search variant and leaves the scan tabs to phones after mount', async () => {
     const cookie = await logIn('scanner@example.com', scannerPassword)
 
     const page = await fetch('/ajouter?onglet=photo', { headers: { cookie } })

@@ -156,13 +156,17 @@ const submitManualCode = () => {
 
 .barcode-scanner__hint {
   position: absolute;
-  right: 0;
-  bottom: 12px;
-  left: 0;
+  right: 12px;
+  bottom: 10px;
+  left: 12px;
   margin: 0;
-  color: #e8edf2;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 55%);
+  color: #f4f7fa;
   font-size: 12.5px;
   text-align: center;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 70%);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -174,11 +178,11 @@ const submitManualCode = () => {
 @keyframes barcode-scanner-sweep {
   0%,
   100% {
-    transform: translateY(-36px);
+    top: 30%;
   }
 
   50% {
-    transform: translateY(36px);
+    top: 70%;
   }
 }
 

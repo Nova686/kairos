@@ -1,7 +1,3 @@
-export const addProductTabs = ['code-barres', 'photo', 'texte'] as const
-
-export type AddProductTab = typeof addProductTabs[number]
-
 export const resolveAddProductTab = (queryValue: unknown): AddProductTab =>
   addProductTabs.find(tab => tab === queryValue) ?? 'texte'
 

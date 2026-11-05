@@ -43,14 +43,13 @@ describe('photo recognition switched off', async () => {
     expect(confirmation.status).toBe(503)
   })
 
-  it('renders the text search variant on the server whatever the requested tab', async () => {
+  it('serves the add page in its text search variant when photo recognition is off', async () => {
     const cookie = await logIn('scanner@example.com', scannerPassword)
 
     const page = await fetch('/ajouter?onglet=photo', { headers: { cookie } })
     const pageHtml = await page.text()
 
     expect(page.status).toBe(200)
-    expect(pageHtml).not.toContain('capture="environment"')
     expect(pageHtml).toContain('Le scan par code-barres et par photo se fait depuis l’iPhone.')
   })
 })

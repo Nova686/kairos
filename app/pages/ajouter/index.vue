@@ -148,8 +148,15 @@ const { activeTab } = useAddProductTabs()
 const { isPhotoRecognitionAvailable } = await useServerFeatures()
 const { isCameraScanAvailable } = useCameraScanCapability()
 
+const availableTabs = computed(() =>
+  buildAddModeTabs({
+    cameraScanAvailable: isCameraScanAvailable.value,
+    photoRecognitionAvailable: isPhotoRecognitionAvailable.value,
+  }),
+)
+
 const displayedTab = computed({
-  get: () => (!isPhotoRecognitionAvailable.value && activeTab.value === 'photo' ? 'texte' : activeTab.value),
+  get: () => resolveDisplayedAddTab(activeTab.value, availableTabs.value),
   set: (selectedTab) => {
     activeTab.value = selectedTab
   },
