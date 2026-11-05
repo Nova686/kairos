@@ -4,8 +4,7 @@
     aria-label="Navigation Kairos"
   >
     <div class="main-navigation__brand">
-      <KairosLogo />
-      <span>Kairos</span>
+      <KairosWordmark />
     </div>
     <template
       v-for="navigationEntry in mainNavigationEntries"
@@ -59,9 +58,8 @@ const { mainNavigationEntries, isEntryActive } = useMainNavigation()
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 10px 18px;
-  font: 700 18px var(--kairos-display-font);
-  letter-spacing: -0.01em;
+  padding: 6px 12px 20px;
+  font-size: 26px;
 }
 
 .main-navigation__item {

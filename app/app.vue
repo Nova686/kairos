@@ -17,6 +17,9 @@ useHead({
     { name: 'apple-mobile-web-app-title', content: 'Kairos' },
     { name: 'theme-color', content: brandBackgroundColor },
   ],
-  link: [{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }],
+  link: [
+    { rel: 'icon', type: 'image/svg+xml', href: '/icons/kairos.svg' },
+    { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+  ],
 })
 </script>

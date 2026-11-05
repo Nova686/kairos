@@ -253,14 +253,7 @@ h1,
 .kairos-auth__brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.kairos-auth__brand-name {
-  margin: 0;
-  font-family: var(--kairos-display-font);
-  font-size: 26px;
-  font-weight: 700;
+  font-size: 40px;
 }
 
 .kairos-auth__card {
