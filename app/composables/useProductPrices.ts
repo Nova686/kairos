@@ -82,6 +82,8 @@ export const useProductPrices = async (productId: string, preferredCondition: st
 
   const selectedColumnKey = ref<string | null>(chooseDefaultColumnKey(columns.value, preferredCondition))
   const selectedColumn = computed(() => columns.value.find(column => column.key === selectedColumnKey.value) ?? null)
+  const selectedColumnIndex = computed(() => columns.value.findIndex(column => column.key === selectedColumnKey.value))
+  const retainedPrice = computed(() => describeRetainedPrice(rows.value, selectedColumnIndex.value))
   const chartData = computed(() => buildHistoryChartData(overview.value?.history ?? [], selectedColumn.value))
   const columnOptions = computed(() => columns.value.map(column => ({ value: column.key, title: column.label })))
 
@@ -196,6 +198,9 @@ export const useProductPrices = async (productId: string, preferredCondition: st
     conditionOptions,
     columnOptions,
     selectedColumnKey,
+    selectedColumn,
+    selectedColumnIndex,
+    retainedPrice,
     chartData,
     errorMessage,
     refreshMessage,

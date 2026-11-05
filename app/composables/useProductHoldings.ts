@@ -1,0 +1,19 @@
+import type { StockItemRow } from '~~/shared/stock/stock-item-row'
+
+export const useProductHoldings = (
+  productId: string,
+  selectedColumnKey: () => string | null,
+  retainedPriceCents: () => number | null,
+) => {
+  const { data: fetchedStockItems } = useFetch<StockItemRow[]>('/api/stock-items', { default: () => [] })
+
+  const holdings = computed(() => summarizeProductHoldings(fetchedStockItems.value ?? [], productId, selectedColumnKey()))
+
+  const gainPerItemCents = computed(() => {
+    const retainedCents = retainedPriceCents()
+    const averagePurchaseCents = holdings.value.averagePurchaseCents
+    return retainedCents === null || averagePurchaseCents === null ? null : retainedCents - averagePurchaseCents
+  })
+
+  return { holdings, gainPerItemCents }
+}

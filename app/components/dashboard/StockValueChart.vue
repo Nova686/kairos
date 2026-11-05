@@ -1,66 +1,92 @@
 <template>
-  <p v-if="chartData.datasets.length === 0">
-    Pas encore d’historique : le premier relevé quotidien arrive à 6 h.
-  </p>
-  <ClientOnly v-else>
-    <div class="stock-value-chart">
-      <Line
-        :data="chartData"
-        :options="chartOptions"
-        aria-label="Coût et valeur du stock dans le temps"
-        role="img"
-      />
-    </div>
-  </ClientOnly>
+  <v-card class="stock-value-chart">
+    <h2 class="kairos-card-title">
+      Coût et valeur dans le temps
+    </h2>
+    <p
+      v-if="chartData.datasets.length === 0"
+      class="stock-value-chart__empty"
+    >
+      Pas encore d’historique : le premier relevé quotidien arrive à 6 h.
+    </p>
+    <ClientOnly v-else>
+      <div class="stock-value-chart__canvas">
+        <Line
+          :data="lineChartData"
+          :options="lineChartOptions"
+          aria-label="Coût et valeur du stock dans le temps"
+          role="img"
+        />
+      </div>
+      <template #fallback>
+        <v-progress-linear indeterminate />
+      </template>
+    </ClientOnly>
+    <p
+      v-if="lastSnapshotOn"
+      class="kairos-label stock-value-chart__footnote"
+    >
+      Dernier relevé quotidien : {{ formatDayNumber(dayNumberOf(lastSnapshotOn)) }}
+    </p>
+  </v-card>
 </template>
 
 <script setup lang="ts">
 import {
   Chart as ChartJs,
+  Filler,
   Legend,
   LinearScale,
   LineElement,
   PointElement,
   Tooltip,
-  type ChartOptions,
 } from 'chart.js'
 import { Line } from 'vue-chartjs'
 import type { PriceChartData } from '~/utils/price-overview-view'
 
-ChartJs.register(LinearScale, PointElement, LineElement, Tooltip, Legend)
+ChartJs.register(LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 
-defineProps({
+const props = defineProps({
   chartData: { type: Object as PropType<PriceChartData>, required: true },
+  lastSnapshotOn: { type: String as PropType<string | null>, default: null },
 })
 
-const euroAmountFormatter = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })
-
-const chartOptions: ChartOptions<'line'> = {
-  responsive: true,
-  maintainAspectRatio: false,
-  scales: {
-    x: {
-      type: 'linear',
-      ticks: { maxTicksLimit: 8, precision: 0, callback: tickValue => formatDayNumber(Number(tickValue)) },
-    },
-    y: {
-      ticks: { callback: tickValue => euroAmountFormatter.format(Number(tickValue)) },
-    },
-  },
-  plugins: {
-    tooltip: {
-      callbacks: {
-        title: tooltipItems => tooltipItems.map(tooltipItem => formatDayNumber(Number(tooltipItem.parsed.x))).join(', '),
-        label: tooltipItem => `${tooltipItem.dataset.label} : ${euroAmountFormatter.format(Number(tooltipItem.parsed.y))}`,
-      },
-    },
-  },
-}
+const lineChartData = computed(() => ({ datasets: buildLineChartDatasets(props.chartData) }))
+const lineChartOptions = buildLineChartOptions()
 </script>
 
 <style scoped>
 .stock-value-chart {
-  height: 280px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.stock-value-chart__canvas {
   position: relative;
+  height: 220px;
+}
+
+.stock-value-chart__empty {
+  margin: 0;
+  color: var(--kairos-text-secondary);
+}
+
+.stock-value-chart__footnote {
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+@media (min-width: 960px) {
+  .stock-value-chart {
+    padding: 18px;
+  }
+
+  .stock-value-chart__canvas {
+    height: 280px;
+  }
 }
 </style>

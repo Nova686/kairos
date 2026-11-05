@@ -1,63 +1,146 @@
 <template>
-  <section aria-labelledby="stock-value-summary-title">
-    <h2
-      id="stock-value-summary-title"
-      class="text-h6 mb-2"
-    >
-      Valeur du stock
-    </h2>
-    <div class="stock-value-summary__figures">
-      <v-card class="pa-4">
-        <div class="text-body-2">
-          Coût du stock
-        </div>
-        <div class="text-h5">
-          {{ formatEuros(stockValue.purchaseCostCents) }}
-        </div>
-      </v-card>
-      <v-card class="pa-4">
-        <div class="text-body-2">
-          Valeur actuelle
-        </div>
-        <div class="text-h5">
-          {{ formatEuros(stockValue.estimatedValueCents) }}
-        </div>
-      </v-card>
-    </div>
-    <p
-      class="mt-2"
-      :class="describeGainTone(stockValue.latentGainCents)"
-    >
-      Gain latent : {{ stockValue.latentGainCents > 0 ? '+' : '' }}{{ formatEuros(stockValue.latentGainCents) }}
-    </p>
-    <p
-      v-if="stockValue.approximateItemCount > 0"
-      class="text-medium-emphasis"
-    >
-      {{ stockValue.approximateItemCount }} exemplaire(s) estimé(s) à partir d’un état voisin
-    </p>
-    <p
-      v-if="stockValue.unvaluedItemCount > 0"
-      class="text-medium-emphasis"
-    >
-      {{ stockValue.unvaluedItemCount }} exemplaire(s) sans prix, non comptés dans la valeur
-    </p>
+  <section
+    class="stock-value-summary"
+    aria-label="Valeur du stock"
+  >
+    <v-card class="stock-value-summary__card stock-value-summary__card--hero kairos-holo">
+      <span class="kairos-label">Valeur actuelle</span>
+      <span class="stock-value-summary__figure stock-value-summary__figure--hero kairos-figure">
+        {{ formatEuros(stockValue.estimatedValueCents) }}
+      </span>
+      <span
+        v-if="highlights.latentGainRatio !== null"
+        class="stock-value-summary__foot"
+      >
+        <span
+          class="stock-value-summary__pill"
+          :class="highlights.latentGainRatio >= 0 ? 'stock-value-summary__pill--gain' : 'stock-value-summary__pill--loss'"
+        >
+          {{ formatSignedPercent(highlights.latentGainRatio) }}
+        </span>
+        par rapport au coût d’achat
+      </span>
+    </v-card>
+    <v-card class="stock-value-summary__card">
+      <span class="kairos-label">Coût du stock</span>
+      <span class="stock-value-summary__figure kairos-figure">
+        {{ formatEuros(stockValue.purchaseCostCents) }}
+      </span>
+      <span class="stock-value-summary__foot">
+        {{ pluralizeFrench(highlights.heldItemCount, 'exemplaire') }}
+      </span>
+    </v-card>
+    <v-card class="stock-value-summary__card">
+      <span class="kairos-label">Plus-value latente</span>
+      <SignedAmount
+        class="stock-value-summary__figure"
+        :cents="stockValue.latentGainCents"
+      />
+      <span class="stock-value-summary__foot">
+        <span v-if="stockValue.approximateItemCount > 0">
+          ≈ {{ pluralizeFrench(stockValue.approximateItemCount, 'estimé') }} d’après un état voisin
+        </span>
+        <span v-if="stockValue.unvaluedItemCount > 0">
+          {{ stockValue.unvaluedItemCount }} sans prix, non comptés
+        </span>
+      </span>
+    </v-card>
   </section>
 </template>
 
 <script setup lang="ts">
-import { describeGainTone } from '~/utils/stock-value-view'
 import type { DashboardStockValueView } from '~/composables/useDashboardOverview'
 
-defineProps({
+const props = defineProps({
   stockValue: { type: Object as PropType<DashboardStockValueView>, required: true },
 })
+
+const highlights = computed(() => describeStockValueHighlights(props.stockValue))
 </script>
 
 <style scoped>
-.stock-value-summary__figures {
+.stock-value-summary {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stock-value-summary__card {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.stock-value-summary__card--hero {
+  grid-column: 1 / -1;
+}
+
+.stock-value-summary__figure {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.stock-value-summary__figure--hero {
+  font-size: 32px;
+  background: linear-gradient(90deg, #f1f5fa, #c9d9ee 60%, #e9d3b0);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.stock-value-summary__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 12.5px;
+  color: var(--kairos-text-secondary);
+}
+
+.stock-value-summary__pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stock-value-summary__pill--gain {
+  background: color-mix(in srgb, var(--kairos-success) 15%, transparent);
+  color: var(--kairos-success);
+}
+
+.stock-value-summary__pill--loss {
+  background: color-mix(in srgb, var(--kairos-error) 15%, transparent);
+  color: var(--kairos-error);
+}
+
+@media (min-width: 960px) {
+  .stock-value-summary {
+    grid-template-columns: 1.25fr 1fr 1fr;
+    gap: 14px;
+  }
+
+  .stock-value-summary__card {
+    gap: 8px;
+    padding: 18px;
+  }
+
+  .stock-value-summary__card--hero {
+    grid-column: auto;
+  }
+
+  .stock-value-summary__figure {
+    font-size: 28px;
+  }
+
+  .stock-value-summary__figure--hero {
+    font-size: 36px;
+  }
 }
 </style>

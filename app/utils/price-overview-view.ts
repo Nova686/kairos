@@ -1,5 +1,6 @@
 import { conditionCodesFor, conditionLabel, type ConditionCode } from '../../shared/catalogue/condition-scale.ts'
 import type { ProductCategory } from '../../shared/catalogue/product-category.ts'
+import { medianCents } from '~~/shared/valuation/median.ts'
 
 export interface RetainedListingView {
   title: string
@@ -64,7 +65,14 @@ export interface PriceColumn {
 export interface PriceRow {
   source: string
   label: string
+  color: string
   cells: (PriceOverviewCellView | null)[]
+}
+
+export interface RetainedPriceView {
+  retainedCents: number
+  sourceCount: number
+  highlightedSnapshotId: string
 }
 
 export interface PriceChartPoint {
@@ -78,6 +86,8 @@ export interface PriceChartDataset {
   borderColor: string
   backgroundColor: string
   spanGaps: boolean
+  isDashed?: boolean
+  hasAreaFill?: boolean
 }
 
 export interface PriceChartData {
@@ -88,11 +98,11 @@ const gradedConditionCode: ConditionCode = 'graded'
 const fallbackConditionCode: ConditionCode = 'sealed-new'
 
 const priceSourceRows: { source: string, label: string, color: string }[] = [
-  { source: 'ebay', label: 'eBay', color: '#1e88e5' },
-  { source: 'cardmarket', label: 'Cardmarket', color: '#43a047' },
-  { source: 'vinted', label: 'Vinted', color: '#00897b' },
-  { source: 'leboncoin', label: 'Leboncoin', color: '#fb8c00' },
-  { source: 'other', label: 'Autre', color: '#8e24aa' },
+  { source: 'ebay', label: 'eBay', color: '#6fa8dc' },
+  { source: 'cardmarket', label: 'Cardmarket', color: '#4cc38a' },
+  { source: 'vinted', label: 'Vinted', color: '#a993f0' },
+  { source: 'leboncoin', label: 'Leboncoin', color: '#e3a44a' },
+  { source: 'other', label: 'Autre', color: '#5fd1c1' },
 ]
 
 export const cardReferenceSourceLabels: Record<string, string> = {
@@ -103,6 +113,18 @@ export const cardReferenceSourceLabels: Record<string, string> = {
 const parisDateFormatter = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', year: 'numeric' })
 
 export const formatParisDate = (isoTimestamp: string): string => parisDateFormatter.format(new Date(isoTimestamp))
+
+const parisDateTimeFormatter = new Intl.DateTimeFormat('fr-FR', {
+  timeZone: 'Europe/Paris',
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
+
+export const formatParisDateTime = (isoTimestamp: string): string => parisDateTimeFormatter.format(new Date(isoTimestamp))
 
 const gradedColumnKey = (gradingCompany: string, grade: string): string => `${gradedConditionCode}|${gradingCompany}|${grade}`
 
@@ -140,14 +162,28 @@ export const buildPriceColumns = (category: ProductCategory, cells: PriceOvervie
 }
 
 export const buildPriceRows = (cells: PriceOverviewCellView[], columns: PriceColumn[]): PriceRow[] =>
-  priceSourceRows.map(({ source, label }) => ({
+  priceSourceRows.map(({ source, label, color }) => ({
     source,
     label,
+    color,
     cells: columns.map(column =>
       cells.find(priceCell => priceCell.source === source && columnKeyOfCell(priceCell) === column.key) ?? null),
   }))
 
-const millisecondsPerDay = 24 * 60 * 60 * 1000
+export const describeRetainedPrice = (rows: PriceRow[], columnIndex: number): RetainedPriceView | null => {
+  const freshCells = rows
+    .map(row => row.cells[columnIndex])
+    .filter((priceCell): priceCell is PriceOverviewCellView => priceCell !== undefined && priceCell !== null && !priceCell.isStale)
+  const retainedCents = medianCents(freshCells.map(priceCell => priceCell.figureCents))
+  if (retainedCents === null) {
+    return null
+  }
+  const closestCell = freshCells.reduce((closest, candidate) =>
+    Math.abs(candidate.figureCents - retainedCents) < Math.abs(closest.figureCents - retainedCents) ? candidate : closest)
+  return { retainedCents, sourceCount: freshCells.length, highlightedSnapshotId: closestCell.snapshotId }
+}
+
+const millisecondsPerDay =24 * 60 * 60 * 1000
 
 export const dayNumberOf = (calendarDate: string): number => Date.parse(`${calendarDate}T00:00:00Z`) / millisecondsPerDay
 

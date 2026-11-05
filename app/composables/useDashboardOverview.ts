@@ -28,5 +28,12 @@ export interface DashboardOverviewView {
 export const useDashboardOverview = () => {
   const { data: overview, pending, error } = useFetch<DashboardOverviewView>('/api/dashboard')
   const chartData = computed(() => buildStockValueChartData(overview.value?.valueHistory ?? []))
-  return { overview, chartData, pending, hasFailed: computed(() => error.value !== undefined && error.value !== null) }
+  const lastSnapshotOn = computed(() => latestSnapshotDate(overview.value?.valueHistory ?? []))
+  return {
+    overview,
+    chartData,
+    lastSnapshotOn,
+    pending,
+    hasFailed: computed(() => error.value !== undefined && error.value !== null),
+  }
 }

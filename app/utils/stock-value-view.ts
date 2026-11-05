@@ -1,5 +1,13 @@
 import { describeConditionUsed } from './condition-in-category.ts'
 import { dayNumberOf, type PriceChartData } from './price-overview-view.ts'
+import { brandPrimaryColor, brandSecondaryTextColor } from '../../shared/theme/brand-colors.ts'
+
+export interface StockValueTotalsView {
+  valuedPurchaseCostCents: number
+  latentGainCents: number
+  valuedItemCount: number
+  unvaluedItemCount: number
+}
 
 export interface StockItemValuationView {
   valueCents: number | null
@@ -55,8 +63,24 @@ export const describeGainTone = (gainCents: number | null): string => {
   return gainCents > 0 ? 'text-success' : 'text-error'
 }
 
-const costLineColor = '#757575'
-const valueLineColor = '#1e88e5'
+export interface StockValueHighlights {
+  heldItemCount: number
+  latentGainRatio: number | null
+}
+
+export const describeStockValueHighlights = (
+  stockValue: Pick<StockValueTotalsView, 'valuedPurchaseCostCents' | 'latentGainCents' | 'valuedItemCount' | 'unvaluedItemCount'>,
+): StockValueHighlights => ({
+  heldItemCount: stockValue.valuedItemCount + stockValue.unvaluedItemCount,
+  latentGainRatio: stockValue.valuedPurchaseCostCents > 0 ? stockValue.latentGainCents / stockValue.valuedPurchaseCostCents : null,
+})
+
+export const latestSnapshotDate = (history: StockValueHistoryPointView[]): string | null =>
+  history.reduce<string | null>((latest, historyPoint) =>
+    latest === null || historyPoint.snapshotOn > latest ? historyPoint.snapshotOn : latest, null)
+
+const costLineColor = brandSecondaryTextColor
+const valueLineColor = brandPrimaryColor
 
 export const buildStockValueChartData = (history: StockValueHistoryPointView[]): PriceChartData => {
   if (history.length === 0) {
@@ -71,6 +95,7 @@ export const buildStockValueChartData = (history: StockValueHistoryPointView[]):
         borderColor: costLineColor,
         backgroundColor: costLineColor,
         spanGaps: false,
+        isDashed: true,
       },
       {
         label: 'Valeur',
@@ -78,6 +103,7 @@ export const buildStockValueChartData = (history: StockValueHistoryPointView[]):
         borderColor: valueLineColor,
         backgroundColor: valueLineColor,
         spanGaps: false,
+        hasAreaFill: true,
       },
     ],
   }
