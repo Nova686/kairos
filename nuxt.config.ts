@@ -1,11 +1,24 @@
 import vuetify from 'vite-plugin-vuetify'
-import { brandBackgroundColor, brandPrimaryColor } from './shared/theme/brand-colors.ts'
+import { brandBackgroundColor } from './shared/theme/brand-colors.ts'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-02',
   modules: ['@nuxt/eslint', 'nuxt-auth-utils', '@vite-pwa/nuxt'],
   components: [{ path: '~/components', pathPrefix: false }],
-  css: ['@mdi/font/css/materialdesignicons.css', 'vuetify/styles'],
+  css: ['@mdi/font/css/materialdesignicons.css', 'vuetify/styles', '~/assets/styles/coffre.css'],
+  app: {
+    head: {
+      viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
+      link: [
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@600;700&display=swap',
+        },
+      ],
+    },
+  },
   build: { transpile: ['vuetify'] },
   vite: {
     plugins: [vuetify({ autoImport: true })],
@@ -35,7 +48,7 @@ export default defineNuxtConfig({
       lang: 'fr',
       display: 'standalone',
       start_url: '/',
-      theme_color: brandPrimaryColor,
+      theme_color: brandBackgroundColor,
       background_color: brandBackgroundColor,
       icons: [
         { src: '/icons/kairos-192.png', sizes: '192x192', type: 'image/png' },

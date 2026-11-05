@@ -1,0 +1,163 @@
+:root {
+  --kairos-background: #0b0f14;
+  --kairos-surface: #131922;
+  --kairos-surface-variant: #1a2230;
+  --kairos-border: #263041;
+  --kairos-text: #e7ecf3;
+  --kairos-text-secondary: #8b97a8;
+  --kairos-primary: #6fa8dc;
+  --kairos-accent: #e3a44a;
+  --kairos-success: #4cc38a;
+  --kairos-error: #f0716a;
+  --kairos-radius: 14px;
+  --kairos-display-font: "Sora", system-ui, sans-serif;
+  --kairos-body-font: "IBM Plex Sans", system-ui, sans-serif;
+  --kairos-figure-font: "IBM Plex Mono", ui-monospace, monospace;
+  --kairos-holo: conic-gradient(from 140deg, #6fa8dc, #a993f0, #e889b8, #e3a44a, #5fd1c1, #6fa8dc);
+  --kairos-sidebar-width: 232px;
+  --kairos-bottom-bar-height: 64px;
+  --kairos-bottom-bar-clearance: calc(var(--kairos-bottom-bar-height) + env(safe-area-inset-bottom, 0px));
+  color-scheme: dark;
+}
+
+html {
+  background: var(--kairos-background);
+  scrollbar-color: var(--kairos-border) transparent;
+}
+
+body,
+.v-application {
+  font-family: var(--kairos-body-font);
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3, h4, h5, h6,
+.text-h1, .text-h2, .text-h3, .text-h4, .text-h5, .text-h6,
+.v-card-title,
+.v-toolbar-title {
+  font-family: var(--kairos-display-font);
+  letter-spacing: -0.01em;
+}
+
+h1,
+.text-h4 {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.v-card {
+  border-radius: var(--kairos-radius);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 40%);
+}
+
+.v-btn.bg-primary:not(.v-btn--disabled) {
+  background-image: linear-gradient(180deg, #84b6e3, #5d97cf);
+  color: var(--kairos-background);
+}
+
+.v-data-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--kairos-text-secondary);
+}
+
+.v-field {
+  border-radius: calc(var(--kairos-radius) - 4px);
+}
+
+.kairos-figure {
+  font-family: var(--kairos-figure-font);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.kairos-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kairos-text-secondary);
+}
+
+.kairos-approx {
+  border-bottom: 1px dashed var(--kairos-text-secondary);
+  cursor: help;
+}
+
+.kairos-holo {
+  position: relative;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--kairos-surface), var(--kairos-surface)) padding-box,
+    var(--kairos-holo) border-box;
+}
+
+.kairos-holo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--kairos-holo);
+  opacity: 0.07;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+.kairos-holo--thumbnail {
+  background:
+    linear-gradient(var(--kairos-surface-variant), var(--kairos-surface-variant)) padding-box,
+    var(--kairos-holo) border-box;
+}
+
+.kairos-holo--thumbnail::after {
+  content: none;
+}
+
+.kairos-hidden-scrollbar {
+  scrollbar-width: none;
+}
+
+.kairos-hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.kairos-gain {
+  color: var(--kairos-success);
+}
+
+.kairos-loss {
+  color: var(--kairos-error);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--kairos-border);
+  border-radius: 999px;
+  border: 2px solid var(--kairos-background);
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kairos-shell__main {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+@media (min-width: 960px) {
+  .kairos-shell__main {
+    padding-left: var(--kairos-sidebar-width);
+  }
+}
+
+@media (max-width: 959.98px) {
+  .kairos-shell__main {
+    padding-bottom: var(--kairos-bottom-bar-clearance);
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}

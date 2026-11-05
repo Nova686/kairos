@@ -19,7 +19,7 @@ describe('progressive web app installation', async () => {
       lang: 'fr',
       display: 'standalone',
       start_url: '/',
-      theme_color: '#1e5a8a',
+      theme_color: '#0b0f14',
     })
     expect(manifest.icons.map((icon: { sizes: string, purpose?: string }) => `${icon.sizes}:${icon.purpose ?? 'any'}`).sort())
       .toEqual(['192x192:any', '512x512:any', '512x512:maskable'])
@@ -31,6 +31,7 @@ describe('progressive web app installation', async () => {
     expect(html).toContain('apple-touch-icon')
     expect(html).toContain('apple-mobile-web-app-capable')
     expect(html).toContain('apple-mobile-web-app-status-bar-style')
+    expect(html).toContain('viewport-fit=cover')
     expect(html).toContain('rel="manifest"')
   })
 
