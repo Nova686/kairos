@@ -41,7 +41,7 @@
           ≈ {{ pluralizeFrench(stockValue.approximateItemCount, 'estimé') }} d’après un état voisin
         </span>
         <span v-if="stockValue.unvaluedItemCount > 0">
-          {{ stockValue.unvaluedItemCount }} sans prix, non comptés
+          {{ stockValue.unvaluedItemCount }} sans prix, {{ stockValue.unvaluedItemCount > 1 ? 'non comptés' : 'non compté' }}
         </span>
       </span>
     </v-card>
