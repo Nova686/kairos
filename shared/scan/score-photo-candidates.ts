@@ -16,6 +16,7 @@ const textWeightWithVisual = 0.4
 const textOnlyWeight = 0.7
 const autoPickMinimumScore = 0.85
 const autoPickMinimumLead = 0.1
+const leadComparisonTolerance = 1e-9
 export const minimumVisualSimilarityForCandidate = 0.7
 
 const stripAccents = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '')
@@ -52,5 +53,5 @@ export const shouldAutoPick = (scores: PhotoCandidateScore[]): boolean => {
   if (!top || top.score < autoPickMinimumScore) {
     return false
   }
-  return !second || top.score - second.score >= autoPickMinimumLead - 1e-9
+  return !second || top.score - second.score >= autoPickMinimumLead - leadComparisonTolerance
 }
