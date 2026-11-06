@@ -12,8 +12,7 @@ export interface ProductChangeRow {
 
 interface StockItemDetail {
   stockItem: StockItemRow
-  changes: ProductChangeRow[]
-  purchaseTrackingReference: string | null
+  changes: ProductChangeRow[] | null
 }
 
 export const useStockItemDetail = async (stockItemId: string) => {
@@ -29,16 +28,15 @@ export const useStockItemDetail = async (stockItemId: string) => {
     `stock-item-${stockItemId}`,
     async () => {
       const stockItem = await requestFetch<StockItemRow>(`/api/stock-items/${stockItemId}`)
-      const changes = await requestFetch<ProductChangeRow[]>(`/api/products/${stockItem.productId}/changes`)
-      const purchases = await requestFetch<{ id: string, trackingReference: string | null }[]>('/api/purchases')
-      const purchaseTrackingReference = purchases.find(purchase => purchase.id === stockItem.purchaseId)?.trackingReference ?? null
-      return { stockItem, changes, purchaseTrackingReference }
+      const changes = await requestFetch<ProductChangeRow[]>(`/api/products/${stockItem.productId}/changes`).catch(() => null)
+      return { stockItem, changes }
     },
   )
 
   const stockItem = computed(() => detail.value?.stockItem ?? null)
   const changes = computed<ProductChangeRow[]>(() => detail.value?.changes ?? [])
-  const purchaseTrackingReference = computed(() => detail.value?.purchaseTrackingReference ?? null)
+  const areChangesUnavailable = computed(() => detail.value?.changes === null)
+  const purchaseTrackingReference = computed(() => stockItem.value?.purchaseTrackingReference ?? null)
   const locations = computed<LocationRow[]>(() => fetchedLocations.value ?? [])
   const locationLabel = computed(() =>
     locations.value.find(location => location.id === stockItem.value?.locationId)?.label ?? '—')
@@ -59,12 +57,12 @@ export const useStockItemDetail = async (stockItemId: string) => {
     editedNotes.value = stockItem.value.notes ?? ''
   }
 
-  const runMutation = async (mutation: () => Promise<unknown>): Promise<void> => {
+  const runMutation = async (mutation: () => Promise<unknown>, afterRefresh: () => void = () => undefined): Promise<void> => {
     errorMessage.value = ''
     try {
       await mutation()
       await refreshDetail()
-      loadEditedValues()
+      afterRefresh()
     }
     catch (failure) {
       errorMessage.value = describeRequestFailure(failure)
@@ -79,7 +77,7 @@ export const useStockItemDetail = async (stockItemId: string) => {
         locationId: editedLocationId.value,
         notes: editedNotes.value.trim() === '' ? null : editedNotes.value,
       },
-    }))
+    }), loadEditedValues)
 
   const receiveStockItem = () =>
     runMutation(() => sendRequest(`/api/stock-items/${stockItemId}/receive`, {
@@ -93,6 +91,7 @@ export const useStockItemDetail = async (stockItemId: string) => {
     stockItem,
     locations,
     changes,
+    areChangesUnavailable,
     purchaseTrackingReference,
     locationLabel,
     editedCondition,

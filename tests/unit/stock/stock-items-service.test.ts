@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import type { KairosDatabase } from '../../../server/database/open-database.ts'
-import { locations, products, users } from '../../../server/database/schema/index.ts'
+import { locations, products, purchases, users } from '../../../server/database/schema/index.ts'
 import { createPurchase } from '../../../server/domain/stock/purchases-service.ts'
 import {
   findStockItem,
@@ -231,6 +231,16 @@ describe('findStockItem', () => {
     const foundStockItem = await findStockItem(database, ownerId, stockItem.id)
 
     expect(foundStockItem).toMatchObject({ id: stockItem.id, productName: 'Display', productCategory: 'pokemon-sealed' })
+  })
+
+  it('carries the tracking reference of its purchase', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'Display', 'pokemon-sealed')
+    const stockItem = await buyOne(database, ownerId, productId, { inTransit: true })
+    await database.update(purchases).set({ trackingReference: 'LP123FR' }).where(eq(purchases.id, stockItem.purchaseId))
+
+    expect(await findStockItem(database, ownerId, stockItem.id)).toMatchObject({ purchaseTrackingReference: 'LP123FR' })
   })
 
   it('answers 404 for the item of another user', async () => {

@@ -16,6 +16,7 @@ export interface StockItemRow {
   status: StockItemStatus
   notes: string | null
   receivedOn: string | null
+  purchaseTrackingReference: string | null
 }
 
 export interface LocationRow {

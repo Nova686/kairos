@@ -18,6 +18,7 @@ const stockItem = (overrides: Partial<StockItemRow>): StockItemRow => ({
   status: 'in-stock',
   notes: null,
   receivedOn: null,
+  purchaseTrackingReference: null,
   ...overrides,
 })
 

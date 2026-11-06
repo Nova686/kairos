@@ -30,6 +30,7 @@ export type StockItemWithProduct = StockItem & {
   productName: string
   productImageUrl: string | null
   productCategory: string
+  purchaseTrackingReference: string | null
 }
 
 const unprocessable = (message: string) => createError({ statusCode: 422, statusMessage: message })
@@ -44,6 +45,7 @@ const stockItemWithProductColumns = {
   productName: products.name,
   productImageUrl: products.imageUrl,
   productCategory: products.category,
+  purchaseTrackingReference: purchases.trackingReference,
 }
 
 const flattenStockItem = (row: {
@@ -51,11 +53,13 @@ const flattenStockItem = (row: {
   productName: string
   productImageUrl: string | null
   productCategory: string
+  purchaseTrackingReference: string | null
 }): StockItemWithProduct => ({
   ...row.stockItem,
   productName: row.productName,
   productImageUrl: row.productImageUrl,
   productCategory: row.productCategory,
+  purchaseTrackingReference: row.purchaseTrackingReference,
 })
 
 export const findStockItem = async (
@@ -68,6 +72,7 @@ export const findStockItem = async (
     .select(stockItemWithProductColumns)
     .from(stockItems)
     .innerJoin(products, eq(products.id, stockItems.productId))
+    .innerJoin(purchases, eq(purchases.id, stockItems.purchaseId))
     .where(eq(stockItems.id, stockItemId))
   return flattenStockItem(row!)
 }
@@ -94,6 +99,7 @@ export const listStockItems = async (
     .select(stockItemWithProductColumns)
     .from(stockItems)
     .innerJoin(products, eq(products.id, stockItems.productId))
+    .innerJoin(purchases, eq(purchases.id, stockItems.purchaseId))
     .where(and(...conditions))
     .orderBy(asc(products.name), desc(stockItems.createdAt))
   const matchingRows = filters.search === undefined || filters.search.trim() === ''

@@ -129,7 +129,13 @@
         </NuxtLink>
       </p>
       <p
-        v-if="changes.length === 0"
+        v-if="areChangesUnavailable"
+        class="stock-item-page__muted"
+      >
+        Journal indisponible pour le moment.
+      </p>
+      <p
+        v-else-if="changes.length === 0"
         class="stock-item-page__muted"
       >
         Aucune modification enregistrée.
@@ -153,7 +159,6 @@
 </template>
 
 <script setup lang="ts">
-import { readBarcodeJournalValue } from '~~/shared/catalogue/barcode-journal-value'
 import { stockItemStatusLabels } from '~~/shared/stock/stock-item-status'
 
 const route = useRoute()
@@ -162,6 +167,7 @@ const {
   stockItem,
   locations,
   changes,
+  areChangesUnavailable,
   purchaseTrackingReference,
   locationLabel,
   editedCondition,
@@ -185,17 +191,6 @@ const productPricesLink = computed(() => {
   const columnKey = stockItem.value ? columnKeyOfStockItem(stockItem.value) : ''
   return `/produits/${stockItem.value?.productId}?condition=${encodeURIComponent(columnKey)}`
 })
-
-const describeChangedValue = (changedValue: unknown): string => {
-  if (changedValue === null || changedValue === undefined) {
-    return '—'
-  }
-  const journaledBarcode = readBarcodeJournalValue(changedValue)
-  if (journaledBarcode !== null) {
-    return journaledBarcode
-  }
-  return typeof changedValue === 'object' ? JSON.stringify(changedValue) : String(changedValue)
-}
 </script>
 
 <style scoped>
