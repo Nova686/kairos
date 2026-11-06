@@ -115,6 +115,11 @@ export const verifyCredentials = async (
   return isPasswordValid ? toSessionUser(storedUser) : null
 }
 
+export const isAdministrator = async (database: KairosDatabase, userId: string): Promise<boolean> => {
+  const [storedUser] = await database.select({ isAdmin: users.isAdmin }).from(users).where(eq(users.id, userId))
+  return storedUser?.isAdmin === true
+}
+
 export const createInvitation = async (
   database: KairosDatabase,
   createdByUserId: string,

@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import type { SessionUser } from '../domain/accounts/accounts-service'
+import { isAdministrator, type SessionUser } from '../domain/accounts/accounts-service'
 
 export const requireSessionUser = async (event: H3Event): Promise<SessionUser> => {
   const { user } = await getUserSession(event)
@@ -11,7 +11,7 @@ export const requireSessionUser = async (event: H3Event): Promise<SessionUser> =
 
 export const requireAdminSessionUser = async (event: H3Event): Promise<SessionUser> => {
   const sessionUser = await requireSessionUser(event)
-  if (!sessionUser.isAdmin) {
+  if (!await isAdministrator(await useDatabase(), sessionUser.id)) {
     throw createError({ statusCode: 403, statusMessage: 'Réservé aux administrateurs' })
   }
   return sessionUser

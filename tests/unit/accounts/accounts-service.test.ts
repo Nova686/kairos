@@ -5,6 +5,7 @@ import {
   acceptInvitation,
   createInvitation,
   createUser,
+  isAdministrator,
   verifyCredentials,
   type PasswordHasher,
 } from '../../../server/domain/accounts/accounts-service.ts'
@@ -72,6 +73,24 @@ describe('accounts service', () => {
     expect(verifiedHashes).toHaveLength(2)
     expect(verifiedHashes[0]).not.toBe('hashed:long-enough-password')
     expect(verifiedHashes[1]).toBe(verifiedHashes[0])
+  })
+
+  it('reads administrator rights from the database rather than from the session', async () => {
+    const database = await createTestDatabase()
+    const admin = await createAdmin(database)
+    const member = await createUser(
+      database,
+      { email: 'member@example.com', displayName: 'Member', password: 'long-enough-password', isAdmin: false },
+      fakePasswordHasher,
+    )
+
+    const adminBeforeDemotion = await isAdministrator(database, admin.id)
+    await database.update(users).set({ isAdmin: false }).where(eq(users.id, admin.id))
+
+    expect(adminBeforeDemotion).toBe(true)
+    expect(await isAdministrator(database, admin.id)).toBe(false)
+    expect(await isAdministrator(database, member.id)).toBe(false)
+    expect(await isAdministrator(database, '00000000-0000-4000-8000-000000000000')).toBe(false)
   })
 
   it('creates an invitation valid for 7 days with a 24 character URL-safe code', async () => {
