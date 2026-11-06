@@ -1,13 +1,22 @@
+const phoneMediaQuery = '(pointer: coarse), (max-width: 959px)'
+
+const readBrowserCameraScanCapability = (): boolean =>
+  canUseCameraScan({
+    coarsePointer: window.matchMedia('(pointer: coarse)').matches,
+    viewportWidth: window.innerWidth,
+  })
+
 export const useCameraScanCapability = () => {
-  const isCameraScanAvailable = ref(false)
+  const requestHeaders = useRequestHeaders(['sec-ch-ua-mobile', 'user-agent'])
+  const isCameraScanAvailable = useState('camera-scan-available', () =>
+    import.meta.server
+      ? guessCameraScanFromRequest({ mobileClientHint: requestHeaders['sec-ch-ua-mobile'], userAgent: requestHeaders['user-agent'] })
+      : readBrowserCameraScanCapability())
 
   onMounted(() => {
-    const phoneQuery = window.matchMedia('(pointer: coarse), (max-width: 959px)')
+    const phoneQuery = window.matchMedia(phoneMediaQuery)
     const evaluateCapability = () => {
-      isCameraScanAvailable.value = canUseCameraScan({
-        coarsePointer: window.matchMedia('(pointer: coarse)').matches,
-        viewportWidth: window.innerWidth,
-      })
+      isCameraScanAvailable.value = readBrowserCameraScanCapability()
     }
     evaluateCapability()
     phoneQuery.addEventListener('change', evaluateCapability)
