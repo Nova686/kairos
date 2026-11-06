@@ -1,22 +1,16 @@
 import vuetify from 'vite-plugin-vuetify'
+import { brandColorStylesheet } from './shared/theme/brand-color-stylesheet.ts'
 import { brandBackgroundColor } from './shared/theme/brand-colors.ts'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-02',
   modules: ['@nuxt/eslint', 'nuxt-auth-utils', '@vite-pwa/nuxt'],
   components: [{ path: '~/components', pathPrefix: false }],
-  css: ['@mdi/font/css/materialdesignicons.css', 'vuetify/styles', '~/assets/styles/coffre.css'],
+  css: ['@mdi/font/css/materialdesignicons.css', 'vuetify/styles', '~/assets/styles/fonts.css', '~/assets/styles/coffre.css'],
   app: {
     head: {
       viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
-      link: [
-        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-        {
-          rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@600;700&display=swap',
-        },
-      ],
+      style: [{ key: 'kairos-brand-colors', textContent: brandColorStylesheet }],
     },
   },
   build: { transpile: ['vuetify'] },
@@ -58,7 +52,7 @@ export default defineNuxtConfig({
     },
     workbox: {
       navigateFallback: null,
-      globPatterns: ['**/*.{js,css,png,svg,ico}'],
+      globPatterns: ['**/*.{js,css,png,svg,ico,woff2}'],
       runtimeCaching: [
         { urlPattern: ({ url }) => url.pathname.startsWith('/api/'), handler: 'NetworkOnly' },
       ],

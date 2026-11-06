@@ -1,14 +1,4 @@
 :root {
-  --kairos-background: #0b0f14;
-  --kairos-surface: #131922;
-  --kairos-surface-variant: #1a2230;
-  --kairos-border: #263041;
-  --kairos-text: #e7ecf3;
-  --kairos-text-secondary: #8b97a8;
-  --kairos-primary: #6fa8dc;
-  --kairos-accent: #e3a44a;
-  --kairos-success: #4cc38a;
-  --kairos-error: #f0716a;
   --kairos-radius: 14px;
   --kairos-display-font: "Sora", system-ui, sans-serif;
   --kairos-body-font: "IBM Plex Sans", system-ui, sans-serif;
