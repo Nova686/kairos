@@ -103,6 +103,7 @@ describe('identifyPsaCertificate', () => {
     expect(outcome.candidates[0]).toMatchObject({ origin: 'catalogue', productId: gradedProduct.id })
     expect(outcome.candidates.filter(candidate => candidate.productId === gradedProduct.id)).toHaveLength(1)
     expect(outcome.candidates[0]?.productId).not.toBe(sameNameOtherCategory.id)
+    expect(outcome.candidates.some(candidate => candidate.origin === 'identification')).toBe(false)
   })
 
   it('puts the same-name catalogue product first even when the name search returns nothing', async () => {

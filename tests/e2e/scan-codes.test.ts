@@ -11,11 +11,17 @@ const linkBarcode = (barcode: string, productId: string, cookie: string) =>
     headers: { 'content-type': 'application/json', cookie },
   })
 
-describe('barcode scan API', async () => {
+describe('barcode and certificate scan API', async () => {
+  const previousPsaToken = process.env.PSA_API_TOKEN
+  process.env.PSA_API_TOKEN = ''
   const databaseUrl = await seedAccounts([
     { email: 'member@example.com', displayName: 'Member', password: memberPassword, isAdmin: false },
   ])
   await startEndToEndServer(databaseUrl)
+  afterAll(() => {
+    if (previousPsaToken === undefined) delete process.env.PSA_API_TOKEN
+    else process.env.PSA_API_TOKEN = previousPsaToken
+  })
 
   it('answers 422 for a barcode with a wrong length or check digit', async () => {
     const cookie = await logIn('member@example.com', memberPassword)
@@ -44,5 +50,15 @@ describe('barcode scan API', async () => {
     expect(conflictingLink.status).toBe(409)
     expect((await conflictingLink.json()).statusMessage).toBe('Ce code-barres est déjà lié à un autre produit')
     expect(identification.knownProduct?.id).toBe(lipstick.id)
+  })
+
+  it('answers 422 for a malformed PSA certificate and reports PSA unavailable without its token', async () => {
+    const cookie = await logIn('member@example.com', memberPassword)
+
+    const malformedCertificate = await fetch('/api/scan/psa/12ab', { headers: { cookie } })
+    const certificateWithoutToken = await $fetch<{ candidates: unknown[], unavailableSources: string[] }>('/api/scan/psa/12345678', { headers: { cookie } })
+
+    expect(malformedCertificate.status).toBe(422)
+    expect(certificateWithoutToken).toMatchObject({ candidates: [], unavailableSources: ['psa'] })
   })
 })

@@ -122,8 +122,7 @@ export const identifyPsaCertificate = async (
   const sameCatalogueProduct = await findSameGradedCardInCatalogue(database, identification.name)
   const nameSearch = await (dependencies.searchCandidates ?? searchProductCandidates)(database, identification.name, dependencies.productSearch)
   const candidates = [
-    ...(sameCatalogueProduct ? [toCatalogueCandidate(sameCatalogueProduct)] : []),
-    toGradedCardCandidate(identification),
+    sameCatalogueProduct ? toCatalogueCandidate(sameCatalogueProduct) : toGradedCardCandidate(identification),
     ...nameSearch.candidates.filter(
       candidate => sameCatalogueProduct === null || candidate.productId !== sameCatalogueProduct.id,
     ),
