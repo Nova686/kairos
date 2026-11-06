@@ -67,7 +67,7 @@ export const storeCatalogueEmbeddingIfImageUnchanged = async (
     if (lockedProduct?.imageUrl !== catalogueEmbedding.imageUrl) {
       return false
     }
-    await transaction
+    const insertedEmbeddings = await transaction
       .insert(productImageEmbeddings)
       .values({
         productId: catalogueEmbedding.productId,
@@ -76,8 +76,9 @@ export const storeCatalogueEmbeddingIfImageUnchanged = async (
         embedding: Array.from(catalogueEmbedding.embedding),
       })
       .onConflictDoNothing()
+      .returning({ id: productImageEmbeddings.id })
     await transaction.update(products).set({ lastEmbeddingFailureAt: null }).where(eq(products.id, catalogueEmbedding.productId))
-    return true
+    return insertedEmbeddings.length > 0
   })
   invalidateEmbeddingMatrix()
   return wasStored

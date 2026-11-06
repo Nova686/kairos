@@ -4,6 +4,7 @@ import { createProduct, listProductChanges, revertCatalogueChange, updateProduct
 import {
   embeddingDimensions,
   findSimilarProducts,
+  storeCatalogueEmbeddingIfImageUnchanged,
   storeProductEmbedding,
 } from '../../../server/domain/scan/product-image-embeddings.ts'
 import { emptyProductDraft } from '../../../shared/catalogue/product-draft.ts'
@@ -123,6 +124,19 @@ describe('storeProductEmbedding', () => {
     await storeProductEmbedding(database, { productId: product.id, origin: 'catalogue-image', embedding: unitVector(0) })
     await storeProductEmbedding(database, { productId: product.id, origin: 'catalogue-image', embedding: unitVector(1) })
 
+    expect(await database.select().from(productImageEmbeddings)).toHaveLength(1)
+  })
+
+  it('reports a catalogue embedding as not stored when the product already holds one', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database)
+    const product = await insertProduct(database, userId, 'Display', 'https://images.example/display.jpg')
+    const catalogueEmbedding = { productId: product.id, imageUrl: 'https://images.example/display.jpg', embedding: unitVector(0) }
+
+    const firstOutcome = await storeCatalogueEmbeddingIfImageUnchanged(database, catalogueEmbedding)
+    const secondOutcome = await storeCatalogueEmbeddingIfImageUnchanged(database, catalogueEmbedding)
+
+    expect([firstOutcome, secondOutcome]).toEqual([true, false])
     expect(await database.select().from(productImageEmbeddings)).toHaveLength(1)
   })
 
