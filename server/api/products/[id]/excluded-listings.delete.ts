@@ -1,7 +1,5 @@
-import { z } from 'zod'
+import { listingUrlBodySchema } from '../../../domain/prices/listing-url-body-schema'
 import { restoreListing } from '../../../domain/prices/listing-exclusions'
-
-const listingUrlBodySchema = z.object({ url: z.string().trim().min(1) })
 
 export default defineEventHandler(async (event) => {
   const sessionUser = await requireSessionUser(event)

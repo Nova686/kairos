@@ -58,14 +58,19 @@ describe('ownership of locations and persons', async () => {
     expect(secondUserPersons).toEqual([])
   })
 
-  it('answers 404 when another user renames a person', async () => {
+  it('answers 404 and leaves the row untouched when another user reads, renames or deletes a person', async () => {
     const firstCookie = await logIn('first@example.com', firstPassword)
     const secondCookie = await logIn('second@example.com', secondPassword)
     const [firstUserPerson] = await $fetch<{ id: string }[]>('/api/persons', { headers: { cookie: firstCookie } })
 
-    const response = await sendJson(`/api/persons/${firstUserPerson!.id}`, 'PATCH', secondCookie, { name: 'Volée' })
+    const patchResponse = await sendJson(`/api/persons/${firstUserPerson!.id}`, 'PATCH', secondCookie, { name: 'Volée' })
+    const getResponse = await sendJson(`/api/persons/${firstUserPerson!.id}`, 'GET', secondCookie)
+    const deleteResponse = await sendJson(`/api/persons/${firstUserPerson!.id}`, 'DELETE', secondCookie)
 
-    expect(response.status).toBe(404)
+    expect(patchResponse.status).toBe(404)
+    expect(getResponse.status).toBe(404)
+    expect(deleteResponse.status).toBe(404)
+    expect(await $fetch<unknown[]>('/api/persons', { headers: { cookie: firstCookie } })).toHaveLength(1)
   })
 
   it('answers 409 on a duplicate location label and 422 on an empty one', async () => {

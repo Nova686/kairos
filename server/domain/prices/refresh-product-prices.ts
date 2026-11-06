@@ -150,7 +150,7 @@ export const refreshProductPrices = async (
   const isEbayUnavailable = unavailableSources.some(unavailableSource => unavailableSource.source === ebaySource)
   const drafts = [...ebayDrafts, ...cardmarketDrafts, ...tcgdexDrafts, ...pokemontcgDrafts]
   const snapshotIds = await database.transaction(async (transaction) => {
-    const insertedIds = await insertPriceSnapshotDrafts(transaction as unknown as KairosDatabase, productId, drafts)
+    const insertedIds = await insertPriceSnapshotDrafts(transaction, productId, drafts)
     const ebayRefresh = isEbayUnavailable ? {} : { lastEbayRefreshAt: now }
     await transaction
       .insert(priceRefreshRequests)

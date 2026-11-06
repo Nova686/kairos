@@ -24,10 +24,10 @@ export const excludeListing = async (
       .onConflictDoNothing()
       .returning({ url: excludedListings.url })
     if (insertedRows.length > 0) {
-      await appendCatalogueChanges(transaction as unknown as KairosDatabase, [
+      await appendCatalogueChanges(transaction, [
         { productId, userId, fieldName: excludedListingFieldName, previousValue: null, newValue: normalizedUrl },
       ])
-      await enqueueProducts(transaction as unknown as KairosDatabase, [productId], userId, now)
+      await enqueueProducts(transaction, [productId], userId, now)
     }
   })
 }
@@ -47,10 +47,10 @@ export const restoreListing = async (
       .where(and(eq(excludedListings.productId, productId), eq(excludedListings.url, normalizedUrl)))
       .returning({ url: excludedListings.url })
     if (deletedRows.length > 0) {
-      await appendCatalogueChanges(transaction as unknown as KairosDatabase, [
+      await appendCatalogueChanges(transaction, [
         { productId, userId, fieldName: excludedListingFieldName, previousValue: normalizedUrl, newValue: null },
       ])
-      await enqueueProducts(transaction as unknown as KairosDatabase, [productId], userId, now)
+      await enqueueProducts(transaction, [productId], userId, now)
     }
   })
 }

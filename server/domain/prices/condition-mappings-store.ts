@@ -172,7 +172,7 @@ export const createTitleRule = async (
 ): Promise<TitleConditionRule> => {
   assertRuleDraftValid(draft)
   return database.transaction(async (transaction) => {
-    await assertNoDuplicateTitleRule(transaction as unknown as KairosDatabase, draft, null)
+    await assertNoDuplicateTitleRule(transaction, draft, null)
     const [createdRule] = await transaction.insert(titleConditionRules).values(draft).returning()
     await appendCatalogueChanges(transaction, [{
       productId: null,
@@ -196,7 +196,7 @@ export const updateTitleRule = async (
     const previousRule = await lockTitleRuleOr404(transaction, ruleId)
     const mergedDraft = { ...describeRule(previousRule), ...changes }
     assertRuleDraftValid(mergedDraft)
-    await assertNoDuplicateTitleRule(transaction as unknown as KairosDatabase, mergedDraft, ruleId)
+    await assertNoDuplicateTitleRule(transaction, mergedDraft, ruleId)
     const [updatedRule] = await transaction
       .update(titleConditionRules)
       .set(mergedDraft)

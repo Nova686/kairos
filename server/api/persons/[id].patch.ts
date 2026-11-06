@@ -1,7 +1,5 @@
-import { z } from 'zod'
+import { personBodySchema } from '../../domain/persons/person-body-schema'
 import { renamePerson } from '../../domain/persons/persons-service'
-
-const personBodySchema = z.object({ name: z.string().trim().min(1) })
 
 export default defineEventHandler(async (event) => {
   const sessionUser = await requireSessionUser(event)
