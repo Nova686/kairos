@@ -21,8 +21,8 @@ export const useInvitationCreation = () => {
   }
 
   const copyInvitationLink = async () => {
-    await navigator.clipboard.writeText(invitationLink.value)
-    hasCopiedLink.value = true
+    hasCopiedLink.value = await copyTextToClipboard(navigator.clipboard, invitationLink.value)
+    errorMessage.value = hasCopiedLink.value ? '' : 'Copie impossible : sélectionnez le lien pour le copier.'
   }
 
   return { invitationLink, errorMessage, hasCopiedLink, isCreating, createInvitationLink, copyInvitationLink }
