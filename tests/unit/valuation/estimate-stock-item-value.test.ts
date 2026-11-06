@@ -200,6 +200,17 @@ describe('estimateStockItemValue', () => {
     expect(valuation.valueCents).toBe(8000)
   })
 
+  it('counts manual prices entered as Autre with their own per-source median, like Vinted and Leboncoin', () => {
+    const valuation = estimateStockItemValue(sealedProduct('sealed-new'), [
+      snapshot({ source: 'other', kind: 'manual', figureCents: 8000, observedAt: daysAgo(2) }),
+      snapshot({ source: 'other', kind: 'manual', figureCents: 9000, observedAt: daysAgo(1) }),
+      snapshot({ source: 'vinted', kind: 'manual', figureCents: 7000, observedAt: daysAgo(1) }),
+    ], now)
+    expect(valuation.perSource.map(entry => [entry.source, entry.figureCents]).sort())
+      .toEqual([['other', 8500], ['vinted', 7000]])
+    expect(valuation.valueCents).toBe(7750)
+  })
+
   it('ignores snapshots without a figure', () => {
     const valuation = estimateStockItemValue(sealedProduct('sealed-new'), [
       snapshot({ figureCents: null }),

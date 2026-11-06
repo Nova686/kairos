@@ -15,6 +15,7 @@ Révision 2 du 2026-11-02 : le relevé par navigateur automatisé est abandonné
 Écarts entre les plans écrits et ce qui est construit :
 - l'application tourne sur **Nuxt 4** (et Vuetify 4), pas Nuxt 3 ;
 - les empreintes des photos sont rangées dans des colonnes `real[]` de PostgreSQL et comparées en JavaScript (produit scalaire de vecteurs normalisés, donc similarité cosinus, sur une matrice gardée en mémoire) : **pas de pgvector**, et la base de production est l'image officielle `postgres:17` ;
+- un prix saisi à la main avec la source « Autre » compte dans la valeur comme ceux de Vinted et de Leboncoin, avec sa propre médiane (le plan 3 ne retenait que Vinted et Leboncoin) ;
 - la sauvegarde quotidienne tourne à 03:30 UTC sur le disque de la machine ; une copie vers tout stockage compatible S3 (par exemple l'Object Storage gratuit d'Oracle) existe en option, désactivée par défaut (guide d'installation, étape 11.2). Elle garde les 14 copies les plus récentes et ne supprime rien tant que la machine n'a pas de sauvegarde de moins de 2 jours.
 
 ## Fichiers des plans

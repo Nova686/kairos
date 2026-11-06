@@ -41,7 +41,7 @@ type SnapshotGroup = {
   snapshots: ValuationSnapshot[]
 }
 
-const valuationSources = ['ebay', 'cardmarket', 'vinted', 'leboncoin']
+const valuationSources = ['ebay', 'cardmarket', 'vinted', 'leboncoin', 'other']
 const freshnessWindowMilliseconds = 7 * 24 * 60 * 60 * 1000
 const aggregateKind: ValuationSnapshotKind = 'source-aggregate'
 const manualKind: ValuationSnapshotKind = 'manual'
