@@ -1,5 +1,4 @@
 import { updateProduct } from '../../domain/catalogue/catalogue-service'
-import type { ProductDraft } from '../../../shared/catalogue/product-draft'
 import { productChangesSchema } from '../../../shared/catalogue/product-draft-schema'
 
 export default defineEventHandler(async (event) => {
@@ -9,6 +8,6 @@ export default defineEventHandler(async (event) => {
     await useDatabase(),
     sessionUser.id,
     getRouterParam(event, 'id') ?? '',
-    productChanges as Partial<ProductDraft>,
+    productChanges,
   )
 })

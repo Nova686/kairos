@@ -1,4 +1,4 @@
-import { updateStockItem, type StockItemChanges } from '../../domain/stock/stock-items-service'
+import { updateStockItem } from '../../domain/stock/stock-items-service'
 import { stockItemChangesSchema } from '../../../shared/stock/purchase-draft-schema'
 
 export default defineEventHandler(async (event) => {
@@ -8,6 +8,6 @@ export default defineEventHandler(async (event) => {
     await useDatabase(),
     sessionUser.id,
     getRouterParam(event, 'id') ?? '',
-    stockItemChanges as StockItemChanges,
+    stockItemChanges,
   )
 })

@@ -5,7 +5,7 @@ const optionalText = z.string().trim().min(1).nullable()
 
 export const productDraftSchema = z.object({
   name: z.string().trim().min(1),
-  category: z.enum(productCategories as [string, ...string[]]),
+  category: z.enum(productCategories),
   productType: optionalText.default(null),
   seriesName: optionalText.default(null),
   language: optionalText.default(null),
