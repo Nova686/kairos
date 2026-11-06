@@ -27,12 +27,18 @@ const fastestAnswerMilliseconds = async (attempts: (() => Promise<Response>)[]):
 }
 
 describe('authentication', async () => {
+  const previousProxyTrust = process.env.NUXT_TRUST_PROXY_HEADERS
+  process.env.NUXT_TRUST_PROXY_HEADERS = 'true'
   const databaseUrl = await seedAccounts([
     { email: administratorEmail, displayName: 'Admin', password: administratorPassword, isAdmin: true },
     { email: lockedMemberEmail, displayName: 'Locked', password: lockedMemberPassword, isAdmin: false },
     { email: timedMemberEmail, displayName: 'Timed', password: timedMemberPassword, isAdmin: false },
   ])
   await startEndToEndServer(databaseUrl)
+  afterAll(() => {
+    if (previousProxyTrust === undefined) delete process.env.NUXT_TRUST_PROXY_HEADERS
+    else process.env.NUXT_TRUST_PROXY_HEADERS = previousProxyTrust
+  })
 
   it('answers 401 on the current user without a session', async () => {
     const response = await fetch('/api/auth/me')
@@ -63,14 +69,14 @@ describe('authentication', async () => {
     expect((await blockedAttempt.json()).statusMessage).toBe('Trop de tentatives de connexion. Réessayez dans une minute.')
   })
 
-  it('answers 429 to an address after ten failed logins across emails while other addresses can still sign in', async () => {
+  it('answers 429 to the address the proxy appended after ten failed logins, whatever hops the client forged before it', async () => {
     for (let attemptNumber = 1; attemptNumber <= 10; attemptNumber += 1) {
-      const failedAttempt = await attemptLogin(`guess-${attemptNumber}@example.com`, 'not-the-password', '203.0.113.7')
+      const failedAttempt = await attemptLogin(`guess-${attemptNumber}@example.com`, 'not-the-password', `10.0.0.${attemptNumber}, 203.0.113.7`)
       expect(failedAttempt.status).toBe(401)
     }
 
-    const blockedAttempt = await attemptLogin(administratorEmail, administratorPassword, '203.0.113.7')
-    const otherAddressAttempt = await attemptLogin(administratorEmail, administratorPassword, '203.0.113.8')
+    const blockedAttempt = await attemptLogin(administratorEmail, administratorPassword, '10.9.9.9, 203.0.113.7')
+    const otherAddressAttempt = await attemptLogin(administratorEmail, administratorPassword, '203.0.113.7, 203.0.113.8')
 
     expect(blockedAttempt.status).toBe(429)
     expect(otherAddressAttempt.status).toBe(200)

@@ -25,6 +25,7 @@ export default defineNuxtConfig({
     modelsDirectory: '.data/models',
     tesseractDirectory: '.data/tesseract',
     photoRecognition: 'on',
+    trustProxyHeaders: false,
   },
   hooks: {
     'nitro:config': (nitroConfig) => {

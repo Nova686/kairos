@@ -1,16 +1,20 @@
 import { z } from 'zod'
 import { verifyCredentials } from '../../domain/accounts/accounts-service'
+import { resolveClientAddress } from '../../domain/accounts/resolve-client-address'
 
 const loginBodySchema = z.object({
   email: z.string().trim().min(1),
   password: z.string().min(1),
 })
 
-const unknownClientAddress = 'unknown'
-
 export default defineEventHandler(async (event) => {
   const { email, password } = await readBodyOr422(event, loginBodySchema)
-  const loginAttempt = { clientAddress: getRequestIP(event, { xForwardedFor: true }) ?? unknownClientAddress, email }
+  const clientAddress = resolveClientAddress({
+    socketAddress: event.node.req.socket.remoteAddress ?? null,
+    forwardedFor: getRequestHeader(event, 'x-forwarded-for') ?? null,
+    trustsProxyHeaders: useRuntimeConfig(event).trustProxyHeaders === true,
+  })
+  const loginAttempt = { clientAddress, email }
   const retryAfterSeconds = loginAttemptLimiter.retryAfterSeconds(loginAttempt, Date.now())
   if (retryAfterSeconds !== null) {
     setResponseHeader(event, 'Retry-After', retryAfterSeconds)
