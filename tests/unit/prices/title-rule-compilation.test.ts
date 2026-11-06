@@ -94,6 +94,9 @@ describe('title rule draft schema', () => {
     [['a*']],
     [['ab*c']],
     [['**']],
+    [['!!']],
+    [['-- ?']],
+    [['..*']],
   ])('rejects %j', (keywords) => {
     expect(titleRuleDraftSchema.safeParse(draft(keywords)).success).toBe(false)
   })

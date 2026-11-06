@@ -28,8 +28,11 @@ const hasValidPrefixMarker = (keyword: string): boolean => {
   return !stem.includes(keywordPrefixMarker) && stem.length >= 2
 }
 
+const letterOrDigitPattern = /[\p{L}\p{N}]/u
+
 const keywordSchema = z.string().trim().min(2).max(40)
   .refine(hasValidPrefixMarker, { message: 'Une étoile n\'est permise qu\'à la fin, après au moins deux caractères' })
+  .refine(keyword => letterOrDigitPattern.test(keyword), { message: 'Un mot-clé contient au moins une lettre ou un chiffre' })
 
 const titleRuleFieldsSchema = z.object({
   category: categorySchema,
