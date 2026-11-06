@@ -1,10 +1,11 @@
-import { and, desc, eq, inArray, isNotNull, or, type SQL } from 'drizzle-orm'
+import { and, desc, eq, inArray, or, type SQL } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { debts, locations, purchases, saleItems, stockItems } from '../../database/schema/index.ts'
 import { isProductCategory, type ProductCategory } from '../../../shared/catalogue/product-category.ts'
 import { isConditionAllowed, type ConditionCode } from '../../../shared/catalogue/condition-scale.ts'
 import { allocateCents } from '../../../shared/money/allocate-cents.ts'
+import { isNonNegativeCents } from '../../../shared/validation/cents.ts'
 import { estimateItemValues } from '../valuation/value-stock.ts'
 import { findProductOr404 } from '../catalogue/catalogue-service.ts'
 import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
@@ -71,7 +72,7 @@ const resolveAllocations = async (database: KairosDatabase, draft: PurchaseDraft
     throw unprocessable('Les répartitions doivent être renseignées sur toutes les lignes ou aucune')
   }
   const allocations = givenAllocations as number[]
-  if (allocations.some(allocation => allocation < 0)
+  if (!allocations.every(isNonNegativeCents)
     || allocations.reduce((sum, allocation) => sum + allocation, 0) !== totalCostCents) {
     throw unprocessable('Les répartitions doivent totaliser le prix et les frais')
   }
@@ -111,8 +112,8 @@ export const createPurchase = async (
   if (draft.lines.length === 0) {
     throw unprocessable('Un achat contient au moins une ligne')
   }
-  if (draft.totalPriceCents < 0 || draft.feesCents < 0) {
-    throw unprocessable('Montants négatifs refusés')
+  if (!isNonNegativeCents(draft.totalPriceCents) || !isNonNegativeCents(draft.feesCents)) {
+    throw unprocessable('Montants en centimes entiers et positifs attendus')
   }
   for (const line of draft.lines) {
     await validateLine(database, ownerId, line)
@@ -164,7 +165,8 @@ export const deletePurchase = async (database: KairosDatabase, ownerId: string, 
     const purchaseStockItems = await transaction
       .select({ id: stockItems.id, status: stockItems.status })
       .from(stockItems)
-      .where(eq(stockItems.purchaseId, purchaseId))
+      .where(and(eq(stockItems.purchaseId, purchaseId), eq(stockItems.ownerId, ownerId)))
+      .for('update')
     const stockItemIds = purchaseStockItems.map(stockItem => stockItem.id)
     const hasSoldStockItem = purchaseStockItems.some(
       stockItem => stockItem.status === 'sold' || stockItem.status === 'sold-in-transit',
@@ -181,11 +183,12 @@ export const deletePurchase = async (database: KairosDatabase, ownerId: string, 
     const linkedDebtsCondition: SQL | undefined = stockItemIds.length === 0
       ? eq(debts.purchaseId, purchaseId)
       : or(eq(debts.purchaseId, purchaseId), inArray(debts.stockItemId, stockItemIds))
-    const settledLinkedDebts = await transaction
-      .select({ id: debts.id })
+    const linkedDebts = await transaction
+      .select({ settledOn: debts.settledOn })
       .from(debts)
-      .where(and(linkedDebtsCondition, isNotNull(debts.settledOn)))
-    if (settledLinkedDebts.length > 0) {
+      .where(and(linkedDebtsCondition, eq(debts.ownerId, ownerId)))
+      .for('update')
+    if (linkedDebts.some(linkedDebt => linkedDebt.settledOn !== null)) {
       throw createError({ statusCode: 409, statusMessage: 'Une dette liée à cet achat est soldée' })
     }
     await transaction.delete(debts).where(and(linkedDebtsCondition, eq(debts.ownerId, ownerId)))

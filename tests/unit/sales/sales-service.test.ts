@@ -142,6 +142,35 @@ describe('createSale', () => {
     await expectStatus(createSale(database, ownerId, buildSaleDraft([stockItemId!])), 409)
   })
 
+  it('sells an item only once when two sales of it are recorded at the same time', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId)
+    const [stockItemId] = await stockWithAllocations(database, ownerId, productId, [1000])
+
+    const outcomes = await Promise.allSettled([
+      createSale(database, ownerId, buildSaleDraft([stockItemId!])),
+      createSale(database, ownerId, buildSaleDraft([stockItemId!])),
+    ])
+
+    expect(outcomes.map(outcome => outcome.status).sort()).toEqual(['fulfilled', 'rejected'])
+    expect(outcomes.find(outcome => outcome.status === 'rejected')).toMatchObject({ reason: { statusCode: 409 } })
+    expect(await database.select().from(sales)).toHaveLength(1)
+    expect(await database.select().from(saleItems)).toHaveLength(1)
+  })
+
+  it('answers 422 for amounts that are not whole cents within the int4 range', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId)
+    const [stockItemId] = await stockWithAllocations(database, ownerId, productId, [1000])
+
+    await expectStatus(createSale(database, ownerId, buildSaleDraft([stockItemId!], { totalPriceCents: 1999.5 })), 422)
+    await expectStatus(createSale(database, ownerId, buildSaleDraft([stockItemId!], { platformFeesCents: 2_147_483_648 })), 422)
+    const [untouched] = await database.select().from(stockItems).where(eq(stockItems.id, stockItemId!))
+    expect(untouched!.status).toBe('in-stock')
+  })
+
   it('answers 404 for another owner item or buyer, and 422 for a duplicated or empty list', async () => {
     const database = await createTestDatabase()
     const ownerId = await insertOwner(database, 'a@example.com')

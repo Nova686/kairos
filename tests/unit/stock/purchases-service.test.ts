@@ -7,6 +7,7 @@ import {
   listPurchases,
   type PurchaseDraft,
 } from '../../../server/domain/stock/purchases-service.ts'
+import { createSale } from '../../../server/domain/sales/sales-service.ts'
 import { createTestDatabase } from '../../support/create-test-database.ts'
 
 const insertOwner = async (database: KairosDatabase, email: string): Promise<string> => {
@@ -133,6 +134,20 @@ describe('createPurchase', () => {
     draft.lines[0]!.condition = 'good'
 
     await expectStatus(createPurchase(database, ownerId, draft), 422)
+  })
+
+  it('answers 422 for amounts that are not whole cents within the int4 range', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'pokemon-sealed')
+    const draftWithSplitAllocation = buildDraft(productId, 2, { totalPriceCents: 1000, feesCents: 0 })
+    draftWithSplitAllocation.lines[0]!.allocatedPurchaseCents = 500.5
+    draftWithSplitAllocation.lines[1]!.allocatedPurchaseCents = 499.5
+
+    await expectStatus(createPurchase(database, ownerId, buildDraft(productId, 1, { totalPriceCents: 10.5 })), 422)
+    await expectStatus(createPurchase(database, ownerId, buildDraft(productId, 1, { feesCents: 2_147_483_648 })), 422)
+    await expectStatus(createPurchase(database, ownerId, draftWithSplitAllocation), 422)
+    expect(await database.select().from(purchases)).toEqual([])
   })
 
   it('answers 422 for a purchase without lines', async () => {
@@ -269,6 +284,37 @@ describe('deletePurchase', () => {
 
     expect(await database.select().from(purchases)).toEqual([])
     expect(await database.select().from(stockItems)).toEqual([])
+  })
+
+  it('keeps the purchase and its sale consistent when it is deleted while one of its items is being sold', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'pokemon-sealed')
+    const { purchase, stockItems: createdStockItems } = await createPurchase(database, ownerId, buildDraft(productId, 1))
+
+    const [deletion, sale] = await Promise.allSettled([
+      deletePurchase(database, ownerId, purchase.id),
+      createSale(database, ownerId, {
+        soldOn: '2026-11-03',
+        platform: 'Vinted',
+        buyerPersonId: null,
+        totalPriceCents: 2000,
+        shippingIncluded: false,
+        shippingCostCents: 0,
+        platformFeesCents: 0,
+        packagingCostCents: 0,
+        trackingReference: null,
+        stockItemIds: [createdStockItems[0]!.id],
+      }),
+    ])
+
+    const outcomes = [deletion.status, sale.status].sort()
+    expect(outcomes).toEqual(['fulfilled', 'rejected'])
+    const rejection = [deletion, sale].find(outcome => outcome.status === 'rejected') as PromiseRejectedResult
+    expect(rejection.reason).toMatchObject({ statusCode: 409 })
+    const remainingSaleItems = await database.select().from(saleItems)
+    const remainingStockItems = await database.select().from(stockItems)
+    expect(remainingSaleItems.every(saleItem => remainingStockItems.some(stockItem => stockItem.id === saleItem.stockItemId))).toBe(true)
   })
 
   it('answers 409 when one of its items is sold', async () => {

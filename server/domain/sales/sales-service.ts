@@ -1,8 +1,9 @@
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { debts, persons, products, saleItems, sales, stockItems } from '../../database/schema/index.ts'
 import { allocateSaleNetCents, computeSaleNetCents } from '../../../shared/money/sale-profit.ts'
+import { isNonNegativeCents } from '../../../shared/validation/cents.ts'
 import { estimateItemValues } from '../valuation/value-stock.ts'
 import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
 
@@ -69,8 +70,9 @@ export const createSale = async (
   if (new Set(draft.stockItemIds).size !== draft.stockItemIds.length) {
     throw unprocessable('Un exemplaire ne peut figurer qu\'une fois dans la vente')
   }
-  if ([draft.totalPriceCents, draft.shippingCostCents, draft.platformFeesCents, draft.packagingCostCents].some(cents => cents < 0)) {
-    throw unprocessable('Montants négatifs refusés')
+  const saleAmounts = [draft.totalPriceCents, draft.shippingCostCents, draft.platformFeesCents, draft.packagingCostCents]
+  if (!saleAmounts.every(isNonNegativeCents)) {
+    throw unprocessable('Montants en centimes entiers et positifs attendus')
   }
   if (draft.buyerPersonId !== null) {
     await findOwnedOr404(database, persons, draft.buyerPersonId, ownerId)
@@ -83,11 +85,13 @@ export const createSale = async (
   const saleWeights = await resolveSaleWeights(database, soldStockItems, now)
 
   return database.transaction(async (transaction) => {
-    const currentStatuses = await transaction
+    const lockedStockItems = await transaction
       .select({ id: stockItems.id, status: stockItems.status })
       .from(stockItems)
-      .where(inArray(stockItems.id, draft.stockItemIds))
-    if (currentStatuses.some(stockItem => stockItem.status !== 'in-stock')) {
+      .where(and(inArray(stockItems.id, draft.stockItemIds), eq(stockItems.ownerId, ownerId)))
+      .for('update')
+    if (lockedStockItems.length !== draft.stockItemIds.length
+      || lockedStockItems.some(stockItem => stockItem.status !== 'in-stock')) {
       throw conflict('Seuls les exemplaires en stock peuvent être vendus')
     }
     const allocations = allocateSaleNetCents(
@@ -117,10 +121,14 @@ export const createSale = async (
         allocatedSaleCents: allocations[position]!,
       })))
       .returning()
-    await transaction
+    const soldStockItemRows = await transaction
       .update(stockItems)
       .set({ status: draft.trackingReference === null ? 'sold' : 'sold-in-transit' })
-      .where(and(inArray(stockItems.id, draft.stockItemIds), eq(stockItems.ownerId, ownerId)))
+      .where(and(inArray(stockItems.id, draft.stockItemIds), eq(stockItems.ownerId, ownerId), eq(stockItems.status, 'in-stock')))
+      .returning({ id: stockItems.id })
+    if (soldStockItemRows.length !== draft.stockItemIds.length) {
+      throw conflict('Seuls les exemplaires en stock peuvent être vendus')
+    }
     return { sale: sale!, saleItems: createdSaleItems }
   })
 }
@@ -141,6 +149,9 @@ export const markSaleDelivered = async (
       .set({ deliveredOn })
       .where(and(eq(sales.id, saleId), eq(sales.ownerId, ownerId)))
       .returning()
+    if (!sale) {
+      throw createError({ statusCode: 404, statusMessage: 'Introuvable' })
+    }
     const soldStockItemIds = (await transaction
       .select({ stockItemId: saleItems.stockItemId })
       .from(saleItems)
@@ -153,18 +164,19 @@ export const markSaleDelivered = async (
         eq(stockItems.ownerId, ownerId),
         eq(stockItems.status, 'sold-in-transit'),
       ))
-    return sale!
+    return sale
   })
 }
 
 export const deleteSale = async (database: KairosDatabase, ownerId: string, saleId: string): Promise<void> => {
   await findOwnedOr404(database, sales, saleId, ownerId)
   await database.transaction(async (transaction) => {
-    const settledLinkedDebts = await transaction
-      .select({ id: debts.id })
+    const linkedDebts = await transaction
+      .select({ settledOn: debts.settledOn })
       .from(debts)
-      .where(and(eq(debts.saleId, saleId), isNotNull(debts.settledOn)))
-    if (settledLinkedDebts.length > 0) {
+      .where(and(eq(debts.saleId, saleId), eq(debts.ownerId, ownerId)))
+      .for('update')
+    if (linkedDebts.some(linkedDebt => linkedDebt.settledOn !== null)) {
       throw conflict('Une dette liée à cette vente est soldée')
     }
     const soldStockItemIds = (await transaction
