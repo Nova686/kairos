@@ -65,6 +65,15 @@ describe('startOfParisDay', () => {
     expect(startOfParisDay(new Date('2026-07-02T12:00:00Z')).toISOString()).toBe('2026-07-01T22:00:00.000Z')
     expect(startOfParisDay(new Date('2026-11-02T23:30:00Z')).toISOString()).toBe('2026-11-02T23:00:00.000Z')
   })
+
+  it('finds the Paris midnight on the days the clocks change', () => {
+    expect(startOfParisDay(new Date('2026-03-29T01:30:00Z')).toISOString()).toBe('2026-03-28T23:00:00.000Z')
+    expect(startOfParisDay(new Date('2026-03-29T21:30:00Z')).toISOString()).toBe('2026-03-28T23:00:00.000Z')
+    expect(startOfParisDay(new Date('2026-03-29T22:30:00Z')).toISOString()).toBe('2026-03-29T22:00:00.000Z')
+    expect(startOfParisDay(new Date('2026-10-25T00:30:00Z')).toISOString()).toBe('2026-10-24T22:00:00.000Z')
+    expect(startOfParisDay(new Date('2026-10-25T22:30:00Z')).toISOString()).toBe('2026-10-24T22:00:00.000Z')
+    expect(startOfParisDay(new Date('2026-10-25T23:30:00Z')).toISOString()).toBe('2026-10-25T23:00:00.000Z')
+  })
 })
 
 describe('enqueueHeldProducts', () => {
