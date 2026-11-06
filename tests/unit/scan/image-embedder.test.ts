@@ -56,6 +56,21 @@ describe('createClipImageEmbedder', () => {
     await expect(embedder.embed(Buffer.from([1]))).rejects.toBeInstanceOf(ImageEmbedderUnavailableError)
   })
 
+  it('keeps waiting for a timed-out download instead of starting a second one', async () => {
+    let finishDownload: (extractor: ImageFeatureExtractor) => void = () => undefined
+    const loadExtractor = vi.fn(() => new Promise<ImageFeatureExtractor>((resolve) => {
+      finishDownload = resolve
+    }))
+    const embedder = createClipImageEmbedder('.data/models', { loadExtractor, downloadTimeoutMs: 20 })
+    await expect(embedder.embed(Buffer.from([1]))).rejects.toBeInstanceOf(ImageEmbedderUnavailableError)
+
+    const secondEmbedding = embedder.embed(Buffer.from([1]))
+    finishDownload(extractorReturning([0, 1]))
+
+    expect((await secondEmbedding)[1]).toBe(1)
+    expect(loadExtractor).toHaveBeenCalledTimes(1)
+  })
+
   it('lets an image decoding error through without calling it a model failure', async () => {
     const decodingFailure: ImageFeatureExtractor = async () => {
       throw new Error('unsupported image')

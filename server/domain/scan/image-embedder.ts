@@ -1,3 +1,5 @@
+import { shareSlowLoad } from './share-slow-load.ts'
+
 export type ImageEmbedder = { embed(image: Buffer): Promise<Float32Array> }
 
 export class ImageEmbedderUnavailableError extends Error {
@@ -41,30 +43,19 @@ const loadTransformersExtractor = async (modelsDirectory: string): Promise<Image
   }
 }
 
-const withDownloadTimeout = <Loaded>(loading: Promise<Loaded>, timeoutMs: number): Promise<Loaded> => {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`Model download timed out after ${timeoutMs} ms: check the network or proxy access to huggingface.co`)),
-      timeoutMs,
-    )
-  })
-  return Promise.race([loading, timeout]).finally(() => clearTimeout(timer))
-}
-
 export const createClipImageEmbedder = (
   modelsDirectory: string,
   options: ClipImageEmbedderOptions = {},
 ): ImageEmbedder => {
   const { loadExtractor = loadTransformersExtractor, downloadTimeoutMs = defaultModelDownloadTimeoutMilliseconds } = options
-  let loadingExtractor: Promise<ImageFeatureExtractor> | null = null
-  const obtainExtractor = (): Promise<ImageFeatureExtractor> => {
-    loadingExtractor ??= withDownloadTimeout(loadExtractor(modelsDirectory), downloadTimeoutMs).catch((loadingError) => {
-      loadingExtractor = null
+  const extractorLoad = shareSlowLoad(() => loadExtractor(modelsDirectory), {
+    timeoutMs: downloadTimeoutMs,
+    describeTimeout: timeoutMs => `Model download timed out after ${timeoutMs} ms: check the network or proxy access to huggingface.co`,
+  })
+  const obtainExtractor = (): Promise<ImageFeatureExtractor> =>
+    extractorLoad.obtain().catch((loadingError: unknown) => {
       throw new ImageEmbedderUnavailableError(loadingError)
     })
-    return loadingExtractor
-  }
   return {
     embed: async (image) => l2Normalise(await (await obtainExtractor())(image)),
   }

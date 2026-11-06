@@ -1,3 +1,5 @@
+import { shareSlowLoad } from './share-slow-load.ts'
+
 export type BoxTextReader = {
   read(image: Buffer): Promise<string>
   close(): Promise<void>
@@ -41,36 +43,24 @@ const loadTesseractRecognizer = async (languageDirectory: string): Promise<BoxTe
   }
 }
 
-const withDownloadTimeout = <Loaded>(loading: Promise<Loaded>, timeoutMs: number): Promise<Loaded> => {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`OCR language data download timed out after ${timeoutMs} ms: check the network or proxy access to the tesseract.js language data`)),
-      timeoutMs,
-    )
-  })
-  return Promise.race([loading, timeout]).finally(() => clearTimeout(timer))
-}
-
 export const createTesseractBoxTextReader = (
   languageDirectory: string,
   options: TesseractBoxTextReaderOptions = {},
 ): BoxTextReader => {
   const { loadRecognizer = loadTesseractRecognizer, downloadTimeoutMs = defaultLanguageDownloadTimeoutMilliseconds } = options
-  let loadingRecognizer: ReturnType<typeof loadRecognizer> | null = null
-  const obtainRecognizer = (): ReturnType<typeof loadRecognizer> => {
-    loadingRecognizer ??= withDownloadTimeout(loadRecognizer(languageDirectory), downloadTimeoutMs).catch((loadingError) => {
-      loadingRecognizer = null
+  const recognizerLoad = shareSlowLoad(() => loadRecognizer(languageDirectory), {
+    timeoutMs: downloadTimeoutMs,
+    describeTimeout: timeoutMs =>
+      `OCR language data download timed out after ${timeoutMs} ms: check the network or proxy access to the tesseract.js language data`,
+  })
+  const obtainRecognizer = (): Promise<BoxTextRecognizer> =>
+    recognizerLoad.obtain().catch((loadingError: unknown) => {
       throw new BoxTextReaderUnavailableError(loadingError)
     })
-    return loadingRecognizer
-  }
   return {
     read: async image => (await obtainRecognizer()).recognize(image),
     close: async () => {
-      const closingRecognizer = loadingRecognizer
-      loadingRecognizer = null
-      await (await closingRecognizer)?.terminate?.()
+      await recognizerLoad.release()?.then(recognizer => recognizer.terminate?.(), () => undefined)
     },
   }
 }
