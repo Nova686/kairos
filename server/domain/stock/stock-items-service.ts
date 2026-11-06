@@ -22,6 +22,7 @@ export type StockItemFilters = {
   status?: StockItemStatus[]
   category?: ProductCategory
   locationId?: string
+  productId?: string
   search?: string
 }
 
@@ -85,6 +86,9 @@ export const listStockItems = async (
   }
   if (filters.locationId !== undefined) {
     conditions.push(eq(stockItems.locationId, filters.locationId))
+  }
+  if (filters.productId !== undefined) {
+    conditions.push(eq(stockItems.productId, filters.productId))
   }
   const rows = await database
     .select(stockItemWithProductColumns)

@@ -130,4 +130,44 @@ describe('purchases and stock items API', async () => {
     expect(oversizedAmount.status).toBe(422)
     expect(malformedLocation.status).toBe(422)
   })
+
+  it('lists only the items of one product for its owner, and answers 422 on a malformed product filter', async () => {
+    const firstCookie = await logIn('first@example.com', firstPassword)
+    const secondCookie = await logIn('second@example.com', secondPassword)
+    const createProduct = (name: string) => $fetch<{ id: string }>('/api/products', {
+      method: 'POST',
+      body: { name, category: 'pokemon-sealed' },
+      headers: { cookie: firstCookie },
+    })
+    const buyFor = (cookie: string, productIds: string[]) => $fetch<{ stockItems: { id: string }[] }>('/api/purchases', {
+      method: 'POST',
+      body: {
+        purchasedOn: '2026-11-02',
+        totalPriceCents: 3000,
+        lines: productIds.map(productId => ({ productId, condition: 'sealed-new' })),
+      },
+      headers: { cookie },
+    })
+    const filteredProduct = await createProduct('Display Filtrée')
+    const otherProduct = await createProduct('Display Voisine')
+    const firstPurchase = await buyFor(firstCookie, [filteredProduct.id, filteredProduct.id, otherProduct.id])
+    const secondPurchase = await buyFor(secondCookie, [filteredProduct.id])
+
+    const firstProductStockItems = await $fetch<{ id: string, productId: string }[]>(
+      `/api/stock-items?productId=${filteredProduct.id}`,
+      { headers: { cookie: firstCookie } },
+    )
+    const secondProductStockItems = await $fetch<{ id: string }[]>(
+      `/api/stock-items?productId=${filteredProduct.id}`,
+      { headers: { cookie: secondCookie } },
+    )
+    const malformedProduct = await sendJson('/api/stock-items?productId=not-a-uuid', 'GET', firstCookie)
+
+    expect(firstProductStockItems.map(stockItem => stockItem.id).sort())
+      .toEqual(firstPurchase.stockItems.slice(0, 2).map(stockItem => stockItem.id).sort())
+    expect(firstProductStockItems.every(stockItem => stockItem.productId === filteredProduct.id)).toBe(true)
+    expect(firstProductStockItems.map(stockItem => stockItem.id)).not.toContain(secondPurchase.stockItems[0]!.id)
+    expect(secondProductStockItems.map(stockItem => stockItem.id)).toEqual([secondPurchase.stockItems[0]!.id])
+    expect(malformedProduct.status).toBe(422)
+  })
 })

@@ -272,4 +272,22 @@ describe('listStockItems', () => {
 
     expect(matchedStockItems.map(stockItem => stockItem.productName)).toEqual(['Écarlate et Violet'])
   })
+
+  it('keeps only the items of one product, still limited to the owner', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const otherOwnerId = await insertOwner(database, 'b@example.com')
+    const wantedProductId = await insertProduct(database, ownerId, 'Display', 'pokemon-sealed')
+    const otherProductId = await insertProduct(database, ownerId, 'Coffret', 'pokemon-sealed')
+    const firstWantedStockItem = await buyOne(database, ownerId, wantedProductId)
+    const secondWantedStockItem = await buyOne(database, ownerId, wantedProductId, { inTransit: true })
+    await buyOne(database, ownerId, otherProductId)
+    await buyOne(database, otherOwnerId, wantedProductId)
+
+    const productStockItems = await listStockItems(database, ownerId, { productId: wantedProductId })
+
+    expect(productStockItems.map(stockItem => stockItem.id).sort())
+      .toEqual([firstWantedStockItem.id, secondWantedStockItem.id].sort())
+    expect(productStockItems.every(stockItem => stockItem.ownerId === ownerId && stockItem.productId === wantedProductId)).toBe(true)
+  })
 })

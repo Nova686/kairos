@@ -5,7 +5,7 @@ export const useProductHoldings = (
   selectedColumnKey: () => string | null,
   retainedValueCents: () => number | null,
 ) => {
-  const { data: fetchedStockItems } = useFetch<StockItemRow[]>('/api/stock-items', { default: () => [] })
+  const { data: fetchedStockItems } = useFetch<StockItemRow[]>('/api/stock-items', { query: { productId }, default: () => [] })
 
   const holdings = computed(() => summarizeProductHoldings(fetchedStockItems.value ?? [], productId, selectedColumnKey()))
 
