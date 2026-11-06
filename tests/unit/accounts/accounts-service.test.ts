@@ -1,11 +1,14 @@
 import { eq } from 'drizzle-orm'
 import { invitations, users } from '../../../server/database/schema/index.ts'
 import {
+  EmailAlreadyUsedError,
   InvitationUnavailableError,
+  PasswordTooShortError,
   acceptInvitation,
   createInvitation,
   createUser,
   isAdministrator,
+  isInvitationAvailable,
   verifyCredentials,
   type PasswordHasher,
 } from '../../../server/domain/accounts/accounts-service.ts'
@@ -41,7 +44,7 @@ describe('accounts service', () => {
       database,
       { email: 'a@example.com', displayName: 'A', password: 'short', isAdmin: false },
       fakePasswordHasher,
-    )).rejects.toThrow()
+    )).rejects.toBeInstanceOf(PasswordTooShortError)
   })
 
   it('verifies credentials and answers null on a wrong password or unknown email', async () => {
@@ -141,6 +144,23 @@ describe('accounts service', () => {
     )).rejects.toBeInstanceOf(InvitationUnavailableError)
 
     expect(await database.select().from(users)).toHaveLength(2)
+  })
+
+  it('refuses an email already used and leaves the invitation available', async () => {
+    const database = await createTestDatabase()
+    const admin = await createAdmin(database)
+    const { code } = await createInvitation(database, admin.id)
+
+    await expect(acceptInvitation(
+      database,
+      code,
+      { email: 'ADMIN@example.com', displayName: 'Copy', password: 'guest-password-1' },
+      fakePasswordHasher,
+    )).rejects.toBeInstanceOf(EmailAlreadyUsedError)
+
+    const [storedInvitation] = await database.select().from(invitations).where(eq(invitations.code, code))
+    expect(storedInvitation).toMatchObject({ usedAt: null, usedByUserId: null })
+    expect(await isInvitationAvailable(database, code)).toBe(true)
   })
 
   it('refuses an expired or unknown code', async () => {

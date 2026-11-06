@@ -144,6 +144,6 @@ describe('fetchCatalogueImage', () => {
 
     await expect(
       fetchCatalogueImage('https://img.example/a.jpg', { sendRequest, resolveAddresses: publicAddresses, timeoutMs: 20 }),
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({ name: 'TimeoutError' })
   })
 })

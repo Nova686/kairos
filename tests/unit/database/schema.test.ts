@@ -43,7 +43,7 @@ describe('database schema', () => {
     await database.insert(locations).values({ ownerId: owner.id, label: 'Étagère' })
     await expect(
       database.insert(locations).values({ ownerId: owner.id, label: 'Étagère' }),
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({ cause: { code: '23505', constraint: 'locations_owner_id_label_unique' } })
   })
 
   it('rejects deleting a product referenced by a stock item', async () => {
@@ -65,7 +65,8 @@ describe('database schema', () => {
       allocatedPurchaseCents: 5000,
       status: 'in-stock',
     })
-    await expect(database.delete(products).where(sql`id = ${product!.id}`)).rejects.toThrow()
+    await expect(database.delete(products).where(sql`id = ${product!.id}`))
+      .rejects.toMatchObject({ cause: { code: '23001', constraint: 'stock_items_product_id_products_id_fk' } })
   })
 
   it('rejects a debt whose direction is neither owed to me nor I owe', async () => {
