@@ -5,7 +5,7 @@ import { locations, products, purchases, stockItems } from '../../database/schem
 import { isProductCategory, type ProductCategory } from '../../../shared/catalogue/product-category.ts'
 import { isConditionAllowed, type ConditionCode } from '../../../shared/catalogue/condition-scale.ts'
 import type { StockItemStatus } from '../../../shared/stock/stock-item-status.ts'
-import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
+import { findOwnedOr404, lockOwnedOr404 } from '../ownership/find-owned-or-404.ts'
 import type { StockItem } from './purchases-service.ts'
 import { canonicalCompanyName } from '../../../shared/prices/grading-company.ts'
 
@@ -127,14 +127,14 @@ export const receiveStockItem = async (
   return receivedStockItem
 }
 
-export const updateStockItem = async (
+export const updateStockItem = (
   database: KairosDatabase,
   ownerId: string,
   stockItemId: string,
   changes: StockItemChanges,
-): Promise<StockItem> => {
-  const currentStockItem = await findOwnedOr404(database, stockItems, stockItemId, ownerId)
-  const [product] = await database.select().from(products).where(eq(products.id, currentStockItem.productId))
+): Promise<StockItem> => database.transaction(async (transaction) => {
+  const currentStockItem = await lockOwnedOr404(transaction, stockItems, stockItemId, ownerId)
+  const [product] = await transaction.select().from(products).where(eq(products.id, currentStockItem.productId))
   const category = isProductCategory(product!.category) ? product!.category : 'other'
 
   const nextCondition = (changes.condition ?? currentStockItem.condition) as ConditionCode
@@ -155,10 +155,10 @@ export const updateStockItem = async (
     throw unprocessable('Les champs de gradation ne concernent que les cartes gradées')
   }
   if (changes.locationId !== undefined && changes.locationId !== null) {
-    await findOwnedOr404(database, locations, changes.locationId, ownerId)
+    await findOwnedOr404(transaction, locations, changes.locationId, ownerId)
   }
 
-  const [updatedStockItem] = await database
+  const [updatedStockItem] = await transaction
     .update(stockItems)
     .set({
       condition: nextCondition,
@@ -171,4 +171,4 @@ export const updateStockItem = async (
     .where(and(eq(stockItems.id, stockItemId), eq(stockItems.ownerId, ownerId)))
     .returning()
   return updatedStockItem!
-}
+})

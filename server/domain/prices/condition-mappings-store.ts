@@ -148,9 +148,9 @@ const assertNoDuplicateTitleRule = async (
   }
 }
 
-const findTitleRuleOr404 = async (database: KairosDatabase, ruleId: string): Promise<TitleConditionRule> => {
+const lockTitleRuleOr404 = async (database: KairosDatabase, ruleId: string): Promise<TitleConditionRule> => {
   const [rule] = uuidPattern.test(ruleId)
-    ? await database.select().from(titleConditionRules).where(eq(titleConditionRules.id, ruleId))
+    ? await database.select().from(titleConditionRules).where(eq(titleConditionRules.id, ruleId)).for('update')
     : []
   if (!rule) {
     throw notFound()
@@ -192,10 +192,10 @@ export const updateTitleRule = async (
   ruleId: string,
   changes: Partial<TitleRuleDraft>,
 ): Promise<TitleConditionRule> => {
-  const previousRule = await findTitleRuleOr404(database, ruleId)
-  const mergedDraft = { ...describeRule(previousRule), ...changes }
-  assertRuleDraftValid(mergedDraft)
   return database.transaction(async (transaction) => {
+    const previousRule = await lockTitleRuleOr404(transaction, ruleId)
+    const mergedDraft = { ...describeRule(previousRule), ...changes }
+    assertRuleDraftValid(mergedDraft)
     await assertNoDuplicateTitleRule(transaction as unknown as KairosDatabase, mergedDraft, ruleId)
     const [updatedRule] = await transaction
       .update(titleConditionRules)
@@ -215,8 +215,8 @@ export const updateTitleRule = async (
 }
 
 export const deleteTitleRule = async (database: KairosDatabase, userId: string, ruleId: string): Promise<void> => {
-  const previousRule = await findTitleRuleOr404(database, ruleId)
   await database.transaction(async (transaction) => {
+    const previousRule = await lockTitleRuleOr404(transaction, ruleId)
     await transaction.delete(titleConditionRules).where(eq(titleConditionRules.id, ruleId))
     await appendCatalogueChanges(transaction, [{
       productId: null,

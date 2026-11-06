@@ -100,6 +100,41 @@ describe('condition mappings store', () => {
     expect((await listConditionMappings(database)).rules).toHaveLength(3)
   })
 
+  it('keeps both edits and journals a chain when two partial updates of one rule run at the same time', async () => {
+    const database = await createTestDatabase()
+    const memberId = await insertMember(database)
+    const createdRule = await createTitleRule(database, memberId, {
+      category: 'toy', keywords: ['abime'], kairosCondition: 'satisfactory', priority: 5,
+    })
+
+    await Promise.all([
+      updateTitleRule(database, memberId, createdRule.id, { priority: 6 }),
+      updateTitleRule(database, memberId, createdRule.id, { keywords: ['abime', 'raye'] }),
+    ])
+
+    const [storedRule] = await database.select().from(titleConditionRules).where(eq(titleConditionRules.id, createdRule.id))
+    expect(storedRule).toMatchObject({ priority: 6, keywords: ['abime', 'raye'] })
+    const ruleJournal = await database.select().from(catalogueChanges).where(eq(catalogueChanges.fieldName, createdRule.id))
+    expect(ruleJournal[2]!.previousValue).toEqual(ruleJournal[1]!.newValue)
+  })
+
+  it('journals a rule deletion once when two deletions of it run at the same time', async () => {
+    const database = await createTestDatabase()
+    const memberId = await insertMember(database)
+    const createdRule = await createTitleRule(database, memberId, {
+      category: 'toy', keywords: ['abime'], kairosCondition: 'satisfactory', priority: 5,
+    })
+
+    const outcomes = await Promise.allSettled([
+      deleteTitleRule(database, memberId, createdRule.id),
+      deleteTitleRule(database, memberId, createdRule.id),
+    ])
+
+    expect(outcomes.map(outcome => outcome.status).sort()).toEqual(['fulfilled', 'rejected'])
+    expect(outcomes.find(outcome => outcome.status === 'rejected')).toMatchObject({ reason: { statusCode: 404 } })
+    expect(await database.select().from(catalogueChanges).where(eq(catalogueChanges.fieldName, createdRule.id))).toHaveLength(2)
+  })
+
   it('refuses a second rule with the same category and keywords, whatever their order, case or accents', async () => {
     const database = await createTestDatabase()
     const memberId = await insertMember(database)

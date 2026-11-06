@@ -121,6 +121,21 @@ describe('updateStockItem', () => {
     expect(updatedStockItem).toMatchObject({ condition: 'sealed-damaged-box', locationId, notes: 'coin écrasé' })
   })
 
+  it('keeps both edits when two partial updates of one item run at the same time', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'Display', 'pokemon-sealed')
+    const locationId = await insertLocation(database, ownerId, 'Cave')
+    const stockItem = await buyOne(database, ownerId, productId)
+
+    await Promise.all([
+      updateStockItem(database, ownerId, stockItem.id, { notes: 'coin écrasé' }),
+      updateStockItem(database, ownerId, stockItem.id, { locationId }),
+    ])
+
+    expect(await findStockItem(database, ownerId, stockItem.id)).toMatchObject({ notes: 'coin écrasé', locationId })
+  })
+
   it('clears the location with null', async () => {
     const database = await createTestDatabase()
     const ownerId = await insertOwner(database, 'a@example.com')
