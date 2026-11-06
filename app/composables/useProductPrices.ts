@@ -27,11 +27,6 @@ interface RequestFailure {
 const tooManyRequestsStatus = 429
 const notFoundStatus = 404
 
-const describeFailure = (failure: unknown): string => {
-  const requestFailure = failure as RequestFailure
-  return requestFailure.data?.statusMessage ?? requestFailure.statusMessage ?? 'Une erreur est survenue.'
-}
-
 const describeRefreshRefusal = (failure: unknown): string | null => {
   const requestFailure = failure as RequestFailure
   if ((requestFailure.statusCode ?? requestFailure.status) !== tooManyRequestsStatus) {
@@ -120,7 +115,7 @@ export const useProductPrices = async (productId: string, preferredCondition: st
       catch (failure) {
         const refusal = describeRefreshRefusal(failure)
         if (refusal === null) {
-          errorMessage.value = describeFailure(failure)
+          errorMessage.value = describeRequestFailure(failure)
         }
         else {
           refreshMessage.value = refusal
@@ -148,7 +143,7 @@ export const useProductPrices = async (productId: string, preferredCondition: st
         await reloadScreen()
       }
       catch (failure) {
-        errorMessage.value = describeFailure(failure)
+        errorMessage.value = describeRequestFailure(failure)
       }
     })
 
@@ -167,7 +162,7 @@ export const useProductPrices = async (productId: string, preferredCondition: st
         return true
       }
       catch (failure) {
-        errorMessage.value = describeFailure(failure)
+        errorMessage.value = describeRequestFailure(failure)
         return false
       }
     })
@@ -183,7 +178,7 @@ export const useProductPrices = async (productId: string, preferredCondition: st
         return true
       }
       catch (failure) {
-        errorMessage.value = describeFailure(failure)
+        errorMessage.value = describeRequestFailure(failure)
         return false
       }
     })

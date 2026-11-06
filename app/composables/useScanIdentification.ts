@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import type { ProductCandidate } from '../../server/domain/catalogue/search-product-candidates.ts'
 import type { ProductReference } from '../../shared/catalogue/product-reference.ts'
 import { classifyScannedCode } from '../utils/classify-scanned-code.ts'
+import { describeRequestFailure } from '../utils/describe-request-failure.ts'
 import { describeUnavailableIdentificationSources } from '../utils/unavailable-source-message.ts'
 
 export interface ScanProductPrefill {
@@ -24,11 +25,6 @@ interface PsaIdentificationResponse {
 }
 
 export type ScanRequestSender = <TResponse>(url: string, options?: { method?: 'POST', body?: unknown }) => Promise<TResponse>
-
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as { data?: { statusMessage?: string }, statusMessage?: string }
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
-}
 
 export const useScanIdentification = (
   onProductReady: (product: ProductReference, prefill: ScanProductPrefill | null) => void,
@@ -97,7 +93,7 @@ export const useScanIdentification = (
     }
     catch (failure) {
       if (identificationNumber === latestIdentificationNumber) {
-        errorMessage.value = describeFailure(failure)
+        errorMessage.value = describeRequestFailure(failure)
       }
     }
     finally {
@@ -118,7 +114,7 @@ export const useScanIdentification = (
         pendingBarcode.value = null
       }
       catch (failure) {
-        errorMessage.value = `Le code-barres n’a pas pu être associé : ${describeFailure(failure)}`
+        errorMessage.value = `Le code-barres n’a pas pu être associé : ${describeRequestFailure(failure)}`
       }
     }
     const prefillToApply = pendingPrefill.value

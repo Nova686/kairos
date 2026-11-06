@@ -16,11 +16,6 @@ interface StockItemDetail {
   purchaseTrackingReference: string | null
 }
 
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as { data?: { statusMessage?: string }, statusMessage?: string }
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
-}
-
 export const useStockItemDetail = async (stockItemId: string) => {
   const requestFetch = useRequestFetch()
   const sendRequest = $fetch as (path: string, options: { method: string, body?: unknown }) => Promise<unknown>
@@ -72,7 +67,7 @@ export const useStockItemDetail = async (stockItemId: string) => {
       loadEditedValues()
     }
     catch (failure) {
-      errorMessage.value = describeFailure(failure)
+      errorMessage.value = describeRequestFailure(failure)
     }
   }
 

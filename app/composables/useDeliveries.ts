@@ -17,11 +17,6 @@ interface DeliveriesPayload {
   outgoing: OutgoingDeliveryRow[]
 }
 
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as { data?: { statusMessage?: string }, statusMessage?: string }
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
-}
-
 export const isTrackingLink = (trackingReference: string): boolean => /^https?:\/\//i.test(trackingReference)
 
 export const useDeliveries = () => {
@@ -47,7 +42,7 @@ export const useDeliveries = () => {
       await refresh()
     }
     catch (failure) {
-      errorMessage.value = describeFailure(failure)
+      errorMessage.value = describeRequestFailure(failure)
     }
     finally {
       pendingActionKeys.value = pendingActionKeys.value.filter(pendingKey => pendingKey !== actionKey)

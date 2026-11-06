@@ -25,11 +25,6 @@ export const debtDirectionLabels: Record<DebtRow['direction'], string> = {
   'i-owe': 'Je dois',
 }
 
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as { data?: { statusMessage?: string }, statusMessage?: string }
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
-}
-
 export const useDebts = () => {
   const { data: fetchedBalances, refresh: refreshBalances } = useFetch<DebtBalanceRow[]>('/api/debts/balances', { default: () => [] })
   const { data: fetchedOpenDebts, refresh: refreshOpenDebts } = useFetch<DebtRow[]>('/api/debts', {
@@ -61,7 +56,7 @@ export const useDebts = () => {
       return true
     }
     catch (failure) {
-      errorMessage.value = describeFailure(failure)
+      errorMessage.value = describeRequestFailure(failure)
       return false
     }
   }

@@ -17,11 +17,6 @@ export interface SaleListRow {
 
 export const platformSuggestions = ['Vinted', 'eBay', 'Leboncoin', 'Cardmarket', 'Main propre']
 
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as { data?: { statusMessage?: string }, statusMessage?: string }
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
-}
-
 export const useSales = () => {
   const { data: fetchedSales, pending } = useFetch<SaleListRow[]>('/api/sales', { default: () => [] })
   const sales = computed<SaleListRow[]>(() => fetchedSales.value ?? [])
@@ -117,8 +112,8 @@ export const useSaleForm = () => {
     }
     catch (failure) {
       errorMessage.value = submissionProgress.saleId === null
-        ? describeFailure(failure)
-        : `La vente est enregistrée, mais la dette n’a pas pu être créée : ${describeFailure(failure)} Réessayez pour la créer.`
+        ? describeRequestFailure(failure)
+        : `La vente est enregistrée, mais la dette n’a pas pu être créée : ${describeRequestFailure(failure)} Réessayez pour la créer.`
       return false
     }
     finally {

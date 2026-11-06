@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import type { ProductCandidate } from '../../server/domain/catalogue/search-product-candidates.ts'
 import type { PhotoDegradedReason } from '../../server/domain/scan/identify-photo.ts'
 import type { ProductReference } from '../../shared/catalogue/product-reference.ts'
+import { describeRequestFailure } from '../utils/describe-request-failure.ts'
 import { createExclusiveRunner } from '../utils/run-exclusively.ts'
 import type { ScanRequestSender } from './useScanIdentification.ts'
 
@@ -21,11 +22,6 @@ export interface PhotoIdentificationHandlers {
 const degradedReasonMessages: Record<PhotoDegradedReason, string> = {
   'image-embedder-unavailable': 'La reconnaissance visuelle est indisponible pour le moment.',
   'text-reader-unavailable': 'La lecture du texte est indisponible pour le moment.',
-}
-
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as { data?: { statusMessage?: string }, statusMessage?: string, message?: string }
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? fetchFailure.message ?? 'Une erreur est survenue.'
 }
 
 const toProductReference = (candidate: ProductCandidate): ProductReference => ({
@@ -80,7 +76,7 @@ export const usePhotoIdentification = (
       }
     }
     catch (failure) {
-      errorMessage.value = describeFailure(failure)
+      errorMessage.value = describeRequestFailure(failure, failure instanceof Error ? failure.message : undefined)
     }
     finally {
       isAnalysing.value = false

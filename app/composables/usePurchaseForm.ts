@@ -13,11 +13,6 @@ export interface PurchaseFormLine {
   locationId: string | null
 }
 
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as { data?: { statusMessage?: string }, statusMessage?: string }
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
-}
-
 export interface PurchaseLinePrefill {
   gradingCompany: string
   grade: string
@@ -114,8 +109,8 @@ export const usePurchaseForm = () => {
     }
     catch (failure) {
       errorMessage.value = submissionProgress.purchaseId === null
-        ? describeFailure(failure)
-        : `L’achat est enregistré, mais la dette n’a pas pu être créée : ${describeFailure(failure)} Réessayez pour la créer.`
+        ? describeRequestFailure(failure)
+        : `L’achat est enregistré, mais la dette n’a pas pu être créée : ${describeRequestFailure(failure)} Réessayez pour la créer.`
       return false
     }
     finally {

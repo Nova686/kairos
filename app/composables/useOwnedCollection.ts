@@ -1,10 +1,3 @@
-type FetchFailure = { statusMessage?: string, data?: { statusMessage?: string } }
-
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as FetchFailure
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
-}
-
 export const useOwnedCollection = <TRow extends { id: string }>(endpoint: string) => {
   const { data: fetchedRows, refresh, pending } = useFetch<TRow[]>(endpoint, { default: () => [] })
   const rows = computed<TRow[]>(() => fetchedRows.value ?? [])
@@ -18,7 +11,7 @@ export const useOwnedCollection = <TRow extends { id: string }>(endpoint: string
       return true
     }
     catch (failure) {
-      errorMessage.value = describeFailure(failure)
+      errorMessage.value = describeRequestFailure(failure)
       return false
     }
   }

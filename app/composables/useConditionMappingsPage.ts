@@ -21,13 +21,6 @@ interface ConditionMappingsResponse {
   rules: TitleRuleRow[]
 }
 
-type FetchFailure = { statusMessage?: string, data?: { statusMessage?: string } }
-
-const describeFailure = (failure: unknown): string => {
-  const fetchFailure = failure as FetchFailure
-  return fetchFailure.data?.statusMessage ?? fetchFailure.statusMessage ?? 'Une erreur est survenue.'
-}
-
 export const useConditionMappingsPage = () => {
   const { data: fetchedMappings, refresh, pending } = useFetch<ConditionMappingsResponse>('/api/condition-mappings', {
     default: () => ({ mappings: [], rules: [] }),
@@ -75,7 +68,7 @@ export const useConditionMappingsPage = () => {
       return true
     }
     catch (failure) {
-      errorMessage.value = describeFailure(failure)
+      errorMessage.value = describeRequestFailure(failure)
       return false
     }
   }
