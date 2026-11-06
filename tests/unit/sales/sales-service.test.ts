@@ -88,7 +88,8 @@ describe('createSale', () => {
     expect(createdSaleItems.map(saleItem => saleItem.allocatedSaleCents)).toEqual([6000, 2000])
     const [listed] = await listSales(database, ownerId)
     expect(listed!.saleNetCents).toBe(8000)
-    expect(listed!.items.map(saleItem => saleItem.netProfitCents)).toEqual([3000, 1000])
+    expect(Object.fromEntries(listed!.items.map(saleItem => [saleItem.stockItemId, saleItem.netProfitCents])))
+      .toEqual({ [stockItemIds[0]!]: 3000, [stockItemIds[1]!]: 1000 })
     expect(listed!.netProfitCents).toBe(4000)
   })
 
@@ -324,5 +325,19 @@ describe('listSales', () => {
     const listed = await listSales(database, ownerId)
 
     expect(listed.map(sale => sale.soldOn)).toEqual(['2026-11-01', '2026-10-01'])
+  })
+
+  it('names the product of each sold item and lists the items by product name', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const [zygarde] = await database.insert(products).values({ name: 'Zygarde ETB', category: 'pokemon-sealed', createdByUserId: ownerId }).returning()
+    const [aquali] = await database.insert(products).values({ name: 'Aquali Coffret', category: 'pokemon-sealed', createdByUserId: ownerId }).returning()
+    const [zygardeStockId] = await stockWithAllocations(database, ownerId, zygarde!.id, [1000])
+    const [aqualiStockId] = await stockWithAllocations(database, ownerId, aquali!.id, [1000])
+    await createSale(database, ownerId, buildSaleDraft([zygardeStockId!, aqualiStockId!]))
+
+    const [listedSale] = await listSales(database, ownerId)
+
+    expect(listedSale!.items.map(saleItem => saleItem.productName)).toEqual(['Aquali Coffret', 'Zygarde ETB'])
   })
 })

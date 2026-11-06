@@ -12,7 +12,7 @@ export interface SaleListRow {
   netProfitCents: number
   trackingReference: string | null
   deliveredOn: string | null
-  items: { stockItemId: string }[]
+  items: { stockItemId: string, productName: string }[]
 }
 
 export const platformSuggestions = ['Vinted', 'eBay', 'Leboncoin', 'Cardmarket', 'Main propre']

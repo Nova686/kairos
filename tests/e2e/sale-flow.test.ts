@@ -65,6 +65,7 @@ describe('sale flow', async () => {
 
     expect(salesPage.status).toBe(200)
     expect(salesPageHtml).toContain('Leboncoin')
+    expect(salesPageHtml).toContain('Display Écarlate')
     expect(salesPageHtml).toContain(formatEuros(4000))
     expect(deliveriesPage.status).toBe(200)
     expect(deliveriesPageHtml).toContain('Display Écarlate')

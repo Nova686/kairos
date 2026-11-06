@@ -19,6 +19,9 @@
           {{ sale.platform }} · {{ sale.soldOn }}
         </div>
         <div class="kairos-row-card__detail">
+          {{ describeSoldProducts(sale.items.map(saleItem => saleItem.productName)) }}
+        </div>
+        <div class="kairos-row-card__detail">
           {{ sale.items.length }} exemplaire(s) · <span class="kairos-figure">{{ formatEuros(sale.totalPriceCents) }}</span>
         </div>
         <div v-if="sale.trackingReference">

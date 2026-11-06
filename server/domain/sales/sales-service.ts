@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { debts, persons, products, saleItems, sales, stockItems } from '../../database/schema/index.ts'
@@ -24,7 +24,7 @@ export type SaleDraft = {
   stockItemIds: string[]
 }
 
-export type SaleItemWithProfit = SaleItem & { allocatedPurchaseCents: number, netProfitCents: number }
+export type SaleItemWithProfit = SaleItem & { productName: string, allocatedPurchaseCents: number, netProfitCents: number }
 
 export type SaleWithItems = Sale & {
   saleNetCents: number
@@ -205,15 +205,18 @@ export const listSales = async (database: KairosDatabase, ownerId: string): Prom
     return []
   }
   const itemRows = await database
-    .select({ saleItem: saleItems, allocatedPurchaseCents: stockItems.allocatedPurchaseCents })
+    .select({ saleItem: saleItems, productName: products.name, allocatedPurchaseCents: stockItems.allocatedPurchaseCents })
     .from(saleItems)
     .innerJoin(stockItems, eq(stockItems.id, saleItems.stockItemId))
+    .innerJoin(products, eq(products.id, stockItems.productId))
     .where(inArray(saleItems.saleId, ownedSales.map(sale => sale.id)))
+    .orderBy(asc(products.name), asc(saleItems.stockItemId))
   return ownedSales.map((sale) => {
     const items = itemRows
       .filter(row => row.saleItem.saleId === sale.id)
       .map(row => ({
         ...row.saleItem,
+        productName: row.productName,
         allocatedPurchaseCents: row.allocatedPurchaseCents,
         netProfitCents: row.saleItem.allocatedSaleCents - row.allocatedPurchaseCents,
       }))
