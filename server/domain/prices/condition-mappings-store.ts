@@ -5,6 +5,7 @@ import { isProductCategory } from '../../../shared/catalogue/product-category.ts
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { conditionMappings, titleConditionRules } from '../../database/schema/index.ts'
 import { appendCatalogueChanges } from '../catalogue/catalogue-journal.ts'
+import { foldAccentsAndCase } from '../../../shared/text/fold-accents-and-case.ts'
 
 export type ConditionMapping = typeof conditionMappings.$inferSelect
 export type TitleConditionRule = typeof titleConditionRules.$inferSelect
@@ -128,7 +129,7 @@ const assertRuleDraftValid = (draft: Omit<TitleConditionRule, 'id'>): void => {
 }
 
 const foldKeyword = (keyword: string): string =>
-  keyword.trim().normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+  foldAccentsAndCase(keyword.trim())
 
 const keywordSetKey = (keywords: string[]): string =>
   [...new Set(keywords.map(foldKeyword))].sort().join('\u0000')

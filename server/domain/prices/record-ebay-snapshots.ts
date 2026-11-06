@@ -5,6 +5,7 @@ import { medianCents } from '../../../shared/valuation/median.ts'
 import { removeOutliers } from '../../../shared/valuation/remove-outliers.ts'
 import type { ListingObservation } from '../../../src/price-sources/price-source-types.ts'
 import type { PriceSnapshotDraft, RetainedListingDraft } from './price-snapshot-drafts.ts'
+import { foldAccentsAndCase } from '../../../shared/text/fold-accents-and-case.ts'
 
 export interface EbaySnapshotContext {
   category: string
@@ -25,9 +26,6 @@ interface ListingGroup {
 const gradedCategory = 'graded-card'
 const gradedCondition = 'graded'
 
-const foldForComparison = (text: string): string =>
-  text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
-
 export const normalizeListingUrl = (url: string): string => {
   try {
     const parsedUrl = new URL(url)
@@ -39,7 +37,7 @@ export const normalizeListingUrl = (url: string): string => {
 }
 
 const containsExcludedKeyword = (title: string, foldedKeywords: string[]): boolean => {
-  const foldedTitle = foldForComparison(title)
+  const foldedTitle = foldAccentsAndCase(title)
   return foldedKeywords.some(keyword => foldedTitle.includes(keyword))
 }
 
@@ -89,7 +87,7 @@ export const buildEbaySnapshotDrafts = (
   listings: ListingObservation[],
   context: EbaySnapshotContext,
 ): PriceSnapshotDraft[] => {
-  const foldedKeywords = context.excludedKeywords.map(foldForComparison).filter(keyword => keyword.length > 0)
+  const foldedKeywords = context.excludedKeywords.map(foldAccentsAndCase).filter(keyword => keyword.length > 0)
   const candidateListings = listings.filter(listing =>
     !context.excludedUrls.has(normalizeListingUrl(listing.url)) && !containsExcludedKeyword(listing.title, foldedKeywords))
   const drafts: PriceSnapshotDraft[] = []

@@ -13,6 +13,7 @@ import { emptyProductDraft } from '../../../shared/catalogue/product-draft.ts'
 import { canonicalCompanyName } from '../../../shared/prices/grading-company.ts'
 import type { ProductIdentification } from '../../../src/identification-sources/identification-types.ts'
 import { lookupPsaCertificate } from '../../../src/identification-sources/psa-certificate.ts'
+import { foldAccentsAndCase } from '../../../shared/text/fold-accents-and-case.ts'
 
 export interface PrefilledGradedStockItem {
   condition: 'graded'
@@ -41,7 +42,7 @@ const defaultDependencies: PsaCertificateDependencies = {
 const psaCompanyName = canonicalCompanyName('PSA')
 
 const toComparableName = (name: string): string =>
-  name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+  foldAccentsAndCase(name).replace(/\s+/g, ' ').trim()
 
 const requireCertificateNumber = (rawCertificateNumber: string): string => {
   const certificateNumber = rawCertificateNumber.trim()

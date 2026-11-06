@@ -14,6 +14,7 @@ import {
 import { searchTcgdexCards } from '../../../src/price-sources/tcgdex/tcgdex-adapter.ts'
 import type { Product } from './catalogue-service.ts'
 import type { ProductCandidate } from '../../../shared/catalogue/product-candidate.ts'
+import { foldAccentsAndCase } from '../../../shared/text/fold-accents-and-case.ts'
 
 export type { ProductCandidate }
 
@@ -34,10 +35,8 @@ const defaultDependencies: ProductSearchDependencies = {
   searchEbayListings: query => searchEbayListings(query),
 }
 
-const toSearchableText = (text: string): string => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-
 const splitIntoSearchableWords = (query: string): string[] =>
-  toSearchableText(query).split(/\s+/).filter(queryWord => queryWord.length > 0)
+  foldAccentsAndCase(query).split(/\s+/).filter(queryWord => queryWord.length > 0)
 
 const toDraft = (product: Product): ProductDraft => ({
   name: product.name,
@@ -113,7 +112,7 @@ export const searchProductCandidates = async (
     ? await database.select().from(products).where(linkedProductCondition)
     : []
   const nameMatchingProducts = catalogueProducts.filter((product) => {
-    const searchableName = toSearchableText(product.name)
+    const searchableName = foldAccentsAndCase(product.name)
     return queryWords.every(queryWord => searchableName.includes(queryWord))
   })
   const catalogueProductsToShow = [...nameMatchingProducts, ...linkedCatalogueProducts].filter(

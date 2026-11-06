@@ -1,4 +1,5 @@
 import type { ConditionCode } from '../catalogue/condition-scale.ts'
+import { foldAccentsAndCase } from '../text/fold-accents-and-case.ts'
 
 export interface ConditionMappingEntry {
   category: string
@@ -44,13 +45,10 @@ export interface CompiledTitleRules {
   rules: CompiledTitleRule[]
 }
 
-const foldForMatching = (text: string): string =>
-  text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
-
 const splitIntoWords = (text: string): string[] =>
-  foldForMatching(text).split(/[^\p{L}\p{N}]+/u).filter(word => word.length > 0)
+  foldAccentsAndCase(text).split(/[^\p{L}\p{N}]+/u).filter(word => word.length > 0)
 
-const foldedNegationWords = new Set(negationWords.map(foldForMatching))
+const foldedNegationWords = new Set(negationWords.map(foldAccentsAndCase))
 
 const compileKeyword = (keyword: string): CompiledKeyword => {
   const trimmedKeyword = keyword.trim()

@@ -8,6 +8,7 @@ import type { StockItemStatus } from '../../../shared/stock/stock-item-status.ts
 import { findOwnedOr404, lockOwnedOr404 } from '../ownership/find-owned-or-404.ts'
 import type { StockItem } from './purchases-service.ts'
 import { canonicalCompanyName } from '../../../shared/prices/grading-company.ts'
+import { foldAccentsAndCase } from '../../../shared/text/fold-accents-and-case.ts'
 
 export type StockItemChanges = {
   condition?: ConditionCode
@@ -36,9 +37,6 @@ export type StockItemWithProduct = StockItem & {
 const unprocessable = (message: string) => createError({ statusCode: 422, statusMessage: message })
 
 const isBlank = (text: string | null): boolean => text === null || text.trim() === ''
-
-const normalizeForSearch = (text: string): string =>
-  text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
 const stockItemWithProductColumns = {
   stockItem: stockItems,
@@ -104,7 +102,7 @@ export const listStockItems = async (
     .orderBy(asc(products.name), desc(stockItems.createdAt))
   const matchingRows = filters.search === undefined || filters.search.trim() === ''
     ? rows
-    : rows.filter(row => normalizeForSearch(row.productName).includes(normalizeForSearch(filters.search!.trim())))
+    : rows.filter(row => foldAccentsAndCase(row.productName).includes(foldAccentsAndCase(filters.search!.trim())))
   return matchingRows.map(flattenStockItem)
 }
 
