@@ -1,0 +1,154 @@
+name: kairos
+
+x-offsite-storage-environment: &offsite-storage-environment
+  KAIROS_OFFSITE_BUCKET: ${KAIROS_OFFSITE_BUCKET:-}
+  RCLONE_CONFIG_OFFSITE_TYPE: s3
+  RCLONE_CONFIG_OFFSITE_PROVIDER: Other
+  RCLONE_CONFIG_OFFSITE_ENDPOINT: ${KAIROS_OFFSITE_ENDPOINT:-}
+  RCLONE_CONFIG_OFFSITE_REGION: ${KAIROS_OFFSITE_REGION:-}
+  RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: ${KAIROS_OFFSITE_ACCESS_KEY_ID:-}
+  RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${KAIROS_OFFSITE_SECRET_ACCESS_KEY:-}
+  RCLONE_CONFIG_OFFSITE_FORCE_PATH_STYLE: "true"
+  RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET: "true"
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      labels:
+        com.docker.compose.project: kairos
+    environment:
+      NUXT_APP_SECRET: ${NUXT_APP_SECRET:?set NUXT_APP_SECRET in deploy/.env}
+      NUXT_PHOTO_RECOGNITION: ${NUXT_PHOTO_RECOGNITION:-on}
+      NUXT_TRUST_PROXY_HEADERS: "true"
+      EBAY_CLIENT_ID: ${EBAY_CLIENT_ID:-}
+      EBAY_CLIENT_SECRET: ${EBAY_CLIENT_SECRET:-}
+      POKEMONTCG_API_KEY: ${POKEMONTCG_API_KEY:-}
+      PSA_API_TOKEN: ${PSA_API_TOKEN:-}
+      NUXT_DATABASE_URL: postgres://kairos:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}@database:5432/kairos
+    volumes:
+      - kairos-data:/app/.data
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(response => process.exit(response.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      start_interval: 2s
+      retries: 3
+    restart: unless-stopped
+
+  database:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: kairos
+      POSTGRES_DB: kairos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - kairos-database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kairos -d kairos"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    environment:
+      KAIROS_DOMAIN: ${KAIROS_DOMAIN:?set KAIROS_DOMAIN in deploy/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+  duckdns:
+    image: curlimages/curl:8.22.0
+    profiles: ["duckdns"]
+    environment:
+      DUCKDNS_SUBDOMAIN: ${DUCKDNS_SUBDOMAIN:-}
+      DUCKDNS_TOKEN: ${DUCKDNS_TOKEN:-}
+    command:
+      - sh
+      - -c
+      - |
+        if [ -z "$${DUCKDNS_SUBDOMAIN}" ] || [ -z "$${DUCKDNS_TOKEN}" ]; then
+          echo "DuckDNS impossible, à renseigner dans deploy/.env : DUCKDNS_SUBDOMAIN et DUCKDNS_TOKEN" >&2
+          exit 1
+        fi
+        while true; do
+          curl -fsS -o /dev/null "https://www.duckdns.org/update?domains=$${DUCKDNS_SUBDOMAIN}&token=$${DUCKDNS_TOKEN}&ip=" || echo "duckdns update failed"
+          sleep 300
+        done
+    restart: unless-stopped
+
+  backup:
+    image: postgres:17
+    environment:
+      PGHOST: database
+      PGUSER: kairos
+      PGDATABASE: kairos
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+    command:
+      - bash
+      - -c
+      - |
+        while true; do
+          now=$$(date +%s)
+          next=$$(date -d "today 03:30" +%s)
+          if [ "$$next" -le "$$now" ]; then next=$$(date -d "tomorrow 03:30" +%s); fi
+          sleep $$((next - now))
+          bash /backup/backup-database.sh || echo "backup failed"
+        done
+    volumes:
+      - ./backup:/backup:ro
+      - kairos-backups:/backups
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: unless-stopped
+
+  offsite-backup:
+    image: rclone/rclone:1.75.2
+    profiles: ["offsite"]
+    environment: *offsite-storage-environment
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        sh /backup/copy-backups-offsite.sh || echo "offsite copy failed"
+        while true; do
+          now=$$(date -u +%s)
+          next=$$((now / 86400 * 86400 + 4 * 3600))
+          if [ "$$next" -le "$$now" ]; then next=$$((next + 86400)); fi
+          sleep $$((next - now))
+          sh /backup/copy-backups-offsite.sh || echo "offsite copy failed"
+        done
+    volumes:
+      - ./backup:/backup:ro
+      - kairos-backups:/backups:ro
+    restart: unless-stopped
+
+  offsite-restore:
+    image: rclone/rclone:1.75.2
+    profiles: ["offsite-restore"]
+    environment: *offsite-storage-environment
+    volumes:
+      - kairos-backups:/backups
+
+volumes:
+  kairos-data:
+  kairos-database:
+  kairos-backups:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,35 @@
+name: stack
+
+on:
+  pull_request:
+    paths:
+      - "deploy/**"
+      - "tests/deploy/**"
+      - ".github/workflows/stack.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the compose file
+        run: docker compose -f deploy/compose.yml --env-file deploy/env.example config -q
+      - name: Validate the compose file with the offsite copy enabled
+        run: docker compose -f deploy/compose.yml --env-file deploy/env.example --profile offsite config -q
+      - name: Validate the compose file with DuckDNS enabled
+        run: docker compose -f deploy/compose.yml --env-file deploy/env.example --profile duckdns config -q
+      - name: Keep DuckDNS disabled with the example settings
+        run: |
+          if docker compose -f deploy/compose.yml --env-file deploy/env.example config --services | grep -qx duckdns; then
+            echo "DuckDNS must stay optional" >&2
+            exit 1
+          fi
+      - name: Check the backup and restore round trip
+        run: bash tests/deploy/backup-restore.sh
+      - name: Check the offsite copy round trip
+        run: bash tests/deploy/offsite-copy.sh

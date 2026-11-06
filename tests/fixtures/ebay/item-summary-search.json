@@ -1,0 +1,58 @@
+{
+  "href": "https://api.ebay.com/buy/browse/v1/item_summary/search?q=ETB+%C3%89volutions+Prismatiques&limit=100",
+  "total": 4,
+  "limit": 100,
+  "offset": 0,
+  "itemSummaries": [
+    {
+      "itemId": "v1|100000000001|0",
+      "title": "Pokémon ETB Coffret Dresseur d'Élite Évolutions Prismatiques FR scellé",
+      "price": { "value": "64.90", "currency": "EUR" },
+      "condition": "Neuf",
+      "conditionId": "1000",
+      "itemWebUrl": "https://www.ebay.fr/itm/100000000001",
+      "image": { "imageUrl": "https://i.ebayimg.com/images/g/aaa/s-l225.jpg" },
+      "shippingOptions": [{ "shippingCostType": "FIXED", "shippingCost": { "value": "6.50", "currency": "EUR" } }]
+    },
+    {
+      "itemId": "v1|100000000002|0",
+      "title": "ETB Évolutions Prismatiques ouverte complète",
+      "price": { "value": "72.00", "currency": "EUR" },
+      "condition": "Occasion",
+      "conditionId": "3000",
+      "itemWebUrl": "https://www.ebay.fr/itm/100000000002"
+    },
+    {
+      "itemId": "v1|100000000004|0",
+      "title": "Lot boosters Pokémon au choix",
+      "price": { "value": "5.50", "currency": "EUR" },
+      "condition": "Neuf",
+      "conditionId": "1000",
+      "itemGroupType": "SELLER_DEFINED_VARIATIONS",
+      "itemGroupHref": "https://api.ebay.com/buy/browse/v1/item/get_items_by_item_group?item_group_id=100000000004",
+      "itemWebUrl": "https://www.ebay.fr/itm/100000000004"
+    },
+    {
+      "itemId": "v1|100000000005|0",
+      "title": "Coffret Pokémon Évolutions Prismatiques sans état indiqué",
+      "price": { "value": "55.00", "currency": "EUR" },
+      "itemWebUrl": "https://www.ebay.fr/itm/100000000005"
+    },
+    {
+      "itemId": "v1|100000000003|0",
+      "title": "Prismatic Evolutions Elite Trainer Box US",
+      "price": { "value": "89.99", "currency": "USD" },
+      "condition": "New",
+      "conditionId": "1000",
+      "itemWebUrl": "https://www.ebay.fr/itm/100000000003"
+    },
+    {
+      "itemId": "v1|100000000001|0",
+      "title": "Pokémon ETB Coffret Dresseur d'Élite Évolutions Prismatiques FR scellé",
+      "price": { "value": "64.90", "currency": "EUR" },
+      "condition": "Neuf",
+      "conditionId": "1000",
+      "itemWebUrl": "https://www.ebay.fr/itm/100000000001"
+    }
+  ]
+}

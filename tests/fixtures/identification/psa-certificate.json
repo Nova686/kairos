@@ -1,0 +1,22 @@
+{
+  "PSACert": {
+    "CertNumber": "12345678",
+    "SpecID": 123456,
+    "SpecNumber": "ABC123",
+    "LabelType": "LighthouseLabel",
+    "ReverseBarCode": false,
+    "Year": "2023",
+    "Brand": "POKEMON SV3.5 151",
+    "Category": "TCG Cards",
+    "CardNumber": "199",
+    "Subject": "CHARIZARD EX",
+    "Variety": "SPECIAL ILLUSTRATION RARE",
+    "IsPSADNA": false,
+    "IsDualCert": false,
+    "GradeDescription": "GEM MT 10",
+    "CardGrade": "GEM MT 10",
+    "TotalPopulation": 5000,
+    "TotalPopulationWithQualifier": 0,
+    "PopulationHigher": 0
+  }
+}

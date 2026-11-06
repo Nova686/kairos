@@ -1,0 +1,76 @@
+name: image
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the amd64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: kairos:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run the container and check its health
+        run: |
+          app_secret="$(openssl rand -hex 32)"
+          docker run -d --name kairos-image-check -p 3000:3000 \
+            -e NUXT_DATABASE_URL=pglite://memory \
+            -e NUXT_APP_SECRET="$app_secret" \
+            kairos:ci
+          curl -fsS --retry 45 --retry-delay 2 --retry-connrefused --retry-all-errors http://localhost:3000/api/health
+      - name: Check the image reports healthy
+        run: |
+          for attempt in $(seq 1 18); do
+            health_status="$(docker inspect --format '{{.State.Health.Status}}' kairos-image-check)"
+            if [ "$health_status" = "healthy" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "container health is $health_status"
+          exit 1
+      - name: Check the admin creation command works in the image
+        run: |
+          admin_password="$(openssl rand -hex 16)"
+          echo "$admin_password" | docker exec -i kairos-image-check node .output/server/create-admin.mjs admin@example.test Admin
+      - name: Check the native modules load in the image
+        run: |
+          docker exec -w /app/.output/server kairos-image-check node --input-type=module -e "import 'onnxruntime-node'"
+          docker exec -w /app/.output/server kairos-image-check node --input-type=module -e "import 'sharp'"
+          docker exec -w /app/.output/server kairos-image-check node --input-type=module -e "import 'tesseract.js'"
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs kairos-image-check
+      - name: Remove the container
+        if: always()
+        run: docker rm -f kairos-image-check
+
+  image-arm64:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the arm64 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: false
+          cache-from: type=gha,scope=arm64
+          cache-to: type=gha,mode=max,scope=arm64

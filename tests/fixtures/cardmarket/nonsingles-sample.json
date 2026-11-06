@@ -1,0 +1,186 @@
+{
+ "version": 1,
+ "createdAt": "2026-11-01T11:49:21+0100",
+ "products": [
+  {
+   "idProduct": 798923,
+   "name": "Prismatic Evolutions Booster",
+   "idCategory": 52,
+   "categoryName": "Pokémon Booster",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:14:32"
+  },
+  {
+   "idProduct": 798924,
+   "name": "Prismatic Evolutions Booster Bundle",
+   "idCategory": 53,
+   "categoryName": "Pokémon Display",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:19:28"
+  },
+  {
+   "idProduct": 798925,
+   "name": "Prismatic Evolutions Booster Bundle Display",
+   "idCategory": 53,
+   "categoryName": "Pokémon Display",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:20:40"
+  },
+  {
+   "idProduct": 798926,
+   "name": "Prismatic Evolutions: Leafeon Tech Sticker Collection",
+   "idCategory": 1083,
+   "categoryName": "Pokémon Blisters",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:24:48"
+  },
+  {
+   "idProduct": 798927,
+   "name": "Prismatic Evolutions: Glaceon Tech Sticker Collection",
+   "idCategory": 1083,
+   "categoryName": "Pokémon Blisters",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:25:26"
+  },
+  {
+   "idProduct": 798928,
+   "name": "Prismatic Evolutions: Sylveon Tech Sticker Collection",
+   "idCategory": 1083,
+   "categoryName": "Pokémon Blisters",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:25:52"
+  },
+  {
+   "idProduct": 798929,
+   "name": "Prismatic Evolutions: Tech Sticker Collection Display",
+   "idCategory": 1083,
+   "categoryName": "Pokémon Blisters",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:28:31"
+  },
+  {
+   "idProduct": 798930,
+   "name": "Prismatic Evolutions Elite Trainer Box",
+   "idCategory": 1016,
+   "categoryName": "Pokémon Elite Trainer Boxes",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:29:42"
+  },
+  {
+   "idProduct": 798931,
+   "name": "Prismatic Evolutions Pokémon Center Elite Trainer Box",
+   "idCategory": 1016,
+   "categoryName": "Pokémon Elite Trainer Boxes",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:30:09"
+  },
+  {
+   "idProduct": 798932,
+   "name": "Prismatic Evolutions 10 Elite Trainer Box Case",
+   "idCategory": 1016,
+   "categoryName": "Pokémon Elite Trainer Boxes",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:30:45"
+  },
+  {
+   "idProduct": 798935,
+   "name": "Prismatic Evolutions: Vaporeon Mini Tin",
+   "idCategory": 1014,
+   "categoryName": "Pokémon Tins",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:36:35"
+  },
+  {
+   "idProduct": 798936,
+   "name": "Prismatic Evolutions: Jolteon Mini Tin",
+   "idCategory": 1014,
+   "categoryName": "Pokémon Tins",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:37:03"
+  },
+  {
+   "idProduct": 798938,
+   "name": "Prismatic Evolutions: Flareon Mini Tin",
+   "idCategory": 1014,
+   "categoryName": "Pokémon Tins",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:37:31"
+  },
+  {
+   "idProduct": 798939,
+   "name": "Prismatic Evolutions: Espeon Mini Tin",
+   "idCategory": 1014,
+   "categoryName": "Pokémon Tins",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:38:16"
+  },
+  {
+   "idProduct": 798940,
+   "name": "Prismatic Evolutions: Umbreon Mini Tin",
+   "idCategory": 1014,
+   "categoryName": "Pokémon Tins",
+   "idExpansion": 5944,
+   "idMetacard": 0,
+   "dateAdded": "2024-11-05 15:38:44"
+  },
+  {
+   "idProduct": 715464,
+   "name": "Obsidian Flames Elite Trainer Box",
+   "idCategory": 1016,
+   "categoryName": "Pokémon Elite Trainer Boxes",
+   "idExpansion": 5385,
+   "idMetacard": 0,
+   "dateAdded": "2023-05-26 15:09:46"
+  },
+  {
+   "idProduct": 715465,
+   "name": "Obsidian Flames Booster Box",
+   "idCategory": 53,
+   "categoryName": "Pokémon Display",
+   "idExpansion": 5385,
+   "idMetacard": 0,
+   "dateAdded": "2023-05-26 15:10:28"
+  },
+  {
+   "idProduct": 715466,
+   "name": "Obsidian Flames Booster",
+   "idCategory": 52,
+   "categoryName": "Pokémon Booster",
+   "idExpansion": 5385,
+   "idMetacard": 0,
+   "dateAdded": "2023-05-26 15:12:22"
+  },
+  {
+   "idProduct": 715769,
+   "name": "Obsidian Flames Sleeved Booster",
+   "idCategory": 52,
+   "categoryName": "Pokémon Booster",
+   "idExpansion": 5385,
+   "idMetacard": 0,
+   "dateAdded": "2023-05-30 00:46:52"
+  },
+  {
+   "idProduct": 715770,
+   "name": "Obsidian Flames Booster (6 Cards)",
+   "idCategory": 52,
+   "categoryName": "Pokémon Booster",
+   "idExpansion": 5385,
+   "idMetacard": 0,
+   "dateAdded": "2023-05-30 00:47:49"
+  }
+ ]
+}

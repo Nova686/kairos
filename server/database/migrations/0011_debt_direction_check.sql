@@ -1,0 +1,1 @@
+ALTER TABLE "debts" ADD CONSTRAINT "debts_direction_check" CHECK ("debts"."direction" in ('owed-to-me', 'i-owe'));

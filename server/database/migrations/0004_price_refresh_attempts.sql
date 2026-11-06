@@ -1,0 +1,1 @@
+ALTER TABLE "price_refresh_requests" ADD COLUMN "attempts" integer DEFAULT 0 NOT NULL;

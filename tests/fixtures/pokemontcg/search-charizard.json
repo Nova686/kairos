@@ -1,0 +1,32 @@
+{
+  "data": [
+    {
+      "id": "sv3pt5-6",
+      "name": "Charizard ex",
+      "set": { "id": "sv3pt5", "name": "151" },
+      "images": { "small": "https://images.pokemontcg.io/sv3pt5/6.png", "large": "https://images.pokemontcg.io/sv3pt5/6_hires.png" },
+      "cardmarket": {
+        "url": "https://prices.pokemontcg.io/cardmarket/sv3pt5-6",
+        "updatedAt": "2026/11/01",
+        "prices": {
+          "averageSellPrice": 24.5,
+          "lowPrice": 18.0,
+          "trendPrice": 23.12,
+          "avg1": 22.0,
+          "avg7": 23.8,
+          "avg30": 25.41
+        }
+      }
+    },
+    {
+      "id": "base1-4",
+      "name": "Charizard",
+      "set": { "id": "base1", "name": "Base" },
+      "images": { "small": "https://images.pokemontcg.io/base1/4.png" }
+    }
+  ],
+  "page": 1,
+  "pageSize": 2,
+  "count": 2,
+  "totalCount": 2
+}

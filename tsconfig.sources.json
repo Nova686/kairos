@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "strict": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "types": ["node", "vitest/globals"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "paths": { "~~/*": ["./*"] }
+  },
+  "include": ["src", "tests", "scripts", "vitest.config.ts", "app/utils", "app/composables/useBarcodeScanner.ts", "app/composables/useScanIdentification.ts", "app/composables/usePhotoIdentification.ts", "shared","server/database", "server/domain","drizzle.config.ts"]
+}
