@@ -7,6 +7,7 @@ import {
   buildPriceColumns,
   buildPriceRows,
   chooseDefaultColumnKey,
+  findRetainedValue,
   type PriceHistoryPointView,
   type PriceOverviewCellView,
 } from '../../../app/utils/price-overview-view.ts'
@@ -58,6 +59,19 @@ describe('buildPriceColumns', () => {
   it('has no column for a graded card without any snapshot', () => {
     expect(buildPriceColumns('graded-card', [])).toEqual([])
   })
+
+  it('groups spelling variants of the same grading company and grade into one column', () => {
+    const columns = buildPriceColumns('graded-card', [
+      cell({ condition: 'graded', gradingCompany: 'psa', grade: '10' }),
+      cell({ condition: 'graded', gradingCompany: 'PSA', grade: '10', source: 'vinted' }),
+      cell({ condition: 'graded', gradingCompany: ' PSA ', grade: ' 10 ', source: 'leboncoin' }),
+      cell({ condition: 'graded', gradingCompany: 'Collect  grade', grade: '9.5', source: 'cardmarket' }),
+      cell({ condition: 'graded', gradingCompany: 'collect grade', grade: '9.5', source: 'other' }),
+    ])
+
+    expect(columns.map(column => column.label)).toEqual(['Collect Grade 9.5', 'PSA 10'])
+    expect(columns[1]).toMatchObject({ key: 'graded|PSA|10', gradingCompany: 'PSA', grade: '10' })
+  })
 })
 
 describe('buildPriceRows', () => {
@@ -79,6 +93,37 @@ describe('buildPriceRows', () => {
     const rows = buildPriceRows([psaTen], columns)
 
     expect(rows[2]!.cells).toEqual([psaTen])
+  })
+
+  it('places spelling variants of the same grade under the same column', () => {
+    const ebayPsaTen = cell({ source: 'ebay', condition: 'graded', gradingCompany: 'PSA', grade: '10' })
+    const vintedPsaTen = cell({ source: 'vinted', condition: 'graded', gradingCompany: 'psa', grade: ' 10' })
+    const columns = buildPriceColumns('graded-card', [ebayPsaTen, vintedPsaTen])
+
+    const rows = buildPriceRows([ebayPsaTen, vintedPsaTen], columns)
+
+    expect(columns).toHaveLength(1)
+    expect(rows[0]!.cells).toEqual([ebayPsaTen])
+    expect(rows[2]!.cells).toEqual([vintedPsaTen])
+  })
+
+  it('keeps the most recent cell when one source has several spellings of the same grade', () => {
+    const olderSpelling = cell({ source: 'vinted', condition: 'graded', gradingCompany: 'psa', grade: '10', observedAt: '2026-10-20T10:00:00.000Z', snapshotId: 'older' })
+    const newerSpelling = cell({ source: 'vinted', condition: 'graded', gradingCompany: 'PSA', grade: '10', observedAt: '2026-11-01T10:00:00.000Z', snapshotId: 'newer' })
+    const columns = buildPriceColumns('graded-card', [olderSpelling, newerSpelling])
+
+    const rows = buildPriceRows([olderSpelling, newerSpelling], columns)
+
+    expect(rows[2]!.cells).toEqual([newerSpelling])
+  })
+})
+
+describe('findRetainedValue', () => {
+  it('finds the retained value of a graded column whatever its spelling', () => {
+    const columns = buildPriceColumns('graded-card', [cell({ condition: 'graded', gradingCompany: 'PSA', grade: '10' })])
+    const retainedValue = { condition: 'graded' as const, gradingCompany: 'psa', grade: '10 ', valueCents: 25000, approximate: false, usedCondition: null }
+
+    expect(findRetainedValue([retainedValue], columns[0]!)).toBe(retainedValue)
   })
 })
 
@@ -111,6 +156,19 @@ describe('buildHistoryChartData', () => {
     const dayNumbers = chartData.datasets[0]!.data.map(chartPoint => chartPoint.x)
     expect(dayNumbers[1]! - dayNumbers[0]!).toBe(31)
     expect(formatDayNumber(dayNumbers[0]!)).toBe('01/10/2026')
+  })
+
+  it('draws the history of every spelling of the selected graded column', () => {
+    const columns = buildPriceColumns('graded-card', [cell({ condition: 'graded', gradingCompany: 'PSA', grade: '10' })])
+
+    const chartData = buildHistoryChartData([
+      point({ condition: 'graded', gradingCompany: 'psa', grade: '10', observedOn: '2026-11-01', figureCents: 20000 }),
+      point({ condition: 'graded', gradingCompany: 'PSA', grade: '10', observedOn: '2026-11-02', figureCents: 21000 }),
+    ], columns[0]!)
+
+    expect(chartData.datasets.map(dataset => dataset.data)).toEqual([
+      [{ x: dayNumberOf('2026-11-01'), y: 200 }, { x: dayNumberOf('2026-11-02'), y: 210 }],
+    ])
   })
 
   it('has no dataset without a selected column', () => {

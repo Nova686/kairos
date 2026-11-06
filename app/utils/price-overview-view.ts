@@ -1,5 +1,6 @@
 import { conditionCodesFor, conditionLabel, type ConditionCode } from '../../shared/catalogue/condition-scale.ts'
 import type { ProductCategory } from '../../shared/catalogue/product-category.ts'
+import { canonicalCompanyName } from '~~/shared/prices/grading-company.ts'
 
 export interface RetainedListingView {
   title: string
@@ -129,7 +130,10 @@ const parisDateTimeFormatter = new Intl.DateTimeFormat('fr-FR', {
 
 export const formatParisDateTime = (isoTimestamp: string): string => parisDateTimeFormatter.format(new Date(isoTimestamp))
 
-const gradedColumnKey = (gradingCompany: string, grade: string): string => `${gradedConditionCode}|${gradingCompany}|${grade}`
+const collapseSpaces = (text: string): string => text.trim().replace(/\s+/g, ' ')
+
+export const gradedColumnKey = (gradingCompany: string, grade: string): string =>
+  `${gradedConditionCode}|${canonicalCompanyName(gradingCompany).toUpperCase()}|${collapseSpaces(grade)}`
 
 const columnKeyOfCell = (priceCell: { condition: ConditionCode, gradingCompany: string | null, grade: string | null }): string =>
   priceCell.condition === gradedConditionCode
@@ -152,17 +156,22 @@ export const buildPriceColumns = (category: ProductCategory, cells: PriceOvervie
   const columnsByKey = new Map<string, PriceColumn>()
   for (const priceCell of cells) {
     if (priceCell.condition === gradedConditionCode && priceCell.gradingCompany !== null && priceCell.grade !== null) {
+      const gradingCompany = canonicalCompanyName(priceCell.gradingCompany)
+      const grade = collapseSpaces(priceCell.grade)
       columnsByKey.set(columnKeyOfCell(priceCell), {
         key: columnKeyOfCell(priceCell),
-        label: `${priceCell.gradingCompany} ${priceCell.grade}`,
+        label: `${gradingCompany} ${grade}`,
         condition: gradedConditionCode,
-        gradingCompany: priceCell.gradingCompany,
-        grade: priceCell.grade,
+        gradingCompany,
+        grade,
       })
     }
   }
   return [...columnsByKey.values()].sort(compareGradedColumns)
 }
+
+const latestObservedCell = (latest: PriceOverviewCellView | null, candidate: PriceOverviewCellView): PriceOverviewCellView =>
+  latest === null || Date.parse(candidate.observedAt) > Date.parse(latest.observedAt) ? candidate : latest
 
 export const buildPriceRows = (cells: PriceOverviewCellView[], columns: PriceColumn[]): PriceRow[] =>
   priceSourceRows.map(({ source, label, color }) => ({
@@ -170,7 +179,9 @@ export const buildPriceRows = (cells: PriceOverviewCellView[], columns: PriceCol
     label,
     color,
     cells: columns.map(column =>
-      cells.find(priceCell => priceCell.source === source && columnKeyOfCell(priceCell) === column.key) ?? null),
+      cells
+        .filter(priceCell => priceCell.source === source && columnKeyOfCell(priceCell) === column.key)
+        .reduce<PriceOverviewCellView | null>(latestObservedCell, null)),
   }))
 
 export const findRetainedValue = (retainedValues: RetainedValueView[], column: PriceColumn | null): RetainedValueView | null =>

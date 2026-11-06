@@ -1,5 +1,6 @@
 import { heldStockItemStatuses } from '../../shared/stock/stock-item-status.ts'
 import type { StockItemRow } from '../../shared/stock/stock-item-row.ts'
+import { gradedColumnKey } from './price-overview-view.ts'
 
 export interface ProductHoldingsSummary {
   heldCount: number
@@ -9,7 +10,7 @@ export interface ProductHoldingsSummary {
 
 export const columnKeyOfStockItem = (stockItem: Pick<StockItemRow, 'condition' | 'gradingCompany' | 'grade'>): string =>
   stockItem.gradingCompany !== null && stockItem.grade !== null
-    ? `graded|${stockItem.gradingCompany}|${stockItem.grade}`
+    ? gradedColumnKey(stockItem.gradingCompany, stockItem.grade)
     : stockItem.condition
 
 export const summarizeProductHoldings = (

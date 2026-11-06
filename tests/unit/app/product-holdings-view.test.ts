@@ -26,6 +26,10 @@ describe('columnKeyOfStockItem', () => {
     expect(columnKeyOfStockItem(stockItem({}))).toBe('sealed-new')
     expect(columnKeyOfStockItem(stockItem({ condition: 'graded', gradingCompany: 'PSA', grade: '10' }))).toBe('graded|PSA|10')
   })
+
+  it('matches the graded price column whatever the spelling of the company and grade', () => {
+    expect(columnKeyOfStockItem(stockItem({ condition: 'graded', gradingCompany: 'psa', grade: ' 10 ' }))).toBe('graded|PSA|10')
+  })
 })
 
 describe('summarizeProductHoldings', () => {
