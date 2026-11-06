@@ -112,7 +112,7 @@ export const receiveStockItem = async (
   const [receivedStockItem] = await database
     .update(stockItems)
     .set({ status: 'in-stock', receivedOn })
-    .where(and(eq(stockItems.id, stockItemId), eq(stockItems.status, 'in-transit')))
+    .where(and(eq(stockItems.id, stockItemId), eq(stockItems.ownerId, ownerId), eq(stockItems.status, 'in-transit')))
     .returning()
   if (!receivedStockItem) {
     throw createError({ statusCode: 409, statusMessage: 'Cet exemplaire n’est pas en livraison' })
@@ -161,7 +161,7 @@ export const updateStockItem = async (
       locationId: changes.locationId === undefined ? currentStockItem.locationId : changes.locationId,
       notes: changes.notes === undefined ? currentStockItem.notes : changes.notes,
     })
-    .where(eq(stockItems.id, stockItemId))
+    .where(and(eq(stockItems.id, stockItemId), eq(stockItems.ownerId, ownerId)))
     .returning()
   return updatedStockItem!
 }

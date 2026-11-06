@@ -68,7 +68,7 @@ export const settleDebt = async (
   const [settledDebt] = await database
     .update(debts)
     .set({ settledOn })
-    .where(and(eq(debts.id, debt.id), isNull(debts.settledOn)))
+    .where(and(eq(debts.id, debt.id), eq(debts.ownerId, ownerId), isNull(debts.settledOn)))
     .returning()
   if (!settledDebt) {
     throw createError({ statusCode: 409, statusMessage: 'Dette déjà soldée' })
@@ -80,7 +80,7 @@ export const deleteDebt = async (database: KairosDatabase, ownerId: string, debt
   const debt = await findOwnedOr404(database, debts, debtId, ownerId)
   const deletedDebts = await database
     .delete(debts)
-    .where(and(eq(debts.id, debt.id), isNull(debts.settledOn)))
+    .where(and(eq(debts.id, debt.id), eq(debts.ownerId, ownerId), isNull(debts.settledOn)))
     .returning({ id: debts.id })
   if (deletedDebts.length === 0) {
     throw createError({ statusCode: 409, statusMessage: 'Une dette soldée ne peut pas être supprimée' })

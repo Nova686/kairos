@@ -72,7 +72,7 @@ export const renameLocation = async (
   const [renamedLocation] = await database
     .update(locations)
     .set({ label: normalizedLabel })
-    .where(eq(locations.id, locationId))
+    .where(and(eq(locations.id, locationId), eq(locations.ownerId, ownerId)))
     .returning()
   return renamedLocation!
 }
@@ -87,5 +87,5 @@ export const deleteLocation = async (database: KairosDatabase, ownerId: string, 
   if (usingStockItem) {
     throw new LocationInUseError()
   }
-  await database.delete(locations).where(eq(locations.id, locationId))
+  await database.delete(locations).where(and(eq(locations.id, locationId), eq(locations.ownerId, ownerId)))
 }

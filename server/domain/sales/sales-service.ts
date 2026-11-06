@@ -120,7 +120,7 @@ export const createSale = async (
     await transaction
       .update(stockItems)
       .set({ status: draft.trackingReference === null ? 'sold' : 'sold-in-transit' })
-      .where(inArray(stockItems.id, draft.stockItemIds))
+      .where(and(inArray(stockItems.id, draft.stockItemIds), eq(stockItems.ownerId, ownerId)))
     return { sale: sale!, saleItems: createdSaleItems }
   })
 }
@@ -136,7 +136,7 @@ export const markSaleDelivered = async (
     const [sale] = await transaction
       .update(sales)
       .set({ deliveredOn })
-      .where(eq(sales.id, saleId))
+      .where(and(eq(sales.id, saleId), eq(sales.ownerId, ownerId)))
       .returning()
     const soldStockItemIds = (await transaction
       .select({ stockItemId: saleItems.stockItemId })
@@ -145,7 +145,11 @@ export const markSaleDelivered = async (
     await transaction
       .update(stockItems)
       .set({ status: 'sold' })
-      .where(and(inArray(stockItems.id, soldStockItemIds), eq(stockItems.status, 'sold-in-transit')))
+      .where(and(
+        inArray(stockItems.id, soldStockItemIds),
+        eq(stockItems.ownerId, ownerId),
+        eq(stockItems.status, 'sold-in-transit'),
+      ))
     return sale!
   })
 }
@@ -164,14 +168,14 @@ export const deleteSale = async (database: KairosDatabase, ownerId: string, sale
       .select({ stockItemId: saleItems.stockItemId })
       .from(saleItems)
       .where(eq(saleItems.saleId, saleId))).map(saleItem => saleItem.stockItemId)
-    await transaction.delete(debts).where(eq(debts.saleId, saleId))
+    await transaction.delete(debts).where(and(eq(debts.saleId, saleId), eq(debts.ownerId, ownerId)))
     await transaction.delete(saleItems).where(eq(saleItems.saleId, saleId))
-    await transaction.delete(sales).where(eq(sales.id, saleId))
+    await transaction.delete(sales).where(and(eq(sales.id, saleId), eq(sales.ownerId, ownerId)))
     if (soldStockItemIds.length > 0) {
       await transaction
         .update(stockItems)
         .set({ status: 'in-stock' })
-        .where(inArray(stockItems.id, soldStockItemIds))
+        .where(and(inArray(stockItems.id, soldStockItemIds), eq(stockItems.ownerId, ownerId)))
     }
   })
 }

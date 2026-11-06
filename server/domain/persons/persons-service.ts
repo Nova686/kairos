@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { debts, persons, sales } from '../../database/schema/index.ts'
 import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
@@ -45,7 +45,7 @@ export const renamePerson = async (
   const [renamedPerson] = await database
     .update(persons)
     .set({ name: normalizeName(name) })
-    .where(eq(persons.id, personId))
+    .where(and(eq(persons.id, personId), eq(persons.ownerId, ownerId)))
     .returning()
   return renamedPerson!
 }
@@ -65,5 +65,5 @@ export const deletePerson = async (database: KairosDatabase, ownerId: string, pe
   if (referencingDebt || referencingSale) {
     throw new PersonInUseError()
   }
-  await database.delete(persons).where(eq(persons.id, personId))
+  await database.delete(persons).where(and(eq(persons.id, personId), eq(persons.ownerId, ownerId)))
 }

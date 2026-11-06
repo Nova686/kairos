@@ -188,8 +188,8 @@ export const deletePurchase = async (database: KairosDatabase, ownerId: string, 
     if (settledLinkedDebts.length > 0) {
       throw createError({ statusCode: 409, statusMessage: 'Une dette liée à cet achat est soldée' })
     }
-    await transaction.delete(debts).where(linkedDebtsCondition)
-    await transaction.delete(stockItems).where(eq(stockItems.purchaseId, purchaseId))
-    await transaction.delete(purchases).where(eq(purchases.id, purchaseId))
+    await transaction.delete(debts).where(and(linkedDebtsCondition, eq(debts.ownerId, ownerId)))
+    await transaction.delete(stockItems).where(and(eq(stockItems.purchaseId, purchaseId), eq(stockItems.ownerId, ownerId)))
+    await transaction.delete(purchases).where(and(eq(purchases.id, purchaseId), eq(purchases.ownerId, ownerId)))
   })
 }
