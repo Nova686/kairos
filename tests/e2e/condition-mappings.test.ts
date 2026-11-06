@@ -29,6 +29,16 @@ describe('condition mappings API', async () => {
     expect(response.rules).toHaveLength(3)
   })
 
+  it('renders the settings page with the seeded rules and their conditions in French', async () => {
+    const cookie = await logIn('member@example.com', memberPassword)
+
+    const settingsPage = await fetch('/reglages/correspondances', { headers: { cookie } })
+    const settingsPageHtml = await settingsPage.text()
+
+    expect(settingsPage.status).toBe(200)
+    expect(settingsPageHtml).toContain('ouvert incomplet · priorité 30')
+  })
+
   it('edits a mapping, rejects a condition outside the scale and a rule without keywords', async () => {
     const cookie = await logIn('member@example.com', memberPassword)
     const edit = await sendJson('/api/condition-mappings', 'PUT', cookie, {
