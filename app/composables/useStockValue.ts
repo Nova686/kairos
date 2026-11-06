@@ -14,7 +14,6 @@ const describeQueuedProducts = (queuedProductCount: number): string =>
     : `${queuedProductCount} ${queuedProductCount === 1 ? 'produit programmé' : 'produits programmés'}`
 
 export const useStockValue = () => {
-  const sendRequest = $fetch as (path: string, options: { method: string }) => Promise<PriceRefreshResponse>
   const runExclusively = createExclusiveRunner()
 
   const { data: fetchedStockValue } = useFetch<StockValueResponse>('/api/stock/value', {
@@ -34,7 +33,7 @@ export const useStockValue = () => {
       errorMessage.value = ''
       isRefreshingAll.value = true
       try {
-        const outcome = await sendRequest('/api/stock/refresh-prices', { method: 'POST' })
+        const outcome = await $fetch<PriceRefreshResponse>('/api/stock/refresh-prices', { method: 'POST' })
         refreshMessage.value = describeQueuedProducts(outcome.queuedProductCount)
       }
       catch {
