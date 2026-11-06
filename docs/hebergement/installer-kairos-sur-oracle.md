@@ -299,7 +299,7 @@ docker compose -f deploy/compose.yml exec -T backup ls -l /backups
 
 ### 11.2 Copie automatique hors de la machine (facultative, gratuite)
 
-Le conteneur `offsite-backup` (image `rclone/rclone`) copie chaque jour à **04:00 UTC**, une demi-heure après la sauvegarde, les fichiers `kairos-*.dump` du volume vers un compartiment (« bucket ») de l'Object Storage d'Oracle, par son interface compatible S3. Il garde dans le compartiment les sauvegardes des **14 derniers jours** : une sauvegarde effacée de la machine reste dans le compartiment jusqu'à ses 14 jours, si bien qu'une machine perdue ou un volume vidé n'efface pas les copies.
+Le conteneur `offsite-backup` (image `rclone/rclone`) copie chaque jour à **04:00 UTC**, une demi-heure après la sauvegarde, les fichiers `kairos-*.dump` du volume vers un compartiment (« bucket ») de l'Object Storage d'Oracle, par son interface compatible S3. N'importe quel stockage compatible S3 convient de la même façon : seuls le point d'accès, la région et la clé changent. Il garde dans le compartiment les **14 copies les plus récentes**, quel que soit leur âge, et ne supprime rien tant que la machine n'a pas de sauvegarde de moins de 2 jours : une machine perdue, un volume vidé ou des sauvegardes qui échouent plusieurs nuits de suite n'effacent donc pas les copies. Il ne lit le volume des sauvegardes qu'en lecture seule.
 
 L'offre « Always Free » comprend 20 Go d'Object Storage et 50 000 requêtes par mois ; Kairos envoie un fichier de quelques Mo par jour et fait quelques requêtes par copie, très loin de ces limites. Le compartiment est dans votre compte Oracle : il protège contre la perte du disque ou de la machine, **pas** contre la perte du compte. Gardez donc aussi, de temps en temps, une copie chez vous (11.3).
 
@@ -370,16 +370,16 @@ docker compose -f deploy/compose.yml exec -T backup ls /backups
 
 Le script arrête l'application, restaure en une seule transaction, puis relance l'application. Si la restauration échoue, l'application reste arrêtée (la base n'est pas modifiée) : lisez le message, corrigez, puis `docker compose -f deploy/compose.yml start app`.
 
-**Depuis le compartiment Object Storage**, par exemple sur une VM neuve dont le volume est vide. Remplissez d'abord `deploy/.env` avec les variables `KAIROS_OFFSITE_*` de 11.2 (même si `COMPOSE_PROFILES` reste vide) et démarrez la pile (étape 7). Puis listez les copies et rapatriez celle de votre choix dans le volume avant de la restaurer :
+**Depuis le compartiment Object Storage**, par exemple sur une VM neuve dont le volume est vide. Remplissez d'abord `deploy/.env` avec les variables `KAIROS_OFFSITE_*` de 11.2, **en laissant `COMPOSE_PROFILES=` vide jusqu'à la fin de la restauration** (c'est le cas même si vous recopiez un `deploy/.env` sauvegardé : videz cette ligne avant de démarrer), puis démarrez la pile (étape 7). Listez les copies et rapatriez celle de votre choix dans le volume avant de la restaurer :
 
 ```bash
 cd ~/kairos
-docker compose -f deploy/compose.yml run --rm --entrypoint rclone offsite-backup lsl offsite:kairos-sauvegardes
-docker compose -f deploy/compose.yml run --rm --entrypoint rclone offsite-backup copy offsite:kairos-sauvegardes/kairos-AAAA-MM-JJ.dump /backups/
+docker compose -f deploy/compose.yml run --rm offsite-restore lsl offsite:kairos-sauvegardes
+docker compose -f deploy/compose.yml run --rm offsite-restore copy offsite:kairos-sauvegardes/kairos-AAAA-MM-JJ.dump /backups/
 ./deploy/backup/restore-database.sh /backups/kairos-AAAA-MM-JJ.dump
 ```
 
-Remplacez `kairos-sauvegardes` par le nom de votre compartiment s'il diffère.
+Remplacez `kairos-sauvegardes` par le nom de votre compartiment s'il diffère. Une fois la restauration réussie, remettez `COMPOSE_PROFILES=offsite` et relancez `docker compose -f deploy/compose.yml up -d` pour reprendre la copie quotidienne.
 
 **Depuis un fichier copié sur votre ordinateur**, il faut le faire passer en deux temps : de votre ordinateur vers la VM, puis de la VM vers le volume. Depuis votre ordinateur :
 

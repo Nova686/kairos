@@ -1,5 +1,16 @@
 name: kairos
 
+x-offsite-storage-environment: &offsite-storage-environment
+  KAIROS_OFFSITE_BUCKET: ${KAIROS_OFFSITE_BUCKET:-}
+  RCLONE_CONFIG_OFFSITE_TYPE: s3
+  RCLONE_CONFIG_OFFSITE_PROVIDER: Other
+  RCLONE_CONFIG_OFFSITE_ENDPOINT: ${KAIROS_OFFSITE_ENDPOINT:-}
+  RCLONE_CONFIG_OFFSITE_REGION: ${KAIROS_OFFSITE_REGION:-}
+  RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: ${KAIROS_OFFSITE_ACCESS_KEY_ID:-}
+  RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${KAIROS_OFFSITE_SECRET_ACCESS_KEY:-}
+  RCLONE_CONFIG_OFFSITE_FORCE_PATH_STYLE: "true"
+  RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET: "true"
+
 services:
   app:
     build:
@@ -106,16 +117,7 @@ services:
   offsite-backup:
     image: rclone/rclone:1.75.2
     profiles: ["offsite"]
-    environment:
-      KAIROS_OFFSITE_BUCKET: ${KAIROS_OFFSITE_BUCKET:-}
-      RCLONE_CONFIG_OFFSITE_TYPE: s3
-      RCLONE_CONFIG_OFFSITE_PROVIDER: Other
-      RCLONE_CONFIG_OFFSITE_ENDPOINT: ${KAIROS_OFFSITE_ENDPOINT:-}
-      RCLONE_CONFIG_OFFSITE_REGION: ${KAIROS_OFFSITE_REGION:-}
-      RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: ${KAIROS_OFFSITE_ACCESS_KEY_ID:-}
-      RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${KAIROS_OFFSITE_SECRET_ACCESS_KEY:-}
-      RCLONE_CONFIG_OFFSITE_FORCE_PATH_STYLE: "true"
-      RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET: "true"
+    environment: *offsite-storage-environment
     entrypoint: ["sh", "-c"]
     command:
       - |
@@ -129,8 +131,15 @@ services:
         done
     volumes:
       - ./backup:/backup:ro
-      - kairos-backups:/backups
+      - kairos-backups:/backups:ro
     restart: unless-stopped
+
+  offsite-restore:
+    image: rclone/rclone:1.75.2
+    profiles: ["offsite-restore"]
+    environment: *offsite-storage-environment
+    volumes:
+      - kairos-backups:/backups
 
 volumes:
   kairos-data:
