@@ -19,11 +19,10 @@ export const dashboardOverview = async (database: KairosDatabase, ownerId: strin
   const { items: _valuedItems, ...stockValue } = await valueStock(database, ownerId, now)
   const deliveries = await listDeliveries(database, ownerId)
   const debtBalances = await computeDebtBalances(database, ownerId)
-  const allSales = await listSales(database, ownerId)
   return {
     stockValue,
     valueHistory: await listStockValueHistory(database, ownerId, now),
-    recentSales: allSales.slice(0, recentSaleCount),
+    recentSales: await listSales(database, ownerId, { limit: recentSaleCount }),
     deliveriesInProgress: { incoming: deliveries.incoming.length, outgoing: deliveries.outgoing.length },
     debtTotals: {
       owedToMeCents: debtBalances.reduce((sum, debtBalance) => sum + debtBalance.owedToMeCents, 0),

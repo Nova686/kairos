@@ -327,6 +327,21 @@ describe('listSales', () => {
     expect(listed.map(sale => sale.soldOn)).toEqual(['2026-11-01', '2026-10-01'])
   })
 
+  it('lists only the requested number of most recent sales with their items', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId)
+    const stockItemIds = await stockWithAllocations(database, ownerId, productId, [1000, 1000, 1000])
+    for (const [position, stockItemId] of stockItemIds.entries()) {
+      await createSale(database, ownerId, buildSaleDraft([stockItemId], { soldOn: `2026-11-0${position + 2}` }))
+    }
+
+    const recentSales = await listSales(database, ownerId, { limit: 2 })
+
+    expect(recentSales.map(sale => sale.soldOn)).toEqual(['2026-11-04', '2026-11-03'])
+    expect(recentSales.every(sale => sale.items.length === 1)).toBe(true)
+  })
+
   it('names the product of each sold item and lists the items by product name', async () => {
     const database = await createTestDatabase()
     const ownerId = await insertOwner(database, 'a@example.com')

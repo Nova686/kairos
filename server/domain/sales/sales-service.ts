@@ -195,12 +195,17 @@ export const deleteSale = async (database: KairosDatabase, ownerId: string, sale
   })
 }
 
-export const listSales = async (database: KairosDatabase, ownerId: string): Promise<SaleWithItems[]> => {
-  const ownedSales = await database
+export const listSales = async (
+  database: KairosDatabase,
+  ownerId: string,
+  { limit }: { limit?: number } = {},
+): Promise<SaleWithItems[]> => {
+  const ownedSalesQuery = database
     .select()
     .from(sales)
     .where(eq(sales.ownerId, ownerId))
     .orderBy(desc(sales.soldOn), desc(sales.createdAt))
+  const ownedSales = limit === undefined ? await ownedSalesQuery : await ownedSalesQuery.limit(limit)
   if (ownedSales.length === 0) {
     return []
   }
