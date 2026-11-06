@@ -38,16 +38,21 @@ export const validatePurchaseInput = (input: PurchaseSubmissionInput): string =>
   if (input.lines.length === 0) {
     return 'Ajoutez au moins un produit.'
   }
-  if (parseEuroInput(input.totalPriceText) === null) {
+  const totalPriceCents = parseEuroInput(input.totalPriceText)
+  if (totalPriceCents === null) {
     return 'Le prix total est invalide.'
   }
-  if (parseFeesCents(input.feesText) === null) {
+  const feesCents = parseFeesCents(input.feesText)
+  if (feesCents === null) {
     return 'Les frais sont invalides.'
   }
   if (input.advancedByPersonId !== null) {
     const advancedAmountCents = parseEuroInput(input.advancedAmountText)
     if (advancedAmountCents === null || advancedAmountCents === 0) {
       return 'Le montant avancé est invalide.'
+    }
+    if (advancedAmountCents > totalPriceCents + feesCents) {
+      return 'Le montant avancé dépasse le coût de l’achat.'
     }
   }
   return ''

@@ -10,7 +10,7 @@
       >
         <v-list-item
           v-for="candidate in identifiedCandidates"
-          :key="`identified-${candidate.origin}-${candidate.label}`"
+          :key="`identified-${productCandidateKey(candidate)}`"
           :title="candidate.label"
           :subtitle="describeCandidate(candidate)"
           rounded="lg"
@@ -70,7 +70,7 @@
       >
         <v-list-item
           v-for="candidate in candidateGroup.candidates"
-          :key="`${candidate.origin}-${candidate.label}`"
+          :key="productCandidateKey(candidate)"
           :title="candidate.label"
           :subtitle="describeCandidate(candidate)"
           rounded="lg"

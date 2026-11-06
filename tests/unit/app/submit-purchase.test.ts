@@ -57,6 +57,21 @@ describe('validatePurchaseInput', () => {
     expect(validatePurchaseInput(buildInput({ feesText: '1,234' }))).not.toBe('')
     expect(validatePurchaseInput(buildInput({ advancedByPersonId: 'person-1', advancedAmountText: '' }))).not.toBe('')
   })
+
+  it('blocks an advanced amount above the purchase cost but accepts the whole cost with fees', () => {
+    expect(validatePurchaseInput(buildInput({
+      totalPriceText: '100',
+      feesText: '5',
+      advancedByPersonId: 'person-1',
+      advancedAmountText: '105,01',
+    }))).toBe('Le montant avancé dépasse le coût de l’achat.')
+    expect(validatePurchaseInput(buildInput({
+      totalPriceText: '100',
+      feesText: '5',
+      advancedByPersonId: 'person-1',
+      advancedAmountText: '105',
+    }))).toBe('')
+  })
 })
 
 describe('submitPurchaseWithAdvance', () => {
