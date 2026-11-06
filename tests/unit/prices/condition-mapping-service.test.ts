@@ -123,4 +123,14 @@ describe('parseGradeFromTitle', () => {
     expect(parseGradeFromTitle('Carte PSA 11')).toBeNull()
     expect(parseGradeFromTitle('Carte PSA 0')).toBeNull()
   })
+
+  it('refuses a grade that is not on the half-point scale instead of truncating it', () => {
+    expect(parseGradeFromTitle('Carte PSA 10.5')).toBeNull()
+    expect(parseGradeFromTitle('Carte BGS 9.75')).toBeNull()
+    expect(parseGradeFromTitle('Dracaufeu PSA 10.')).toEqual({ gradingCompany: 'PSA', grade: '10' })
+  })
+
+  it('reads a French decimal comma as a half point', () => {
+    expect(parseGradeFromTitle('Carte PSA 9,5 gem')).toEqual({ gradingCompany: 'PSA', grade: '9.5' })
+  })
 })
