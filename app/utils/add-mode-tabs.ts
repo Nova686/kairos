@@ -20,3 +20,22 @@ export const resolveDisplayedAddTab = (requestedTab: AddProductTab | null, avail
   }
   return availableTabs.includes(requestedTab) ? requestedTab : 'texte'
 }
+
+type CameraFallbackTab = Exclude<AddProductTab, 'code-barres'>
+
+export interface CameraFallback {
+  tab: CameraFallbackTab
+  linkLabel: string
+}
+
+const cameraFallbackLinkLabels: Record<CameraFallbackTab, string> = {
+  photo: 'ou prenez une photo',
+  texte: 'ou cherchez le produit par son nom',
+}
+
+const isCameraFallbackTab = (tab: AddProductTab): tab is CameraFallbackTab => tab !== 'code-barres'
+
+export const describeCameraFallback = (photoRecognitionAvailable: boolean): CameraFallback => {
+  const fallbackTab = buildAddModeTabs({ cameraScanAvailable: true, photoRecognitionAvailable }).find(isCameraFallbackTab) ?? 'texte'
+  return { tab: fallbackTab, linkLabel: cameraFallbackLinkLabels[fallbackTab] }
+}

@@ -36,8 +36,8 @@
       role="alert"
     >
       Autorisez l’appareil photo dans Réglages › Safari, saisissez le code ci-dessous
-      <NuxtLink :to="{ query: { onglet: 'photo' } }">
-        ou prenez une photo
+      <NuxtLink :to="{ query: { onglet: cameraFallback.tab } }">
+        {{ cameraFallback.linkLabel }}
       </NuxtLink>.
     </v-alert>
     <v-alert
@@ -47,8 +47,8 @@
       role="alert"
     >
       L’appareil photo n’est pas disponible : saisissez le code ci-dessous
-      <NuxtLink :to="{ query: { onglet: 'photo' } }">
-        ou prenez une photo
+      <NuxtLink :to="{ query: { onglet: cameraFallback.tab } }">
+        {{ cameraFallback.linkLabel }}
       </NuxtLink>.
     </v-alert>
     <v-btn
@@ -92,8 +92,13 @@
 </template>
 
 <script setup lang="ts">
+const props = defineProps({
+  photoRecognitionAvailable: { type: Boolean, default: true },
+})
 const isPsaMode = defineModel<boolean>('psaMode', { default: false })
 const emit = defineEmits<{ codeSubmitted: [code: string] }>()
+
+const cameraFallback = computed(() => describeCameraFallback(props.photoRecognitionAvailable))
 
 const { videoElement, start, stop, lastCode, cameraState } = useBarcodeScanner()
 const manualCode = ref('')

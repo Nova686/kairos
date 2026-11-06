@@ -52,6 +52,7 @@
             <BarcodeScanner
               v-if="displayedTab === 'code-barres'"
               v-model:psa-mode="isPsaMode"
+              :photo-recognition-available="isPhotoRecognitionAvailable"
               @code-submitted="identify"
             />
             <v-progress-linear

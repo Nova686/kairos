@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildAddModeTabs, resolveDisplayedAddTab } from '../../../app/utils/add-mode-tabs.ts'
+import { buildAddModeTabs, describeCameraFallback, resolveDisplayedAddTab } from '../../../app/utils/add-mode-tabs.ts'
 
 describe('buildAddModeTabs', () => {
   it('offers every tab on a phone with photo recognition', () => {
@@ -31,5 +31,22 @@ describe('resolveDisplayedAddTab', () => {
   it('opens on the first available tab when none is requested', () => {
     expect(resolveDisplayedAddTab(null, ['code-barres', 'photo', 'texte'])).toBe('code-barres')
     expect(resolveDisplayedAddTab(null, ['texte'])).toBe('texte')
+  })
+})
+
+describe('describeCameraFallback', () => {
+  it('sends a phone without camera to the photo tab when photo recognition is on', () => {
+    expect(describeCameraFallback(true)).toEqual({ tab: 'photo', linkLabel: 'ou prenez une photo' })
+  })
+
+  it('sends a phone without camera to the text search when photo recognition is off', () => {
+    expect(describeCameraFallback(false)).toEqual({ tab: 'texte', linkLabel: 'ou cherchez le produit par son nom' })
+  })
+
+  it('always points to a tab the phone actually offers', () => {
+    for (const photoRecognitionAvailable of [true, false]) {
+      const offeredTabs = buildAddModeTabs({ cameraScanAvailable: true, photoRecognitionAvailable })
+      expect(offeredTabs).toContain(describeCameraFallback(photoRecognitionAvailable).tab)
+    }
   })
 })
