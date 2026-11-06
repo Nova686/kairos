@@ -1,7 +1,6 @@
 import { products, purchases, stockItems, users } from '../../../server/database/schema/index.ts'
 import {
   LocationInUseError,
-  LocationLabelAlreadyUsedError,
   LocationLabelInvalidError,
   createLocation,
   deleteLocation,
@@ -9,11 +8,17 @@ import {
   renameLocation,
 } from '../../../server/domain/locations/locations-service.ts'
 import type { KairosDatabase } from '../../../server/database/open-database.ts'
+import { describeDatabaseConflict } from '../../../server/database/database-conflict.ts'
 import { createTestDatabase } from '../../support/create-test-database.ts'
 
 const insertOwner = async (database: KairosDatabase, email: string): Promise<string> => {
   const [owner] = await database.insert(users).values({ email, displayName: email, passwordHash: 'x' }).returning()
   return owner!.id
+}
+
+const expectDuplicateLabelConflict = async (action: Promise<unknown>): Promise<void> => {
+  const failure = await action.then(() => null, (rejection: unknown) => rejection)
+  expect(describeDatabaseConflict(failure)).toBe('Un emplacement porte déjà ce nom')
 }
 
 const insertStockItemAt = async (database: KairosDatabase, ownerId: string, locationId: string): Promise<void> => {
@@ -61,7 +66,7 @@ describe('locations service', () => {
     const otherOwnerId = await insertOwner(database, 'b@example.com')
     await createLocation(database, ownerId, 'Cave')
 
-    await expect(createLocation(database, ownerId, ' Cave ')).rejects.toBeInstanceOf(LocationLabelAlreadyUsedError)
+    await expectDuplicateLabelConflict(createLocation(database, ownerId, ' Cave '))
     await expect(createLocation(database, otherOwnerId, 'Cave')).resolves.toMatchObject({ label: 'Cave' })
   })
 
@@ -74,9 +79,7 @@ describe('locations service', () => {
     const renamedLocation = await renameLocation(database, ownerId, cave.id, 'Cave 2')
 
     expect(renamedLocation.label).toBe('Cave 2')
-    await expect(renameLocation(database, ownerId, cave.id, 'Grenier')).rejects.toBeInstanceOf(
-      LocationLabelAlreadyUsedError,
-    )
+    await expectDuplicateLabelConflict(renameLocation(database, ownerId, cave.id, 'Grenier'))
     await expect(renameLocation(database, ownerId, cave.id, 'Cave 2')).resolves.toMatchObject({ label: 'Cave 2' })
   })
 

@@ -1,4 +1,4 @@
-import { and, asc, eq, ne } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { locations, stockItems } from '../../database/schema/index.ts'
 import { findOwnedOr404 } from '../ownership/find-owned-or-404.ts'
@@ -12,16 +12,9 @@ export class LocationLabelInvalidError extends Error {
   }
 }
 
-export class LocationLabelAlreadyUsedError extends Error {
-  constructor() {
-    super('Location label already used')
-    this.name = 'LocationLabelAlreadyUsedError'
-  }
-}
-
 export class LocationInUseError extends Error {
   constructor() {
-    super('Location is used by at least one stock item')
+    super('Cet emplacement contient encore des exemplaires')
     this.name = 'LocationInUseError'
   }
 }
@@ -34,29 +27,11 @@ const normalizeLabel = (label: string): string => {
   return trimmedLabel
 }
 
-const assertLabelAvailable = async (
-  database: KairosDatabase,
-  ownerId: string,
-  label: string,
-  excludedLocationId?: string,
-): Promise<void> => {
-  const sameLabelCondition = and(eq(locations.ownerId, ownerId), eq(locations.label, label))
-  const [conflictingLocation] = await database
-    .select({ id: locations.id })
-    .from(locations)
-    .where(excludedLocationId ? and(sameLabelCondition, ne(locations.id, excludedLocationId)) : sameLabelCondition)
-  if (conflictingLocation) {
-    throw new LocationLabelAlreadyUsedError()
-  }
-}
-
 export const listLocations = (database: KairosDatabase, ownerId: string): Promise<Location[]> =>
   database.select().from(locations).where(eq(locations.ownerId, ownerId)).orderBy(asc(locations.label))
 
 export const createLocation = async (database: KairosDatabase, ownerId: string, label: string): Promise<Location> => {
-  const normalizedLabel = normalizeLabel(label)
-  await assertLabelAvailable(database, ownerId, normalizedLabel)
-  const [createdLocation] = await database.insert(locations).values({ ownerId, label: normalizedLabel }).returning()
+  const [createdLocation] = await database.insert(locations).values({ ownerId, label: normalizeLabel(label) }).returning()
   return createdLocation!
 }
 
@@ -67,11 +42,9 @@ export const renameLocation = async (
   label: string,
 ): Promise<Location> => {
   await findOwnedOr404(database, locations, locationId, ownerId)
-  const normalizedLabel = normalizeLabel(label)
-  await assertLabelAvailable(database, ownerId, normalizedLabel, locationId)
   const [renamedLocation] = await database
     .update(locations)
-    .set({ label: normalizedLabel })
+    .set({ label: normalizeLabel(label) })
     .where(and(eq(locations.id, locationId), eq(locations.ownerId, ownerId)))
     .returning()
   return renamedLocation!

@@ -75,7 +75,38 @@ describe('ownership of locations and persons', async () => {
     const emptyResponse = await sendJson('/api/locations', 'POST', firstCookie, { label: '  ' })
 
     expect(duplicateResponse.status).toBe(409)
+    expect((await duplicateResponse.json()).statusMessage).toBe('Un emplacement porte déjà ce nom')
     expect(emptyResponse.status).toBe(422)
+  })
+
+  it('answers 409 with a French message, never 500, when the same label is created concurrently', async () => {
+    const firstCookie = await logIn('first@example.com', firstPassword)
+
+    const concurrentResponses = await Promise.all(Array.from({ length: 6 }, () =>
+      sendJson('/api/locations', 'POST', firstCookie, { label: 'Grenier' })))
+
+    const statuses = concurrentResponses.map(response => response.status)
+    const conflictMessages = await Promise.all(concurrentResponses
+      .filter(response => response.status === 409)
+      .map(async response => (await response.json()).statusMessage))
+    expect(statuses.filter(status => status === 200)).toHaveLength(1)
+    expect(statuses.filter(status => status === 409)).toHaveLength(5)
+    expect(new Set(conflictMessages)).toEqual(new Set(['Un emplacement porte déjà ce nom']))
+  })
+
+  it('answers 409 with a French message when a person still referenced by a debt is deleted', async () => {
+    const firstCookie = await logIn('first@example.com', firstPassword)
+    const person = await $fetch<{ id: string }>('/api/persons', { method: 'POST', body: { name: 'Dominique' }, headers: { cookie: firstCookie } })
+    await $fetch('/api/debts', {
+      method: 'POST',
+      body: { personId: person.id, amountCents: 500, direction: 'i-owe', reason: 'Avance', createdOn: '2026-11-02' },
+      headers: { cookie: firstCookie },
+    })
+
+    const response = await sendJson(`/api/persons/${person.id}`, 'DELETE', firstCookie)
+
+    expect(response.status).toBe(409)
+    expect((await response.json()).statusMessage).toBe('Cette personne est liée à une dette ou à une vente')
   })
 
   it('answers 404 on an identifier that is not a uuid', async () => {

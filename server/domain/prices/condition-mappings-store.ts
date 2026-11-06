@@ -16,7 +16,7 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 export class ConditionMappingConditionNotAllowedError extends Error {
   constructor() {
-    super('Condition is not part of the category scale')
+    super('Cet état ne fait pas partie de l’échelle de la catégorie')
     this.name = 'ConditionMappingConditionNotAllowedError'
   }
 }

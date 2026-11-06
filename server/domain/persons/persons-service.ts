@@ -14,7 +14,7 @@ export class PersonNameInvalidError extends Error {
 
 export class PersonInUseError extends Error {
   constructor() {
-    super('Person is referenced by a debt or a sale')
+    super('Cette personne est liée à une dette ou à une vente')
     this.name = 'PersonInUseError'
   }
 }

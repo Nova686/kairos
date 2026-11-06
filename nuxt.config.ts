@@ -1,6 +1,9 @@
+import { fileURLToPath } from 'node:url'
 import vuetify from 'vite-plugin-vuetify'
 import { brandColorStylesheet } from './shared/theme/brand-color-stylesheet.ts'
 import { brandBackgroundColor } from './shared/theme/brand-colors.ts'
+
+const databaseConflictErrorHandler = fileURLToPath(new URL('./server/error-handlers/answer-database-conflict.ts', import.meta.url))
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-02',
@@ -22,6 +25,11 @@ export default defineNuxtConfig({
     modelsDirectory: '.data/models',
     tesseractDirectory: '.data/tesseract',
     photoRecognition: 'on',
+  },
+  hooks: {
+    'nitro:config': (nitroConfig) => {
+      nitroConfig.errorHandler = [databaseConflictErrorHandler, ...[nitroConfig.errorHandler ?? []].flat()]
+    },
   },
   nitro: {
     preset: 'node-server',
