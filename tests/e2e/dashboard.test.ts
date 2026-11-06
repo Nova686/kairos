@@ -47,11 +47,14 @@ describe('dashboard', async () => {
       headers: { cookie },
     })
 
-    const overview = await $fetch<{ stockValue: { estimatedValueCents: number } }>('/api/dashboard', { headers: { cookie } })
+    const overview = await $fetch<{ stockValue: { estimatedValueCents: number }, valueHistory: unknown[] }>('/api/dashboard', { headers: { cookie } })
     const dashboardPage = await $fetch<string>('/', { headers: { cookie } })
 
     expect(overview.stockValue.estimatedValueCents).toBe(123456)
     expect(dashboardPage).toContain('Valeur actuelle')
     expect(dashboardPage).toMatch(/1\s234,56/)
+    expect(overview.valueHistory).toEqual([])
+    expect(dashboardPage).toContain('Coût et valeur dans le temps')
+    expect(dashboardPage).toContain('Pas encore d’historique')
   })
 })
