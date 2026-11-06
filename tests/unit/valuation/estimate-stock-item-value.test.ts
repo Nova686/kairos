@@ -173,6 +173,33 @@ describe('estimateStockItemValue', () => {
     expect(estimateStockItemValue(sealedProduct('sealed-new'), [low, high], now).valueCents).toBe(6000)
   })
 
+  it('keeps the newest figure in the window when the latest refresh of a source found none', () => {
+    const valuation = estimateStockItemValue(sealedProduct('sealed-new'), [
+      snapshot({ figureCents: 6000, observedAt: daysAgo(3) }),
+      snapshot({ figureCents: null, observedAt: daysAgo(1) }),
+    ], now)
+    expect(valuation.valueCents).toBe(6000)
+    expect(valuation.perSource).toEqual([{ source: 'ebay', figureCents: 6000, observedAt: daysAgo(3) }])
+  })
+
+  it('falls back to the closest condition of the toy scale and flags the value approximate', () => {
+    const valuation = estimateStockItemValue(
+      { category: 'toy', condition: 'good', gradingCompany: null, grade: null },
+      [snapshot({ kairosCondition: 'very-good', figureCents: 2500 })],
+      now,
+    )
+    expect(valuation).toMatchObject({ valueCents: 2500, approximate: true, usedCondition: 'very-good' })
+  })
+
+  it('takes the median of the manual and the listing figures of one source', () => {
+    const valuation = estimateStockItemValue(sealedProduct('sealed-new'), [
+      snapshot({ source: 'vinted', kind: 'manual', figureCents: 7000, observedAt: daysAgo(2) }),
+      snapshot({ source: 'vinted', kind: 'active', figureCents: 9000, observedAt: daysAgo(1) }),
+    ], now)
+    expect(valuation.perSource).toEqual([{ source: 'vinted', figureCents: 8000, observedAt: daysAgo(1) }])
+    expect(valuation.valueCents).toBe(8000)
+  })
+
   it('ignores snapshots without a figure', () => {
     const valuation = estimateStockItemValue(sealedProduct('sealed-new'), [
       snapshot({ figureCents: null }),
