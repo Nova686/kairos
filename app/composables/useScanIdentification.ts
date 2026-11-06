@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import type { ProductCandidate } from '../../server/domain/catalogue/search-product-candidates.ts'
+import type { ProductCandidate } from '../../shared/catalogue/product-candidate.ts'
 import type { ProductReference } from '../../shared/catalogue/product-reference.ts'
 import { classifyScannedCode } from '../utils/classify-scanned-code.ts'
 import { describeRequestFailure } from '../utils/describe-request-failure.ts'

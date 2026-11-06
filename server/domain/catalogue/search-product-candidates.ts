@@ -13,14 +13,9 @@ import {
 } from '../../../src/price-sources/price-source-types.ts'
 import { searchTcgdexCards } from '../../../src/price-sources/tcgdex/tcgdex-adapter.ts'
 import type { Product } from './catalogue-service.ts'
+import type { ProductCandidate } from '../../../shared/catalogue/product-candidate.ts'
 
-export interface ProductCandidate {
-  origin: 'catalogue' | 'cardmarket' | 'tcgdex' | 'ebay' | 'identification'
-  label: string
-  imageUrl: string | null
-  productId: string | null
-  draft: ProductDraft
-}
+export type { ProductCandidate }
 
 export interface ProductSearchDependencies {
   searchTcgdexCards: (frenchName: string) => Promise<CardCandidate[]>

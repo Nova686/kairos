@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import type { ProductCandidate } from '../../server/domain/catalogue/search-product-candidates.ts'
-import type { PhotoDegradedReason } from '../../server/domain/scan/identify-photo.ts'
+import type { ProductCandidate } from '../../shared/catalogue/product-candidate.ts'
+import type { PhotoDegradedReason } from '../../shared/scan/photo-degraded-reason.ts'
 import type { ProductReference } from '../../shared/catalogue/product-reference.ts'
 import { describeRequestFailure } from '../utils/describe-request-failure.ts'
 import { createExclusiveRunner } from '../utils/run-exclusively.ts'

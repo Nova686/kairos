@@ -1,4 +1,4 @@
-import type { ProductCandidate } from '~~/server/domain/catalogue/search-product-candidates'
+import type { ProductCandidate } from '~~/shared/catalogue/product-candidate'
 
 export interface CandidateGroup {
   origin: ProductCandidate['origin']

@@ -1,4 +1,4 @@
-import type { ProductCandidate } from '~~/server/domain/catalogue/search-product-candidates'
+import type { ProductCandidate } from '~~/shared/catalogue/product-candidate'
 import { productCategories, type ProductCategory } from '~~/shared/catalogue/product-category'
 import type { ProductReference } from '~~/shared/catalogue/product-reference'
 

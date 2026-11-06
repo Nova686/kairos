@@ -20,7 +20,9 @@ import {
   type PhotoCandidateSignal,
 } from '../../../shared/scan/score-photo-candidates.ts'
 
-export type PhotoDegradedReason = 'image-embedder-unavailable' | 'text-reader-unavailable'
+import type { PhotoDegradedReason } from '../../../shared/scan/photo-degraded-reason.ts'
+
+export type { PhotoDegradedReason }
 
 export type PhotoIdentificationDependencies = {
   embedder: ImageEmbedder

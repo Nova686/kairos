@@ -138,7 +138,7 @@
 import { productCategories, productCategoryLabels } from '~~/shared/catalogue/product-category'
 import type { ProductReference } from '~~/shared/catalogue/product-reference'
 
-import type { ProductCandidate } from '~~/server/domain/catalogue/search-product-candidates'
+import type { ProductCandidate } from '~~/shared/catalogue/product-candidate'
 
 const props = withDefaults(defineProps<{
   identifiedCandidates?: ProductCandidate[]
