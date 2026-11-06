@@ -29,6 +29,16 @@ describe('removeOutliers', () => {
     expect(removeOutliers([1, 6500, 30000])).toEqual([1, 6500, 30000])
   })
 
+  it('always answers a new sorted list, whatever the number of values', () => {
+    const fewPrices = [30000, 1, 6500]
+
+    const keptPrices = removeOutliers(fewPrices)
+
+    expect(keptPrices).toEqual([1, 6500, 30000])
+    expect(keptPrices).not.toBe(fewPrices)
+    expect(fewPrices).toEqual([30000, 1, 6500])
+  })
+
   it('keeps values lying exactly on a fence', () => {
     expect(removeOutliers([10, 10, 10, 10])).toEqual([10, 10, 10, 10])
   })

@@ -12,7 +12,7 @@ const quantileOfSorted = (sortedValues: number[], probability: number): number =
 
 export const removeOutliers = (pricesCents: number[]): number[] => {
   const sorted = [...pricesCents].sort((left, right) => left - right)
-  if (sorted.length < minimumValuesForOutlierRemoval) return pricesCents
+  if (sorted.length < minimumValuesForOutlierRemoval) return sorted
   const firstQuartile = quantileOfSorted(sorted, 0.25)
   const thirdQuartile = quantileOfSorted(sorted, 0.75)
   const fenceDistance = (thirdQuartile - firstQuartile) * interquartileRangeMultiplier
