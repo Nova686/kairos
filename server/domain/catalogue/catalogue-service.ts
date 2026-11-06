@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { catalogueChanges, productBarcodes, products } from '../../database/schema/index.ts'
@@ -17,6 +17,8 @@ const imageUrlFieldName = 'imageUrl'
 
 const notFound = () => createError({ statusCode: 404, statusMessage: 'Introuvable' })
 
+const conflict = (message: string) => createError({ statusCode: 409, statusMessage: message })
+
 const hasSameValue = (firstValue: unknown, secondValue: unknown): boolean =>
   JSON.stringify(firstValue ?? null) === JSON.stringify(secondValue ?? null)
 
@@ -28,6 +30,26 @@ export const findProductOr404 = async (database: KairosDatabase, productId: stri
     throw notFound()
   }
   return product
+}
+
+const lockProductOr404 = async (transaction: Pick<KairosDatabase, 'select'>, productId: string): Promise<Product> => {
+  const [lockedProduct] = uuidPattern.test(productId)
+    ? await transaction.select().from(products).where(eq(products.id, productId)).for('update')
+    : []
+  if (!lockedProduct) {
+    throw notFound()
+  }
+  return lockedProduct
+}
+
+const assertNotRevertedYet = async (transaction: Pick<KairosDatabase, 'select'>, changeId: string): Promise<void> => {
+  const [existingRevert] = await transaction
+    .select({ id: catalogueChanges.id })
+    .from(catalogueChanges)
+    .where(eq(catalogueChanges.revertedChangeId, changeId))
+  if (existingRevert) {
+    throw conflict('Cette modification a déjà été annulée')
+  }
 }
 
 export const findProductByBarcode = async (database: KairosDatabase, barcode: string): Promise<Product | null> => {
@@ -57,29 +79,29 @@ export const updateProduct = async (
   productId: string,
   changes: Partial<ProductDraft>,
 ): Promise<Product> => {
-  const currentProduct = await findProductOr404(database, productId)
-  const changedFieldNames = productDraftFieldNames.filter(
-    fieldName => fieldName in changes && !hasSameValue(currentProduct[fieldName], changes[fieldName]),
-  )
-  if (changedFieldNames.length === 0) {
-    return currentProduct
-  }
-  const savedProduct = await database.transaction(async (transaction) => {
+  const { savedProduct, changedFieldNames } = await database.transaction(async (transaction) => {
+    const currentProduct = await lockProductOr404(transaction, productId)
+    const fieldNamesToChange = productDraftFieldNames.filter(
+      fieldName => fieldName in changes && !hasSameValue(currentProduct[fieldName], changes[fieldName]),
+    )
+    if (fieldNamesToChange.length === 0) {
+      return { savedProduct: currentProduct, changedFieldNames: fieldNamesToChange }
+    }
     const [updatedProduct] = await transaction
       .update(products)
       .set({
-        ...Object.fromEntries(changedFieldNames.map(fieldName => [fieldName, changes[fieldName]])),
-        ...(changedFieldNames.includes(imageUrlFieldName) ? { lastEmbeddingFailureAt: null } : {}),
+        ...Object.fromEntries(fieldNamesToChange.map(fieldName => [fieldName, changes[fieldName]])),
+        ...(fieldNamesToChange.includes(imageUrlFieldName) ? { lastEmbeddingFailureAt: null } : {}),
         updatedAt: new Date(),
       })
       .where(eq(products.id, productId))
       .returning()
-    if (changedFieldNames.includes(imageUrlFieldName)) {
+    if (fieldNamesToChange.includes(imageUrlFieldName)) {
       await deleteCatalogueImageEmbeddings(transaction, productId)
     }
     await appendCatalogueChanges(
       transaction,
-      changedFieldNames.map(fieldName => ({
+      fieldNamesToChange.map(fieldName => ({
         productId,
         userId,
         fieldName,
@@ -87,7 +109,7 @@ export const updateProduct = async (
         newValue: changes[fieldName],
       })),
     )
-    return updatedProduct!
+    return { savedProduct: updatedProduct!, changedFieldNames: fieldNamesToChange }
   })
   if (changedFieldNames.includes(imageUrlFieldName)) {
     invalidateEmbeddingMatrix()
@@ -108,29 +130,20 @@ export const revertCatalogueChange = async (
   }
   const revertableFieldName = productDraftFieldNames.find(fieldName => fieldName === change.fieldName)
   if (change.subject === barcodeSubject) {
-    const [existingBarcodeRevert] = await database
-      .select({ id: catalogueChanges.id })
-      .from(catalogueChanges)
-      .where(eq(catalogueChanges.revertedChangeId, changeId))
-    if (existingBarcodeRevert) {
-      throw createError({ statusCode: 409, statusMessage: 'Cette modification a déjà été annulée' })
-    }
+    await assertNotRevertedYet(database, changeId)
     return revertBarcodeChange(database, userId, change)
   }
   if (!revertableFieldName) {
-    throw createError({ statusCode: 409, statusMessage: 'Cette modification ne peut pas être annulée' })
-  }
-  const [existingRevert] = await database
-    .select({ id: catalogueChanges.id })
-    .from(catalogueChanges)
-    .where(eq(catalogueChanges.revertedChangeId, changeId))
-  if (existingRevert) {
-    throw createError({ statusCode: 409, statusMessage: 'Cette modification a déjà été annulée' })
+    throw conflict('Cette modification ne peut pas être annulée')
   }
   const changedProductId = change.productId
-  const currentProduct = await findProductOr404(database, changedProductId)
   const isImageRevert = revertableFieldName === imageUrlFieldName
   const savedProduct = await database.transaction(async (transaction) => {
+    const currentProduct = await lockProductOr404(transaction, changedProductId)
+    await assertNotRevertedYet(transaction, changeId)
+    if (!hasSameValue(currentProduct[revertableFieldName], change.newValue)) {
+      throw conflict('Ce champ a été modifié depuis : annulez d’abord la modification la plus récente')
+    }
     const [revertedProduct] = await transaction
       .update(products)
       .set({
@@ -163,6 +176,8 @@ export const revertCatalogueChange = async (
 
 const barcodeSubject = 'barcode'
 
+const barcodeNoLongerLinkedMessage = 'Ce code-barres n\u2019est plus lié à ce produit'
+
 export const attachBarcode = async (
   database: KairosDatabase,
   userId: string,
@@ -176,10 +191,24 @@ export const attachBarcode = async (
     if (linkedProduct.id === productId) {
       return
     }
-    throw createError({ statusCode: 409, statusMessage: 'Ce code-barres est déjà lié à un autre produit' })
+    throw conflict('Ce code-barres est déjà lié à un autre produit')
   }
   await database.transaction(async (transaction) => {
-    await transaction.insert(productBarcodes).values({ barcode, productId, createdByUserId: userId })
+    const insertedBarcodes = await transaction
+      .insert(productBarcodes)
+      .values({ barcode, productId, createdByUserId: userId })
+      .onConflictDoNothing()
+      .returning({ barcode: productBarcodes.barcode })
+    if (insertedBarcodes.length === 0) {
+      const [concurrentLink] = await transaction
+        .select({ productId: productBarcodes.productId })
+        .from(productBarcodes)
+        .where(eq(productBarcodes.barcode, barcode))
+      if (concurrentLink?.productId === productId) {
+        return
+      }
+      throw conflict('Ce code-barres est déjà lié à un autre produit')
+    }
     await appendCatalogueChanges(transaction, [
       {
         productId,
@@ -207,7 +236,13 @@ export const detachBarcode = async (
     throw notFound()
   }
   await database.transaction(async (transaction) => {
-    await transaction.delete(productBarcodes).where(eq(productBarcodes.barcode, barcode))
+    const detachedBarcodes = await transaction
+      .delete(productBarcodes)
+      .where(and(eq(productBarcodes.barcode, barcode), eq(productBarcodes.productId, productId)))
+      .returning({ barcode: productBarcodes.barcode })
+    if (detachedBarcodes.length === 0) {
+      throw conflict(barcodeNoLongerLinkedMessage)
+    }
     await appendCatalogueChanges(transaction, [
       {
         productId,
@@ -233,7 +268,7 @@ const revertBarcodeChange = async (
   if (linkedBarcode) {
     const linkedProduct = await findProductByBarcode(database, linkedBarcode)
     if (linkedProduct?.id !== productId) {
-      throw createError({ statusCode: 409, statusMessage: 'Ce code-barres n\u2019est plus lié à ce produit' })
+      throw conflict(barcodeNoLongerLinkedMessage)
     }
     await detachBarcode(database, userId, productId, linkedBarcode, change.id)
   } else if (detachedBarcode) {

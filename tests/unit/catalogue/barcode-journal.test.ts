@@ -78,6 +78,21 @@ describe('barcode journal', () => {
     await expect(revertCatalogueChange(database, userId, linkChange!.id)).rejects.toMatchObject({ statusCode: 409 })
   })
 
+  it('reverts a barcode link only once when two reverts of it run at the same time', async () => {
+    const { database, userId, productId } = await setUp()
+    await attachBarcode(database, userId, productId, barcode)
+    const [linkChange] = await barcodeChanges(database, productId)
+
+    const outcomes = await Promise.allSettled([
+      revertCatalogueChange(database, userId, linkChange!.id),
+      revertCatalogueChange(database, userId, linkChange!.id),
+    ])
+
+    expect(outcomes.map(outcome => outcome.status).sort()).toEqual(['fulfilled', 'rejected'])
+    expect(outcomes.find(outcome => outcome.status === 'rejected')).toMatchObject({ reason: { statusCode: 409 } })
+    expect((await barcodeChanges(database, productId)).filter(change => change.revertedChangeId === linkChange!.id)).toHaveLength(1)
+  })
+
   it('refuses a second revert of the same barcode change', async () => {
     const { database, userId, productId } = await setUp()
     await attachBarcode(database, userId, productId, barcode)

@@ -3,6 +3,7 @@ import {
   attachBarcode,
   createProduct,
   findProductByBarcode,
+  findProductOr404,
   listProductChanges,
   revertCatalogueChange,
   updateProduct,
@@ -59,6 +60,22 @@ describe('catalogue service', () => {
     expect(await listProductChanges(database, product.id)).toHaveLength(1)
   })
 
+  it('journals two concurrent edits of one field as a chain of values', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database, 'a@example.com')
+    const product = await createProduct(database, userId, emptyProductDraft('Display EV1', 'pokemon-sealed'))
+
+    await Promise.all([
+      updateProduct(database, userId, product.id, { name: 'Display EV2' }),
+      updateProduct(database, userId, product.id, { name: 'Display EV3' }),
+    ])
+
+    const nameChanges = (await listProductChanges(database, product.id)).filter(change => change.fieldName === 'name')
+    expect(nameChanges).toHaveLength(2)
+    expect(nameChanges[0]!.previousValue).toBe('Display EV1')
+    expect(nameChanges[1]!.previousValue).toBe(nameChanges[0]!.newValue)
+  })
+
   it('answers 404 when updating an unknown product', async () => {
     const database = await createTestDatabase()
     const userId = await insertUser(database, 'a@example.com')
@@ -101,6 +118,36 @@ describe('catalogue service', () => {
     expect(await database.select().from(catalogueChanges)).toHaveLength(3)
   })
 
+  it('refuses to revert a change whose field was edited again and keeps the later edit', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database, 'a@example.com')
+    const product = await createProduct(database, userId, emptyProductDraft('Display EV1', 'pokemon-sealed'))
+    await updateProduct(database, userId, product.id, { name: 'Vandalisé' })
+    const nameChange = (await listProductChanges(database, product.id)).find(change => change.fieldName === 'name')!
+    await updateProduct(database, userId, product.id, { name: 'Display EV1 corrigé' })
+
+    await expect(revertCatalogueChange(database, userId, nameChange.id)).rejects.toMatchObject({ statusCode: 409 })
+
+    expect((await findProductOr404(database, product.id)).name).toBe('Display EV1 corrigé')
+  })
+
+  it('reverts a change only once when two reverts of it run at the same time', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database, 'a@example.com')
+    const product = await createProduct(database, userId, emptyProductDraft('Display EV1', 'pokemon-sealed'))
+    await updateProduct(database, userId, product.id, { name: 'Vandalisé' })
+    const nameChange = (await listProductChanges(database, product.id)).find(change => change.fieldName === 'name')!
+
+    const outcomes = await Promise.allSettled([
+      revertCatalogueChange(database, userId, nameChange.id),
+      revertCatalogueChange(database, userId, nameChange.id),
+    ])
+
+    expect(outcomes.map(outcome => outcome.status).sort()).toEqual(['fulfilled', 'rejected'])
+    expect(outcomes.find(outcome => outcome.status === 'rejected')).toMatchObject({ reason: { statusCode: 409 } })
+    expect((await listProductChanges(database, product.id)).filter(change => change.revertedChangeId === nameChange.id)).toHaveLength(1)
+  })
+
   it('answers 404 when reverting an unknown change', async () => {
     const database = await createTestDatabase()
     const userId = await insertUser(database, 'a@example.com')
@@ -132,5 +179,33 @@ describe('catalogue service', () => {
       statusCode: 409,
     })
     await expect(attachBarcode(database, userId, firstProduct.id, '3665361000001')).resolves.toBeUndefined()
+  })
+
+  it('links a barcode once when the same product attaches it twice at the same time', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database, 'a@example.com')
+    const product = await createProduct(database, userId, emptyProductDraft('Display EV1', 'pokemon-sealed'))
+
+    await Promise.all([
+      attachBarcode(database, userId, product.id, '3665361000001'),
+      attachBarcode(database, userId, product.id, '3665361000001'),
+    ])
+
+    expect((await listProductChanges(database, product.id)).filter(change => change.subject === 'barcode')).toHaveLength(1)
+  })
+
+  it('answers 409 to the second of two products attaching the same barcode at the same time', async () => {
+    const database = await createTestDatabase()
+    const userId = await insertUser(database, 'a@example.com')
+    const firstProduct = await createProduct(database, userId, emptyProductDraft('Display EV1', 'pokemon-sealed'))
+    const secondProduct = await createProduct(database, userId, emptyProductDraft('Display EV2', 'pokemon-sealed'))
+
+    const outcomes = await Promise.allSettled([
+      attachBarcode(database, userId, firstProduct.id, '3665361000001'),
+      attachBarcode(database, userId, secondProduct.id, '3665361000001'),
+    ])
+
+    expect(outcomes.map(outcome => outcome.status).sort()).toEqual(['fulfilled', 'rejected'])
+    expect(outcomes.find(outcome => outcome.status === 'rejected')).toMatchObject({ reason: { statusCode: 409 } })
   })
 })
