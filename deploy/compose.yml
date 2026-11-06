@@ -75,13 +75,18 @@ services:
 
   duckdns:
     image: curlimages/curl:8.22.0
+    profiles: ["duckdns"]
     environment:
-      DUCKDNS_SUBDOMAIN: ${DUCKDNS_SUBDOMAIN:?set DUCKDNS_SUBDOMAIN in deploy/.env}
-      DUCKDNS_TOKEN: ${DUCKDNS_TOKEN:?set DUCKDNS_TOKEN in deploy/.env}
+      DUCKDNS_SUBDOMAIN: ${DUCKDNS_SUBDOMAIN:-}
+      DUCKDNS_TOKEN: ${DUCKDNS_TOKEN:-}
     command:
       - sh
       - -c
       - |
+        if [ -z "$${DUCKDNS_SUBDOMAIN}" ] || [ -z "$${DUCKDNS_TOKEN}" ]; then
+          echo "DuckDNS impossible, à renseigner dans deploy/.env : DUCKDNS_SUBDOMAIN et DUCKDNS_TOKEN" >&2
+          exit 1
+        fi
         while true; do
           curl -fsS -o /dev/null "https://www.duckdns.org/update?domains=$${DUCKDNS_SUBDOMAIN}&token=$${DUCKDNS_TOKEN}&ip=" || echo "duckdns update failed"
           sleep 300
