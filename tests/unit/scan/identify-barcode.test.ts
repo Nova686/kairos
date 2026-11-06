@@ -112,6 +112,16 @@ describe('identifyBarcode', () => {
     expect(outcome.candidates.at(-1)?.draft.category).toBe('other')
   })
 
+  it('asks UPCitemdb for the normalised 13 digits of an EAN-13', async () => {
+    const database = await createTestDatabase()
+    const lookups = buildLookups()
+
+    await identifyBarcode(database, ' 3614272049529 ', lookups)
+
+    expect(lookups.openBeautyFactsCalls).toEqual(['3614272049529'])
+    expect(lookups.upcitemdbCalls).toEqual(['3614272049529'])
+  })
+
   it('reports nothing when both lookups miss', async () => {
     const database = await createTestDatabase()
 
