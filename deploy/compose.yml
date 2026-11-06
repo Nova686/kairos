@@ -102,6 +102,35 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  offsite-backup:
+    image: rclone/rclone:1.75.2
+    profiles: ["offsite"]
+    environment:
+      KAIROS_OFFSITE_BUCKET: ${KAIROS_OFFSITE_BUCKET:-}
+      RCLONE_CONFIG_OFFSITE_TYPE: s3
+      RCLONE_CONFIG_OFFSITE_PROVIDER: Other
+      RCLONE_CONFIG_OFFSITE_ENDPOINT: ${KAIROS_OFFSITE_ENDPOINT:-}
+      RCLONE_CONFIG_OFFSITE_REGION: ${KAIROS_OFFSITE_REGION:-}
+      RCLONE_CONFIG_OFFSITE_ACCESS_KEY_ID: ${KAIROS_OFFSITE_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_OFFSITE_SECRET_ACCESS_KEY: ${KAIROS_OFFSITE_SECRET_ACCESS_KEY:-}
+      RCLONE_CONFIG_OFFSITE_FORCE_PATH_STYLE: "true"
+      RCLONE_CONFIG_OFFSITE_NO_CHECK_BUCKET: "true"
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        sh /backup/copy-backups-offsite.sh || echo "offsite copy failed"
+        while true; do
+          now=$$(date -u +%s)
+          next=$$((now / 86400 * 86400 + 4 * 3600))
+          if [ "$$next" -le "$$now" ]; then next=$$((next + 86400)); fi
+          sleep $$((next - now))
+          sh /backup/copy-backups-offsite.sh || echo "offsite copy failed"
+        done
+    volumes:
+      - ./backup:/backup:ro
+      - kairos-backups:/backups
+    restart: unless-stopped
+
 volumes:
   kairos-data:
   kairos-database:

@@ -2,7 +2,7 @@
 
 Ce guide mène, pas à pas, d'un compte Oracle vide jusqu'à un site Kairos en ligne en HTTPS, utilisable depuis l'iPhone. Compter une à deux heures la première fois.
 
-Ce qui tourne à la fin, sur une seule machine : l'application, PostgreSQL, Caddy (HTTPS automatique), une mise à jour DuckDNS toutes les 5 minutes et une sauvegarde quotidienne, le tout par Docker Compose (`deploy/compose.yml`).
+Ce qui tourne à la fin, sur une seule machine : l'application, PostgreSQL, Caddy (HTTPS automatique), une mise à jour DuckDNS toutes les 5 minutes et une sauvegarde quotidienne sur le disque de la machine, le tout par Docker Compose (`deploy/compose.yml`). En option, gratuite, une copie quotidienne de ces sauvegardes hors de la machine, dans l'Object Storage d'Oracle (étape 11.2).
 
 Les valeurs entre chevrons (`<...>`) sont à remplacer par les vôtres. Ne collez jamais de vrais secrets dans un message, une capture ou un dépôt.
 
@@ -182,6 +182,7 @@ Ouvrez `deploy/.env` (`nano deploy/.env`) et remplacez chaque valeur :
 | `POKEMONTCG_API_KEY` | clé gratuite sur <https://dev.pokemontcg.io> ; vide = source désactivée |
 | `PSA_API_TOKEN` | jeton de l'API PSA (vérification des certificats) ; vide = source désactivée |
 | `NUXT_PHOTO_RECOGNITION` | `on` ; `off` sur la machine de secours à 1 Go |
+| `COMPOSE_PROFILES` et `KAIROS_OFFSITE_*` | laissez vide pour l'instant : c'est la copie facultative des sauvegardes hors de la machine, décrite à l'étape 11 |
 
 Le fichier `deploy/.env` n'est jamais versionné. Gardez-en **une seule copie**, dans votre gestionnaire de mots de passe, et nulle part ailleurs (ni mail, ni dépôt, ni capture) : sans le `POSTGRES_PASSWORD` exact, une base existante ne se rouvre pas.
 
@@ -287,16 +288,62 @@ La clé ne peut alors plus lancer que le script de mise à jour. Gardez votre cl
 
 Le conteneur `backup` fait un `pg_dump` de la base chaque jour à **03:30 UTC** (04:30 ou 05:30 à Paris selon la saison) et garde les **14 derniers** fichiers `kairos-AAAA-MM-JJ.dump` dans le volume Docker `kairos-backups`.
 
-Attention : ce volume est **sur le même disque que la base**. Si la machine ou le compte Oracle disparaît, les sauvegardes disparaissent avec. Copiez-les régulièrement hors de la VM (par exemple chaque semaine).
+**Ces sauvegardes locales sont sur le même disque que la base.** Si le disque ou la machine disparaît, elles disparaissent avec la base. Deux parades, cumulables : la copie automatique vers l'Object Storage d'Oracle (11.2, gratuite, désactivée par défaut) et la copie à la main sur votre ordinateur (11.3).
 
-Voir les sauvegardes disponibles :
+### 11.1 Voir les sauvegardes
 
 ```bash
 cd ~/kairos
 docker compose -f deploy/compose.yml exec -T backup ls -l /backups
 ```
 
-Les rapatrier sur votre ordinateur, en deux temps. Sur la VM, copier le contenu du volume dans un dossier ordinaire :
+### 11.2 Copie automatique hors de la machine (facultative, gratuite)
+
+Le conteneur `offsite-backup` (image `rclone/rclone`) copie chaque jour à **04:00 UTC**, une demi-heure après la sauvegarde, les fichiers `kairos-*.dump` du volume vers un compartiment (« bucket ») de l'Object Storage d'Oracle, par son interface compatible S3. Il garde dans le compartiment les sauvegardes des **14 derniers jours** : une sauvegarde effacée de la machine reste dans le compartiment jusqu'à ses 14 jours, si bien qu'une machine perdue ou un volume vidé n'efface pas les copies.
+
+L'offre « Always Free » comprend 20 Go d'Object Storage et 50 000 requêtes par mois ; Kairos envoie un fichier de quelques Mo par jour et fait quelques requêtes par copie, très loin de ces limites. Le compartiment est dans votre compte Oracle : il protège contre la perte du disque ou de la machine, **pas** contre la perte du compte. Gardez donc aussi, de temps en temps, une copie chez vous (11.3).
+
+**1. Créer le compartiment.** Console Oracle › **Storage** › **Object Storage & Archive Storage** › **Buckets**. Restez dans votre région d'origine et dans le compartiment racine (celui proposé par défaut), puis **Create Bucket** :
+- **Bucket Name** : `kairos-sauvegardes` (ou un autre nom, que vous reporterez dans `deploy/.env`) ;
+- **Default Storage Tier** : **Standard** ;
+- laissez le chiffrement par des clés gérées par Oracle et ne cochez rien d'autre. Un compartiment est privé à sa création : ne le rendez pas public.
+
+**2. Noter l'espace de noms et la région.** Sur la page du compartiment, **Namespace** donne l'espace de noms de votre compte (une suite de lettres et de chiffres). L'identifiant de région s'affiche dans le menu des régions, en haut de la console : `eu-paris-1` (Paris), `eu-marseille-1` (Marseille), `eu-frankfurt-1` (Francfort). Le point d'accès S3 s'écrit :
+
+```text
+https://<espace-de-noms>.compat.objectstorage.<region>.oraclecloud.com
+```
+
+**3. Créer la clé d'accès (gratuite).** Menu du profil, en haut à droite › **My profile** › **Customer secret keys** (dans l'onglet « Tokens and keys » selon la version de la console) › **Generate secret key**, nom `kairos-sauvegardes`. Oracle affiche le **secret une seule fois** : copiez-le tout de suite. La liste des clés montre ensuite l'**Access key** associée. Oracle autorise deux clés de ce type par utilisateur. Cette clé a les mêmes droits que votre compte sur l'Object Storage : rangez-la seulement dans `deploy/.env` et dans votre gestionnaire de mots de passe.
+
+**4. Activer la copie.** Dans `deploy/.env` (`nano deploy/.env`) :
+
+| Variable | Valeur |
+|---|---|
+| `COMPOSE_PROFILES` | `offsite` (vide = copie désactivée) |
+| `KAIROS_OFFSITE_ENDPOINT` | le point d'accès de l'étape 2, par exemple `https://abcd1234efgh.compat.objectstorage.eu-paris-1.oraclecloud.com` |
+| `KAIROS_OFFSITE_REGION` | l'identifiant de région, par exemple `eu-paris-1` |
+| `KAIROS_OFFSITE_BUCKET` | `kairos-sauvegardes` |
+| `KAIROS_OFFSITE_ACCESS_KEY_ID` | l'**Access key** de l'étape 3 |
+| `KAIROS_OFFSITE_SECRET_ACCESS_KEY` | le secret de l'étape 3 |
+
+Puis démarrez le conteneur et vérifiez sa première copie, faite dès son démarrage :
+
+```bash
+cd ~/kairos
+docker compose -f deploy/compose.yml up -d
+docker compose -f deploy/compose.yml logs offsite-backup
+```
+
+La dernière ligne doit être `offsite copy done: offsite:kairos-sauvegardes`, et la page du compartiment dans la console liste les fichiers `kairos-AAAA-MM-JJ.dump`. Si une variable manque, le journal le dit (`Copie hors machine impossible, à renseigner dans deploy/.env : ...`) ; corrigez puis relancez `docker compose -f deploy/compose.yml up -d`. En cas d'échec, le conteneur réessaie à la copie suivante, le lendemain à 04:00 UTC.
+
+**Désactiver la copie** : remettez `COMPOSE_PROFILES=` à vide, puis `docker compose -f deploy/compose.yml --profile offsite rm -sf offsite-backup`. Les fichiers déjà copiés restent dans le compartiment ; supprimez-les depuis la console si vous n'en voulez plus.
+
+### 11.3 Rapatrier les sauvegardes sur votre ordinateur
+
+Si la copie automatique est active, le plus simple est de télécharger un fichier depuis la console : page du compartiment › menu « ⋮ » d'un objet › **Download**.
+
+Sinon, en deux temps. Sur la VM, copier le contenu du volume dans un dossier ordinaire :
 
 ```bash
 mkdir -p ~/sauvegardes
@@ -311,7 +358,9 @@ rsync -av -e "ssh -i ~/.ssh/kairos-oracle" ubuntu@<ip-publique>:~/sauvegardes/ .
 
 (`scp -i ~/.ssh/kairos-oracle "ubuntu@<ip-publique>:~/sauvegardes/*.dump" ./sauvegardes-kairos/` fait la même chose si `rsync` n'est pas installé.) Rangez ces fichiers dans un stockage à vous (disque externe, cloud personnel).
 
-**Restaurer** une sauvegarde (cela **remplace** le contenu actuel de la base) :
+### 11.4 Restaurer
+
+**Depuis le volume** (cela **remplace** le contenu actuel de la base) :
 
 ```bash
 cd ~/kairos
@@ -321,7 +370,18 @@ docker compose -f deploy/compose.yml exec -T backup ls /backups
 
 Le script arrête l'application, restaure en une seule transaction, puis relance l'application. Si la restauration échoue, l'application reste arrêtée (la base n'est pas modifiée) : lisez le message, corrigez, puis `docker compose -f deploy/compose.yml start app`.
 
-Pour restaurer un fichier que vous avez copié hors de la VM sur une VM neuve, il faut le faire passer en deux temps : de votre ordinateur vers la VM, puis de la VM vers le volume. Depuis votre ordinateur :
+**Depuis le compartiment Object Storage**, par exemple sur une VM neuve dont le volume est vide. Remplissez d'abord `deploy/.env` avec les variables `KAIROS_OFFSITE_*` de 11.2 (même si `COMPOSE_PROFILES` reste vide) et démarrez la pile (étape 7). Puis listez les copies et rapatriez celle de votre choix dans le volume avant de la restaurer :
+
+```bash
+cd ~/kairos
+docker compose -f deploy/compose.yml run --rm --entrypoint rclone offsite-backup lsl offsite:kairos-sauvegardes
+docker compose -f deploy/compose.yml run --rm --entrypoint rclone offsite-backup copy offsite:kairos-sauvegardes/kairos-AAAA-MM-JJ.dump /backups/
+./deploy/backup/restore-database.sh /backups/kairos-AAAA-MM-JJ.dump
+```
+
+Remplacez `kairos-sauvegardes` par le nom de votre compartiment s'il diffère.
+
+**Depuis un fichier copié sur votre ordinateur**, il faut le faire passer en deux temps : de votre ordinateur vers la VM, puis de la VM vers le volume. Depuis votre ordinateur :
 
 ```bash
 scp -i ~/.ssh/kairos-oracle ./sauvegardes-kairos/kairos-AAAA-MM-JJ.dump ubuntu@<ip-publique>:~/

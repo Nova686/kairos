@@ -1,0 +1,11 @@
+services:
+  fake-object-storage:
+    image: rclone/rclone:1.75.2
+    entrypoint: ["sh", "-c"]
+    command:
+      - mkdir -p /data/kairos-offsite-check && exec rclone serve s3 --addr :8080 --auth-key offsite-check-access,offsite-check-secret /data
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "8080"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
