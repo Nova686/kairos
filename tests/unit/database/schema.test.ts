@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { createTestDatabase } from '../../support/create-test-database.ts'
-import { locations, products, purchases, stockItems, users } from '../../../server/database/schema/index.ts'
+import { debts, locations, persons, products, purchases, stockItems, users } from '../../../server/database/schema/index.ts'
 
 const expectedTableNames = [
   'users',
@@ -66,5 +66,17 @@ describe('database schema', () => {
       status: 'in-stock',
     })
     await expect(database.delete(products).where(sql`id = ${product!.id}`)).rejects.toThrow()
+  })
+
+  it('rejects a debt whose direction is neither owed to me nor I owe', async () => {
+    const database = await createTestDatabase()
+    const owner = await insertOwner(database)
+    const [person] = await database.insert(persons).values({ ownerId: owner.id, name: 'Camille' }).returning()
+
+    await expect(database.execute(sql`
+      insert into debts (owner_id, person_id, amount_cents, direction, reason, created_on)
+      values (${owner.id}, ${person!.id}, 100, 'sideways', 'Test', '2026-11-02')
+    `)).rejects.toMatchObject({ cause: { code: '23514' } })
+    expect(await database.select().from(debts)).toEqual([])
   })
 })
