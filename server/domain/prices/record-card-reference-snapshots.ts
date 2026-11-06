@@ -1,6 +1,5 @@
 import type { SourceAggregate } from '../../../src/price-sources/price-source-types.ts'
-import { buildAggregateSnapshotDraft } from './record-cardmarket-snapshots.ts'
-import type { PriceSnapshotDraft } from './price-snapshot-drafts.ts'
+import { buildAggregateSnapshotDraft, type PriceSnapshotDraft } from './price-snapshot-drafts.ts'
 
 export const buildCardReferenceSnapshotDrafts = (
   referenceAggregates: (SourceAggregate | null)[],

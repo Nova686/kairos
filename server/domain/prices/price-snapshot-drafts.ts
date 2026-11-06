@@ -1,5 +1,6 @@
 import type { KairosDatabase } from '../../database/open-database.ts'
 import { priceSnapshotListings, priceSnapshots } from '../../database/schema/index.ts'
+import type { SourceAggregate } from '../../../src/price-sources/price-source-types.ts'
 
 export interface RetainedListingDraft {
   title: string
@@ -24,6 +25,21 @@ export interface PriceSnapshotDraft {
   trendCents: number | null
   listings: RetainedListingDraft[]
 }
+
+export const buildAggregateSnapshotDraft = (aggregate: SourceAggregate): PriceSnapshotDraft => ({
+  source: aggregate.source,
+  kind: 'source-aggregate',
+  sourceCondition: null,
+  kairosCondition: null,
+  gradingCompany: null,
+  grade: null,
+  observedAt: new Date(aggregate.observedAt),
+  averageCents: aggregate.averageCents,
+  medianCents: null,
+  lowCents: aggregate.lowCents,
+  trendCents: aggregate.trendCents,
+  listings: [],
+})
 
 export const insertPriceSnapshotDrafts = async (
   database: KairosDatabase,

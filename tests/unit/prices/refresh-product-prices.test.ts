@@ -12,7 +12,7 @@ import {
 import type { KairosDatabase } from '../../../server/database/open-database.ts'
 import { refreshProductPrices } from '../../../server/domain/prices/refresh-product-prices.ts'
 import type { PriceSourceGateway } from '../../../server/domain/prices/refresh-product-prices.ts'
-import { SourceDisabledError } from '../../../src/price-sources/price-source-types.ts'
+import { SourceBlockedError, SourceDisabledError } from '../../../src/price-sources/price-source-types.ts'
 import type { ListingObservation, SourceAggregate } from '../../../src/price-sources/price-source-types.ts'
 import { createTestDatabase } from '../../support/create-test-database.ts'
 
@@ -209,6 +209,51 @@ describe('refreshProductPrices', () => {
     expect(outcome.unavailableSources).toEqual([{ source: 'tcgdex', kind: 'error', reason: 'error: HTTP 500' }])
     const snapshots = await database.select().from(priceSnapshots)
     expect(snapshots.map(snapshot => snapshot.source)).toEqual(['pokemontcg'])
+  })
+
+  it('reports a source that blocked the request as blocked and keeps the others', async () => {
+    const database = await createTestDatabase()
+    const { product } = await insertProduct(database, { cardmarketProductId: 42 })
+    const gateway = fakeGateway({
+      searchEbay: async () => [listing('Display EV1 A', 10000)],
+      cardmarketAggregates: async () => { throw new SourceBlockedError('cardmarket', 'HTTP 403') },
+    })
+
+    const outcome = await refreshProductPrices(database, gateway, product.id, now)
+
+    expect(outcome.unavailableSources).toEqual([{ source: 'cardmarket', kind: 'blocked', reason: 'HTTP 403' }])
+    expect((await database.select().from(priceSnapshots)).map(snapshot => snapshot.source)).toEqual(['ebay'])
+  })
+
+  it('does not ask Cardmarket for a product without a Cardmarket id', async () => {
+    const database = await createTestDatabase()
+    const { product } = await insertProduct(database)
+    let cardmarketRequestCount = 0
+    const gateway = fakeGateway({
+      cardmarketAggregates: async () => {
+        cardmarketRequestCount += 1
+        return new Map([[42, aggregate('cardmarket')]])
+      },
+    })
+
+    await refreshProductPrices(database, gateway, product.id, now)
+
+    expect(cardmarketRequestCount).toBe(0)
+    expect(await database.select().from(priceSnapshots)).toEqual([])
+  })
+
+  it('writes no snapshot and no refresh stamp when one snapshot of the refresh cannot be stored', async () => {
+    const database = await createTestDatabase()
+    const { product } = await insertProduct(database, { cardmarketProductId: 42 })
+    const gateway = fakeGateway({
+      searchEbay: async () => [listing('Display EV1 A', 10000)],
+      cardmarketAggregates: async () => new Map([[42, aggregate('cardmarket', { averageCents: 5000.5 })]]),
+    })
+
+    await expect(refreshProductPrices(database, gateway, product.id, now)).rejects.toMatchObject({ cause: { code: '22P02' } })
+
+    expect(await database.select().from(priceSnapshots)).toEqual([])
+    expect(await database.select().from(priceRefreshRequests)).toEqual([])
   })
 
   it('matches exclusions ignoring query string and hash', async () => {
