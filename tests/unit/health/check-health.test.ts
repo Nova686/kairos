@@ -8,7 +8,7 @@ describe('checkHealth', () => {
 
     const report = await checkHealth(database)
 
-    expect(report).toEqual({ status: 'ok', database: 'ok', version: expect.stringMatching(/^\d+\.\d+\.\d+/) })
+    expect(report).toEqual({ status: 'ok' })
   })
 
   it('reports degraded when the database throws', async () => {
@@ -20,8 +20,7 @@ describe('checkHealth', () => {
 
     const report = await checkHealth(unreachableDatabase)
 
-    expect(report.status).toBe('degraded')
-    expect(report.database).toBe('down')
+    expect(report).toEqual({ status: 'degraded' })
     expect(JSON.stringify(report)).not.toContain('secret')
   })
 })

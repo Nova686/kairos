@@ -221,7 +221,7 @@ Au bout de quelques minutes, `app`, `database`, `caddy`, `duckdns` et `backup` s
 curl -s https://<sous-domaine>.duckdns.org/api/health
 ```
 
-Réponse attendue : `{"status":"ok","database":"ok","version":"..."}`. Les tables de la base sont créées automatiquement au démarrage de l'application.
+Réponse attendue : `{"status":"ok"}` (`{"status":"degraded"}` avec un code 503 si la base ne répond pas). Les tables de la base sont créées automatiquement au démarrage de l'application.
 
 Caddy demande son certificat HTTPS à Let's Encrypt au premier accès ; cela prend quelques secondes. En cas d'échec, voir le dépannage.
 
