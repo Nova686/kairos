@@ -68,6 +68,17 @@ describe('receiveStockItem', () => {
     expect(receivedStockItem).toMatchObject({ status: 'in-stock', receivedOn: '2026-11-05' })
   })
 
+  it('answers 422 for a reception dated before the purchase and keeps the item in transit', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId, 'Display', 'pokemon-sealed')
+    const stockItem = await buyOne(database, ownerId, productId, { inTransit: true })
+
+    await expect(receiveStockItem(database, ownerId, stockItem.id, '2026-11-01')).rejects.toMatchObject({ statusCode: 422 })
+
+    expect(await findStockItem(database, ownerId, stockItem.id)).toMatchObject({ status: 'in-transit', receivedOn: null })
+  })
+
   it('answers 409 when received twice', async () => {
     const database = await createTestDatabase()
     const ownerId = await insertOwner(database, 'a@example.com')

@@ -65,6 +65,9 @@ export const settleDebt = async (
   settledOn: string,
 ): Promise<Debt> => {
   const debt = await findOwnedOr404(database, debts, debtId, ownerId)
+  if (settledOn < debt.createdOn) {
+    throw createError({ statusCode: 422, statusMessage: 'Le règlement ne peut pas précéder la dette' })
+  }
   const [settledDebt] = await database
     .update(debts)
     .set({ settledOn })

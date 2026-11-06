@@ -188,6 +188,21 @@ describe('markSaleDelivered', () => {
     expect(stockItem!.status).toBe('sold')
   })
 
+  it('answers 422 for a delivery dated before the sale and keeps the items in transit', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const productId = await insertProduct(database, ownerId)
+    const [stockItemId] = await stockWithAllocations(database, ownerId, productId, [1000])
+    const { sale } = await createSale(database, ownerId, buildSaleDraft([stockItemId!], { trackingReference: 'LP1' }))
+
+    await expectStatus(markSaleDelivered(database, ownerId, sale.id, '2026-11-01'), 422)
+
+    const [storedSale] = await database.select().from(sales).where(eq(sales.id, sale.id))
+    const [stockItem] = await database.select().from(stockItems).where(eq(stockItems.id, stockItemId!))
+    expect(storedSale!.deliveredOn).toBeNull()
+    expect(stockItem!.status).toBe('sold-in-transit')
+  })
+
   it('only sets deliveredOn on a sale without tracking', async () => {
     const database = await createTestDatabase()
     const ownerId = await insertOwner(database, 'a@example.com')

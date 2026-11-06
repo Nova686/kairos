@@ -136,6 +136,19 @@ describe('settleDebt', () => {
     expect(settled.settledOn).toBe('2026-11-05')
   })
 
+  it('answers 422 for a settlement dated before the debt and leaves it open', async () => {
+    const database = await createTestDatabase()
+    const ownerId = await insertOwner(database, 'a@example.com')
+    const personId = await insertPerson(database, ownerId)
+    const debt = await createDebt(database, ownerId, buildDebtDraft(personId))
+
+    await expectStatus(settleDebt(database, ownerId, debt.id, '2026-11-01'), 422)
+
+    const [openDebt] = await listDebts(database, ownerId, { settled: false })
+    expect(openDebt?.id).toBe(debt.id)
+    expect((await settleDebt(database, ownerId, debt.id, '2026-11-02')).settledOn).toBe('2026-11-02')
+  })
+
   it('answers 409 when settling twice', async () => {
     const database = await createTestDatabase()
     const ownerId = await insertOwner(database, 'a@example.com')

@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { KairosDatabase } from '../../database/open-database.ts'
-import { locations, products, stockItems } from '../../database/schema/index.ts'
+import { locations, products, purchases, stockItems } from '../../database/schema/index.ts'
 import { isProductCategory, type ProductCategory } from '../../../shared/catalogue/product-category.ts'
 import { isConditionAllowed, type ConditionCode } from '../../../shared/catalogue/condition-scale.ts'
 import type { StockItemStatus } from '../../../shared/stock/stock-item-status.ts'
@@ -108,7 +108,14 @@ export const receiveStockItem = async (
   stockItemId: string,
   receivedOn: string,
 ): Promise<StockItem> => {
-  await findOwnedOr404(database, stockItems, stockItemId, ownerId)
+  const inTransitStockItem = await findOwnedOr404(database, stockItems, stockItemId, ownerId)
+  const [purchase] = await database
+    .select({ purchasedOn: purchases.purchasedOn })
+    .from(purchases)
+    .where(eq(purchases.id, inTransitStockItem.purchaseId))
+  if (receivedOn < purchase!.purchasedOn) {
+    throw unprocessable('La réception ne peut pas précéder l’achat')
+  }
   const [receivedStockItem] = await database
     .update(stockItems)
     .set({ status: 'in-stock', receivedOn })

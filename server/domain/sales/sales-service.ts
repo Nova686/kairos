@@ -131,7 +131,10 @@ export const markSaleDelivered = async (
   saleId: string,
   deliveredOn: string,
 ): Promise<Sale> => {
-  await findOwnedOr404(database, sales, saleId, ownerId)
+  const soldSale = await findOwnedOr404(database, sales, saleId, ownerId)
+  if (deliveredOn < soldSale.soldOn) {
+    throw unprocessable('La livraison ne peut pas précéder la vente')
+  }
   return database.transaction(async (transaction) => {
     const [sale] = await transaction
       .update(sales)
