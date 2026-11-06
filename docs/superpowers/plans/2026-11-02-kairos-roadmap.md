@@ -15,7 +15,7 @@ Révision 2 du 2026-11-02 : le relevé par navigateur automatisé est abandonné
 Écarts entre les plans écrits et ce qui est construit :
 - l'application tourne sur **Nuxt 4** (et Vuetify 4), pas Nuxt 3 ;
 - les empreintes des photos sont rangées dans des colonnes `real[]` de PostgreSQL et comparées en JavaScript (produit scalaire de vecteurs normalisés, donc similarité cosinus, sur une matrice gardée en mémoire) : **pas de pgvector**, et la base de production est l'image officielle `postgres:17` ;
-- la sauvegarde quotidienne tourne à 03:30 UTC sur le disque de la machine ; une copie gratuite vers l'Object Storage d'Oracle existe en option, désactivée par défaut (guide d'installation, étape 11.2).
+- la sauvegarde quotidienne tourne à 03:30 UTC sur le disque de la machine ; une copie vers tout stockage compatible S3 (par exemple l'Object Storage gratuit d'Oracle) existe en option, désactivée par défaut (guide d'installation, étape 11.2). Elle garde les 14 copies les plus récentes et ne supprime rien tant que la machine n'a pas de sauvegarde de moins de 2 jours.
 
 ## Fichiers des plans
 
@@ -34,12 +34,17 @@ La refonte « Coffre » applique le thème sombre à tous les écrans, sur ordin
 
 - **Compte Oracle Cloud « Always Free »** et sa machine virtuelle : guide d'installation, étapes 1 à 3.
 - **Sous-domaine DuckDNS** et son jeton : étape 4.
-- **Clés eBay de production** (`EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`) dans `deploy/.env` ; sans elles la source eBay reste désactivée. Facultatif : `POKEMONTCG_API_KEY`, `PSA_API_TOKEN` (+ `PSA_PROBE_CERTIFICATE` pour la sonde).
+- **Clés de l'application** dans `deploy/.env` : `EBAY_CLIENT_ID` et `EBAY_CLIENT_SECRET` (clés eBay de production ; sans elles la source eBay reste désactivée), et en option `POKEMONTCG_API_KEY` et `PSA_API_TOKEN`.
+- Facultatif, **secrets de la sonde** dans GitHub (Settings › Secrets and variables › Actions) pour le workflow « Probe price and identification sources » : `EBAY_CLIENT_ID`, `EBAY_CLIENT_SECRET`, `POKEMONTCG_API_KEY`, `PSA_API_TOKEN` et `PSA_PROBE_CERTIFICATE` (un numéro de certificat PSA réel). Pour lancer la sonde sur votre ordinateur (`npm run probe`), mettez les mêmes variables dans le `.env` à la racine du dépôt ; `PSA_PROBE_CERTIFICATE` ne sert qu'à la sonde et n'a rien à faire dans `deploy/.env`.
 - **Secrets GitHub du déploiement** (`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_HOST_FINGERPRINT`, `DEPLOY_SSH_KEY`) pour lancer le workflow « deploy » depuis GitHub : étape 10. Sans eux, `./deploy/deploy.sh` sur la machine suffit.
 - **Minutes GitHub Actions** : le dépôt est privé, donc les workflows consomment le quota gratuit du compte (2 000 minutes par mois sur l'offre GitHub Free). Chaque mise à jour d'une pull request relance les tests et la construction de l'image. Surveillez la consommation dans Settings › Billing and plans et laissez la limite de dépense à 0 $, pour que rien ne soit facturé.
 - **Fusionner la PR #1 dans `main`** : le script de déploiement et le workflow « deploy » installent `origin/main`.
-- Facultatif : la **copie des sauvegardes hors de la machine** (compartiment Object Storage et clé « Customer Secret Key », gratuits) : étape 11.2.
+- Facultatif : la **copie des sauvegardes hors de la machine**, vers un compartiment de n'importe quel stockage compatible S3 avec sa clé d'accès (gratuit avec l'Object Storage d'Oracle) : étape 11.2.
 
 ## Reste à faire
 
-Les points mineurs reportés pendant la construction sont listés, plan par plan, dans la description de la PR #1 (section « Décisions prises en cours de route et points reportés »). Ceux de la refonte « Coffre » et de l'hébergement ont été traités le 2026-11-06 : polices hébergées par l'application, couleurs tirées d'une seule source, liste de stock filtrée par produit côté serveur, onglet Code-barres affiché dès le premier rendu sur téléphone, colonnes gradées regroupées malgré les variantes d'écriture, lien de l'alerte caméra vers le texte quand la photo est désactivée, santé publique réduite à son état, copie des sauvegardes hors machine, image DuckDNS fournie avec curl, test de la rotation des 14 sauvegardes. La liste de la PR fait foi pour ce qui reste.
+Les points mineurs reportés pendant la construction sont listés, plan par plan, dans la description de la PR #1 (section « Décisions prises en cours de route et points reportés »). Tous ont été traités ou écartés, avec leur raison, le 2026-11-06 :
+- refonte « Coffre » et hébergement : polices hébergées par l'application, couleurs tirées d'une seule source (dégradés compris), liste de stock filtrée par produit côté serveur, onglet Code-barres affiché dès le premier rendu sur téléphone, colonnes gradées regroupées malgré les variantes d'écriture (un seul point par jour dans la courbe), lien de l'alerte caméra vers le texte quand la photo est désactivée, santé publique réduite à son état, copie des sauvegardes hors machine gardant les 14 copies les plus récentes, image DuckDNS fournie avec curl, test de la rotation des 14 sauvegardes ;
+- socle, relevés et scan : connexion protégée contre la découverte des emails inscrits et limitée en cas d'échecs répétés (5 par email et 10 par adresse et par minute, adresse lue derrière Caddy seulement), droits d'administrateur relus en base, écritures limitées au propriétaire, conflits de base de données répondus en 409 en français, verrous et contrôles dans les transactions qui pouvaient se croiser, dates et montants contrôlés aussi par les services, adresses IPv6 qui cachent une IPv4 interne refusées, et de nombreux tests ajoutés.
+
+Il ne reste aucun point reporté ouvert. Seule la première copie hors machine vers un vrai stockage n'a pas pu être essayée (le test utilise un faux stockage S3) : vérifiez-la dans son journal à l'étape 11.2, et en cas d'erreur de signature ou de somme de contrôle, essayez le type rclone propre au fournisseur (par exemple `oracleobjectstorage`).
