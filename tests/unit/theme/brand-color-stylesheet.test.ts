@@ -42,6 +42,12 @@ describe('brandColorStylesheet', () => {
     }
   })
 
+  it('writes no brand colour as a literal in the Coffre stylesheet, so gradients follow the variables', () => {
+    for (const colour of Object.values(brandColorVariables)) {
+      expect(coffreStylesheet.toLowerCase(), colour).not.toContain(colour.toLowerCase())
+    }
+  })
+
   it('leaves the brand colour variables to the generated stylesheet only', () => {
     for (const variableName of Object.keys(brandColorVariables)) {
       expect(coffreStylesheet, variableName).not.toMatch(new RegExp(`${variableName}\\s*:`))

@@ -3,7 +3,7 @@
   --kairos-display-font: "Sora", system-ui, sans-serif;
   --kairos-body-font: "IBM Plex Sans", system-ui, sans-serif;
   --kairos-figure-font: "IBM Plex Mono", ui-monospace, monospace;
-  --kairos-holo: conic-gradient(from 140deg, #6fa8dc, #a993f0, #e889b8, #e3a44a, #5fd1c1, #6fa8dc);
+  --kairos-holo: conic-gradient(from 140deg, var(--kairos-primary), #a993f0, #e889b8, var(--kairos-accent), #5fd1c1, var(--kairos-primary));
   --kairos-sidebar-background: #0e131a;
   --kairos-sidebar-width: 232px;
   --kairos-bottom-bar-height: 72px;
@@ -41,7 +41,7 @@ h1,
 }
 
 .v-btn.bg-primary:not(.v-btn--disabled) {
-  background-image: linear-gradient(180deg, #84b6e3, #5d97cf);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--kairos-primary) 86%, white), color-mix(in srgb, var(--kairos-primary) 90%, black));
   color: var(--kairos-background);
 }
 
