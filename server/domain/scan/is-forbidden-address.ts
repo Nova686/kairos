@@ -34,6 +34,10 @@ const expandIpv6Groups = (address: string): number[] => {
   return [...headGroups, ...Array<string>(missingGroupCount).fill('0'), ...tailGroups].map(group => Number.parseInt(group, 16))
 }
 
+const ipv4TranslatedMarkerGroup = 0xffff
+const sixToFourFirstGroup = 0x2002
+const teredoFirstGroup = 0x2001
+
 const embeddedIpv4 = (highGroup: number, lowGroup: number): string =>
   `${highGroup >> 8}.${highGroup & 0xff}.${lowGroup >> 8}.${lowGroup & 0xff}`
 
@@ -41,7 +45,10 @@ const isForbiddenIpv6 = (address: string): boolean => {
   const groups = expandIpv6Groups(address)
   const leadingZeroGroupCount = groups.findIndex(group => group !== 0)
   const isZeroPrefix = (length: number) => leadingZeroGroupCount === -1 || leadingZeroGroupCount >= length
-  if (isZeroPrefix(5) && groups[5] === 0xffff) {
+  if (isZeroPrefix(5) && groups[5] === ipv4TranslatedMarkerGroup) {
+    return isForbiddenIpv4(embeddedIpv4(groups[6]!, groups[7]!))
+  }
+  if (isZeroPrefix(4) && groups[4] === ipv4TranslatedMarkerGroup && groups[5] === 0) {
     return isForbiddenIpv4(embeddedIpv4(groups[6]!, groups[7]!))
   }
   if (isZeroPrefix(6)) {
@@ -51,6 +58,12 @@ const isForbiddenIpv6 = (address: string): boolean => {
     return isForbiddenIpv4(embeddedIpv4(groups[6]!, groups[7]!))
   }
   const firstGroup = groups[0]!
+  if (firstGroup === sixToFourFirstGroup) {
+    return isForbiddenIpv4(embeddedIpv4(groups[1]!, groups[2]!))
+  }
+  if (firstGroup === teredoFirstGroup && groups[1] === 0) {
+    return true
+  }
   return (firstGroup & 0xffc0) === 0xfe80 || (firstGroup & 0xfe00) === 0xfc00 || (firstGroup & 0xff00) === 0xff00
 }
 
