@@ -3,10 +3,34 @@ import { extractSessionCookie, seedAccounts } from '../support/end-to-end-accoun
 
 const administratorEmail = 'admin@example.com'
 const administratorPassword = 'administrator-password'
+const lockedMemberEmail = 'locked@example.com'
+const lockedMemberPassword = 'locked-member-password'
+const timedMemberEmail = 'timed@example.com'
+const timedMemberPassword = 'timed-member-password'
+
+const attemptLogin = (email: string, password: string, clientAddress: string) =>
+  fetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+    headers: { 'content-type': 'application/json', 'x-forwarded-for': clientAddress },
+  })
+
+const fastestAnswerMilliseconds = async (attempts: (() => Promise<Response>)[]): Promise<number> => {
+  const durations: number[] = []
+  for (const attempt of attempts) {
+    const startedAt = performance.now()
+    const response = await attempt()
+    durations.push(performance.now() - startedAt)
+    expect(response.status).toBe(401)
+  }
+  return Math.min(...durations)
+}
 
 describe('authentication', async () => {
   const databaseUrl = await seedAccounts([
     { email: administratorEmail, displayName: 'Admin', password: administratorPassword, isAdmin: true },
+    { email: lockedMemberEmail, displayName: 'Locked', password: lockedMemberPassword, isAdmin: false },
+    { email: timedMemberEmail, displayName: 'Timed', password: timedMemberPassword, isAdmin: false },
   ])
   await startEndToEndServer(databaseUrl)
 
@@ -24,6 +48,41 @@ describe('authentication', async () => {
     })
 
     expect(response.status).toBe(401)
+  })
+
+  it('answers 429 with a French message after five failed logins on one email, even with the right password', async () => {
+    for (let attemptNumber = 1; attemptNumber <= 5; attemptNumber += 1) {
+      const failedAttempt = await attemptLogin(lockedMemberEmail, 'not-the-password', `198.51.100.${attemptNumber}`)
+      expect(failedAttempt.status).toBe(401)
+    }
+
+    const blockedAttempt = await attemptLogin(lockedMemberEmail, lockedMemberPassword, '198.51.100.99')
+
+    expect(blockedAttempt.status).toBe(429)
+    expect(Number(blockedAttempt.headers.get('retry-after'))).toBeGreaterThan(0)
+    expect((await blockedAttempt.json()).statusMessage).toBe('Trop de tentatives de connexion. Réessayez dans une minute.')
+  })
+
+  it('answers 429 to an address after ten failed logins across emails while other addresses can still sign in', async () => {
+    for (let attemptNumber = 1; attemptNumber <= 10; attemptNumber += 1) {
+      const failedAttempt = await attemptLogin(`guess-${attemptNumber}@example.com`, 'not-the-password', '203.0.113.7')
+      expect(failedAttempt.status).toBe(401)
+    }
+
+    const blockedAttempt = await attemptLogin(administratorEmail, administratorPassword, '203.0.113.7')
+    const otherAddressAttempt = await attemptLogin(administratorEmail, administratorPassword, '203.0.113.8')
+
+    expect(blockedAttempt.status).toBe(429)
+    expect(otherAddressAttempt.status).toBe(200)
+  })
+
+  it('takes about as long to refuse an unknown email as a wrong password', async () => {
+    const wrongPasswordMilliseconds = await fastestAnswerMilliseconds([1, 2, 3].map(attemptNumber =>
+      () => attemptLogin(timedMemberEmail, 'not-the-password', `192.0.2.${attemptNumber}`)))
+    const unknownEmailMilliseconds = await fastestAnswerMilliseconds([1, 2, 3].map(attemptNumber =>
+      () => attemptLogin(`unknown-${attemptNumber}@example.com`, 'not-the-password', `192.0.2.${10 + attemptNumber}`)))
+
+    expect(unknownEmailMilliseconds).toBeGreaterThan(wrongPasswordMilliseconds * 0.25)
   })
 
   it('answers 422 on a malformed login body', async () => {

@@ -53,6 +53,27 @@ describe('accounts service', () => {
     expect(await verifyCredentials(database, 'nobody@example.com', 'long-enough-password', fakePasswordHasher)).toBeNull()
   })
 
+  it('spends one password verification on an unknown email so the answer time does not reveal registered emails', async () => {
+    const database = await createTestDatabase()
+    await createAdmin(database)
+    const verifiedHashes: string[] = []
+    const recordingPasswordHasher: PasswordHasher = {
+      hashPassword: fakePasswordHasher.hashPassword,
+      verifyPassword: async (hashedPassword, plainPassword) => {
+        verifiedHashes.push(hashedPassword)
+        return fakePasswordHasher.verifyPassword(hashedPassword, plainPassword)
+      },
+    }
+
+    const unknownEmailAnswer = await verifyCredentials(database, 'nobody@example.com', 'long-enough-password', recordingPasswordHasher)
+    await verifyCredentials(database, 'nobody@example.com', 'long-enough-password', recordingPasswordHasher)
+
+    expect(unknownEmailAnswer).toBeNull()
+    expect(verifiedHashes).toHaveLength(2)
+    expect(verifiedHashes[0]).not.toBe('hashed:long-enough-password')
+    expect(verifiedHashes[1]).toBe(verifiedHashes[0])
+  })
+
   it('creates an invitation valid for 7 days with a 24 character URL-safe code', async () => {
     const database = await createTestDatabase()
     const admin = await createAdmin(database)

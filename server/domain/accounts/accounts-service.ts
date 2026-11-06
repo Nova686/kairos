@@ -23,6 +23,7 @@ export type NewAccount = {
 
 export const minimumPasswordLength = 10
 const invitationCodeByteCount = 18
+const dummyPasswordByteCount = 18
 const invitationValidityInMilliseconds = 7 * 24 * 60 * 60 * 1000
 
 export class InvitationUnavailableError extends Error {
@@ -47,6 +48,19 @@ export class EmailAlreadyUsedError extends Error {
 }
 
 type DatabaseExecutor = Pick<KairosDatabase, 'select' | 'insert' | 'update'>
+
+const dummyPasswordHashByHasher = new WeakMap<PasswordHasher, Promise<string>>()
+
+const dummyPasswordHashOf = (passwordHasher: PasswordHasher): Promise<string> => {
+  const knownDummyPasswordHash = dummyPasswordHashByHasher.get(passwordHasher)
+  if (knownDummyPasswordHash !== undefined) {
+    return knownDummyPasswordHash
+  }
+  const dummyPasswordHash = passwordHasher.hashPassword(randomBytes(dummyPasswordByteCount).toString('base64url'))
+  dummyPasswordHashByHasher.set(passwordHasher, dummyPasswordHash)
+  dummyPasswordHash.catch(() => dummyPasswordHashByHasher.delete(passwordHasher))
+  return dummyPasswordHash
+}
 
 const toSessionUser = (storedUser: typeof users.$inferSelect): SessionUser => ({
   id: storedUser.id,
@@ -94,6 +108,7 @@ export const verifyCredentials = async (
 ): Promise<SessionUser | null> => {
   const [storedUser] = await database.select().from(users).where(eq(users.email, email.trim().toLowerCase()))
   if (!storedUser) {
+    await passwordHasher.verifyPassword(await dummyPasswordHashOf(passwordHasher), password)
     return null
   }
   const isPasswordValid = await passwordHasher.verifyPassword(storedUser.passwordHash, password)

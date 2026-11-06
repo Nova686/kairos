@@ -13,8 +13,8 @@ export const useLoginForm = () => {
       await refreshUserSession()
       await navigateTo('/')
     }
-    catch {
-      errorMessage.value = 'Email ou mot de passe incorrect.'
+    catch (failure) {
+      errorMessage.value = describeLoginFailure(failure)
     }
     finally {
       isSubmitting.value = false
