@@ -62,6 +62,7 @@ export interface CardReferenceView {
   lowCents: number | null
   observedAt: Date
   snapshotId: string
+  isStale: boolean
 }
 
 export interface RetainedValue {
@@ -191,7 +192,7 @@ const buildHistory = (seriesList: FiguredSnapshot[][]): PriceHistoryPoint[] => {
   return points.sort((left, right) => left.observedOn.localeCompare(right.observedOn))
 }
 
-const buildCardReferences = (rows: PriceSnapshotRow[]): CardReferenceView[] => {
+const buildCardReferences = (rows: PriceSnapshotRow[], now: Date): CardReferenceView[] => {
   const newestBySource = new Map<string, PriceSnapshotRow>()
   for (const row of rows.filter(candidate => cardReferenceSources.includes(candidate.source))) {
     const known = newestBySource.get(row.source)
@@ -206,6 +207,7 @@ const buildCardReferences = (rows: PriceSnapshotRow[]): CardReferenceView[] => {
     lowCents: row.lowCents,
     observedAt: row.observedAt,
     snapshotId: row.id,
+    isStale: isStaleAt(row.observedAt, now),
   }))
 }
 
@@ -328,7 +330,7 @@ export const productPriceOverview = async (
     retainedValues: await buildRetainedValues(database, product.id, category, bySourceAndCondition, now),
     bySourceAndCondition,
     history: buildHistory(seriesList),
-    cardReferences: buildCardReferences(recentRows),
+    cardReferences: buildCardReferences(recentRows, now),
     lastRefreshedAt: refreshRequest?.lastRefreshedAt ?? null,
     excludedListingUrls,
     isRefreshPending: (refreshRequest?.requestedAt ?? null) !== null,

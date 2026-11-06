@@ -155,7 +155,7 @@ const describeReference = (reference: CardReferenceRowView): string => {
   const sourceLabel = cardReferenceSourceLabels[reference.source] ?? reference.source
   return figureCents === null
     ? `${sourceLabel} : —`
-    : `${sourceLabel} : ${formatEuros(figureCents)} (${formatParisDate(reference.observedAt)})`
+    : `${sourceLabel} : ${formatEuros(figureCents)} (${formatParisDate(reference.observedAt)}${reference.isStale ? ', ancien' : ''})`
 }
 </script>
 

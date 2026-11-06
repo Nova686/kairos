@@ -141,6 +141,19 @@ describe('productPriceOverview', () => {
     ])
   })
 
+  it('flags a card reference older than 7 days as stale', async () => {
+    const database = await createTestDatabase()
+    const product = await insertProduct(database, 'graded-card')
+    const aggregate = { kind: 'source-aggregate' as const, kairosCondition: null, medianCents: null, averageCents: 500 }
+    await insertSnapshot(database, product.id, { ...aggregate, source: 'tcgdex', observedAt: daysBefore(8) })
+    await insertSnapshot(database, product.id, { ...aggregate, source: 'pokemontcg', observedAt: daysBefore(1) })
+
+    const overview = await productPriceOverview(database, product.id, now)
+
+    expect(Object.fromEntries(overview.cardReferences.map(reference => [reference.source, reference.isStale])))
+      .toEqual({ tcgdex: true, pokemontcg: false })
+  })
+
   it('takes the median of manual entries within 7 days for a cell, and one column per grading company and grade', async () => {
     const database = await createTestDatabase()
     const product = await insertProduct(database, 'graded-card')

@@ -43,6 +43,7 @@ export interface CardReferenceRowView {
   lowCents: number | null
   observedAt: string
   snapshotId: string
+  isStale: boolean
 }
 
 export interface ProductPriceOverviewView {
