@@ -31,6 +31,7 @@ const point = (overrides: Partial<PriceHistoryPointView>): PriceHistoryPointView
   gradingCompany: null,
   grade: null,
   observedOn: '2026-11-01',
+  observedAt: '2026-11-01T10:00:00.000Z',
   figureCents: 10000,
   ...overrides,
 })

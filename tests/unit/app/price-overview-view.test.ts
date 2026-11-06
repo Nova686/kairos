@@ -32,6 +32,7 @@ const point = (overrides: Partial<PriceHistoryPointView>): PriceHistoryPointView
   gradingCompany: null,
   grade: null,
   observedOn: '2026-11-01',
+  observedAt: '2026-11-01T10:00:00.000Z',
   figureCents: 10000,
   ...overrides,
 })
@@ -143,6 +144,23 @@ describe('buildHistoryChartData', () => {
       ['Cardmarket', [{ x: dayNumberOf('2026-11-02'), y: 120 }]],
     ])
     expect(chartData.datasets.every(dataset => !dataset.spanGaps)).toBe(true)
+  })
+
+  it('keeps the latest point of a day when spelling variants of one grade share the column', () => {
+    const columns = buildPriceColumns('graded-card', [
+      cell({ condition: 'graded', gradingCompany: 'Collect Grade', grade: '10' }),
+    ])
+    const gradedPoint = { condition: 'graded' as const, observedOn: '2026-11-02' }
+
+    const chartData = buildHistoryChartData([
+      point({ ...gradedPoint, gradingCompany: 'Collect Grade', grade: '10', observedAt: '2026-11-02T08:00:00.000Z', figureCents: 20000 }),
+      point({ ...gradedPoint, gradingCompany: 'collectgrade', grade: ' 10', observedAt: '2026-11-02T09:00:00.000Z', figureCents: 21000 }),
+      point({ ...gradedPoint, gradingCompany: 'Collect Grade', grade: '10', observedOn: '2026-11-01', observedAt: '2026-11-01T09:00:00.000Z', figureCents: 19000 }),
+    ], columns[0]!)
+
+    expect(chartData.datasets.map(dataset => dataset.data)).toEqual([
+      [{ x: dayNumberOf('2026-11-01'), y: 190 }, { x: dayNumberOf('2026-11-02'), y: 210 }],
+    ])
   })
 
   it('places points proportionally to the real days, leaving gaps where days are missing', () => {

@@ -52,6 +52,7 @@ export interface PriceHistoryPoint {
   gradingCompany: string | null
   grade: string | null
   observedOn: string
+  observedAt: Date
   figureCents: number
 }
 
@@ -185,6 +186,7 @@ const buildHistory = (seriesList: FiguredSnapshot[][]): PriceHistoryPoint[] => {
         gradingCompany: snapshot.row.gradingCompany,
         grade: snapshot.row.grade,
         observedOn,
+        observedAt: snapshot.row.observedAt,
         figureCents: snapshot.figureCents,
       })
     }

@@ -33,6 +33,7 @@ export interface PriceHistoryPointView {
   gradingCompany: string | null
   grade: string | null
   observedOn: string
+  observedAt: string
   figureCents: number
 }
 
@@ -223,9 +224,14 @@ export const buildHistoryChartData = (
   const selectedPoints = history.filter(historyPoint => columnKeyOfCell(historyPoint) === selectedColumn.key)
   const datasets: PriceChartDataset[] = []
   for (const { source, label, color } of priceSourceRows) {
-    const sourcePoints = selectedPoints
-      .filter(historyPoint => historyPoint.source === source)
-      .sort((left, right) => left.observedOn.localeCompare(right.observedOn))
+    const latestPointByDay = new Map<string, PriceHistoryPointView>()
+    for (const historyPoint of selectedPoints.filter(candidate => candidate.source === source)) {
+      const knownPoint = latestPointByDay.get(historyPoint.observedOn)
+      if (knownPoint === undefined || Date.parse(historyPoint.observedAt) > Date.parse(knownPoint.observedAt)) {
+        latestPointByDay.set(historyPoint.observedOn, historyPoint)
+      }
+    }
+    const sourcePoints = [...latestPointByDay.values()].sort((left, right) => left.observedOn.localeCompare(right.observedOn))
     if (sourcePoints.length > 0) {
       datasets.push({
         label,

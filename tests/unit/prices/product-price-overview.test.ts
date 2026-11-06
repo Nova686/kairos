@@ -40,7 +40,15 @@ describe('productPriceOverview', () => {
     const overview = await productPriceOverview(database, product.id, now)
 
     expect(overview.history).toEqual([
-      { source: 'ebay', condition: 'sealed-new', gradingCompany: null, grade: null, observedOn: '2026-11-01', figureCents: 9500 },
+      {
+        source: 'ebay',
+        condition: 'sealed-new',
+        gradingCompany: null,
+        grade: null,
+        observedOn: '2026-11-01',
+        observedAt: daysBefore(1, 1),
+        figureCents: 9500,
+      },
     ])
   })
 
